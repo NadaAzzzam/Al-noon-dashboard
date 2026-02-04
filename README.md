@@ -44,29 +44,6 @@ JWT_EXPIRES_IN=1d
 CLIENT_URL=http://localhost:5173
 ```
 
-### Seed the admin user
-
-The backend includes a small admin seeding script. It uses the following defaults if environment variables are not provided:
-
-- Email: `Admin`
-- Password: `password`
-
-Run it with:
-
-```bash
-cd server
-npm install
-npm run seed:admin
-```
-
-Optional overrides:
-
-```
-ADMIN_EMAIL=Admin
-ADMIN_PASSWORD=password
-ADMIN_NAME=Admin
-```
-
 ## Admin dashboard (React + TypeScript)
 
 ### Features
