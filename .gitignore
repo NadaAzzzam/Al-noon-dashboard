@@ -1,0 +1,8 @@
+node_modules
+.env
+.env.local
+.DS_Store
+server/dist
+admin-dashboard/dist
+admin-dashboard/node_modules
+server/node_modules
