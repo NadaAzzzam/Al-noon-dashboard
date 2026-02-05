@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, Product } from "../services/api";
+import { api, ApiError, Product } from "../services/api";
 
 const emptyForm = {
   name: "",
@@ -14,10 +14,21 @@ const ProductsPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [form, setForm] = useState({ ...emptyForm });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const loadProducts = async () => {
-    const response = await api.listProducts();
-    setProducts(response.products ?? []);
+    setError(null);
+    try {
+      const response = await api.listProducts() as { products: Product[] };
+      setProducts(response.products ?? []);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        localStorage.removeItem("al_noon_token");
+        window.location.href = "/login";
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "Failed to load products");
+    }
   };
 
   useEffect(() => {
@@ -26,14 +37,19 @@ const ProductsPage = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (editingId) {
-      await api.updateProduct(editingId, form);
-    } else {
-      await api.createProduct(form);
+    setError(null);
+    try {
+      if (editingId) {
+        await api.updateProduct(editingId, form);
+      } else {
+        await api.createProduct(form);
+      }
+      setForm({ ...emptyForm });
+      setEditingId(null);
+      loadProducts();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save product");
     }
-    setForm({ ...emptyForm });
-    setEditingId(null);
-    loadProducts();
   };
 
   const startEdit = (product: Product) => {
@@ -49,12 +65,18 @@ const ProductsPage = () => {
   };
 
   const removeProduct = async (id: string) => {
-    await api.deleteProduct(id);
-    loadProducts();
+    setError(null);
+    try {
+      await api.deleteProduct(id);
+      loadProducts();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to delete product");
+    }
   };
 
   return (
     <div>
+      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
         <div>
           <h1>Products</h1>

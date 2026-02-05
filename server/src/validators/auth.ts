@@ -10,7 +10,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   body: z.object({
-    email: z.string().email(),
+    email: z.union([z.string().email(), z.literal("admin@localhost")]),
     password: z.string().min(6)
   })
 });

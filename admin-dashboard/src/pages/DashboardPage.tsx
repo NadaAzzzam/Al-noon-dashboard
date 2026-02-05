@@ -1,21 +1,32 @@
 import { useEffect, useState } from "react";
-import { api, Order, Product, User } from "../services/api";
+import { api, ApiError, Order, Product, User } from "../services/api";
 
 const DashboardPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      const [productsResponse, ordersResponse, usersResponse] = await Promise.all([
-        api.listProducts(),
-        api.listOrders(),
-        api.listUsers()
-      ]);
-      setProducts(productsResponse.products ?? []);
-      setOrders(ordersResponse.orders ?? []);
-      setUsers(usersResponse.users ?? []);
+      setError(null);
+      try {
+        const [productsResponse, ordersResponse, usersResponse] = await Promise.all([
+          api.listProducts(),
+          api.listOrders(),
+          api.listUsers()
+        ]);
+        setProducts((productsResponse as { products: Product[] }).products ?? []);
+        setOrders((ordersResponse as { orders: Order[] }).orders ?? []);
+        setUsers((usersResponse as { users: User[] }).users ?? []);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          localStorage.removeItem("al_noon_token");
+          window.location.href = "/login";
+          return;
+        }
+        setError(err instanceof ApiError ? err.message : "Failed to load dashboard");
+      }
     };
     load();
   }, []);
@@ -24,6 +35,7 @@ const DashboardPage = () => {
 
   return (
     <div>
+      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
         <div>
           <h1>Dashboard</h1>

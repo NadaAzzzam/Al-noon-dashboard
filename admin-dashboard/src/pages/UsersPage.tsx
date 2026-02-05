@@ -1,19 +1,31 @@
 import { useEffect, useState } from "react";
-import { api, User } from "../services/api";
+import { api, ApiError, User } from "../services/api";
 
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      const response = await api.listUsers();
-      setUsers(response.users ?? []);
+      setError(null);
+      try {
+        const response = await api.listUsers() as { users: User[] };
+        setUsers(response.users ?? []);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          localStorage.removeItem("al_noon_token");
+          window.location.href = "/login";
+          return;
+        }
+        setError(err instanceof ApiError ? err.message : "Failed to load users");
+      }
     };
     load();
   }, []);
 
   return (
     <div>
+      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
         <div>
           <h1>Users</h1>

@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
-import { api, Order } from "../services/api";
+import { api, ApiError, Order } from "../services/api";
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const loadOrders = async () => {
-    const response = await api.listOrders();
-    setOrders(response.orders ?? []);
+    setError(null);
+    try {
+      const response = await api.listOrders() as { orders: Order[] };
+      setOrders(response.orders ?? []);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        localStorage.removeItem("al_noon_token");
+        window.location.href = "/login";
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "Failed to load orders");
+    }
   };
 
   useEffect(() => {
@@ -14,12 +25,18 @@ const OrdersPage = () => {
   }, []);
 
   const updateStatus = async (id: string, status: Order["status"]) => {
-    await api.updateOrderStatus(id, status);
-    loadOrders();
+    setError(null);
+    try {
+      await api.updateOrderStatus(id, status);
+      loadOrders();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update order");
+    }
   };
 
   return (
     <div>
+      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
         <div>
           <h1>Orders</h1>

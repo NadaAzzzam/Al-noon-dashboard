@@ -44,6 +44,33 @@ JWT_EXPIRES_IN=1d
 CLIENT_URL=http://localhost:5173
 ```
 
+**Run without MongoDB:** Set `DEV_WITHOUT_DB=1` in `server/.env` to start the server when MongoDB is not installed or not running. You can log in with `admin@localhost` / `admin123`; products, orders, and users will show as empty until the database is connected. Remove `DEV_WITHOUT_DB` or set it to `0` once MongoDB is ready.
+
+### Admin seeding
+
+Create or promote an admin account locally without editing the database by hand. From the `server` directory run:
+
+```bash
+npm run seed:admin
+```
+
+Defaults used if not overridden by environment variables:
+
+| Variable         | Default          |
+|------------------|------------------|
+| `ADMIN_EMAIL`    | `admin@localhost` |
+| `ADMIN_PASSWORD` | `admin123`       |
+| `ADMIN_NAME`     | `Admin`          |
+
+To use custom credentials, set them in `server/.env` or pass them when running the script, for example:
+
+```bash
+ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=secret ADMIN_NAME="Your Name" npm run seed:admin
+```
+
+- If a user with the given email already exists, they are promoted to `ADMIN` (and name/password are updated if provided).
+- If no user exists, a new admin user is created with the given email, password, and name.
+
 ## Admin dashboard (React + TypeScript)
 
 ### Features

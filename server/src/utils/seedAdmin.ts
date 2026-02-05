@@ -2,30 +2,36 @@ import mongoose from "mongoose";
 import { connectDatabase } from "../config/db.js";
 import { User } from "../models/User.js";
 
-const seedAdmin = async () => {
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@localhost";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin123";
+const ADMIN_NAME = process.env.ADMIN_NAME ?? "Admin";
+
+async function seedAdmin() {
   await connectDatabase();
 
-  const email = process.env.ADMIN_EMAIL ?? "Admin";
-  const password = process.env.ADMIN_PASSWORD ?? "password";
-  const name = process.env.ADMIN_NAME ?? "Admin";
+  const existing = await User.findOne({ email: ADMIN_EMAIL });
 
-  const existing = await User.findOne({ email });
   if (existing) {
-    if (existing.role !== "ADMIN") {
-      existing.role = "ADMIN";
-      await existing.save();
-    }
-    console.log(`Admin already exists: ${email}`);
+    existing.role = "ADMIN";
+    if (ADMIN_NAME) existing.name = ADMIN_NAME;
+    if (ADMIN_PASSWORD) existing.password = ADMIN_PASSWORD;
+    await existing.save();
+    console.log(`Promoted existing user to ADMIN: ${ADMIN_EMAIL}`);
   } else {
-    await User.create({ name, email, password, role: "ADMIN" });
-    console.log(`Admin created: ${email}`);
+    await User.create({
+      name: ADMIN_NAME,
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+      role: "ADMIN"
+    });
+    console.log(`Created admin user: ${ADMIN_EMAIL}`);
   }
 
-  await mongoose.connection.close();
-};
+  await mongoose.disconnect();
+  process.exit(0);
+}
 
-seedAdmin().catch((error) => {
-  console.error(error);
-  mongoose.connection.close().catch(() => undefined);
+seedAdmin().catch((err) => {
+  console.error("Seed failed:", err);
   process.exit(1);
 });

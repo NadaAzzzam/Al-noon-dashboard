@@ -1,8 +1,13 @@
 import { User } from "../models/User.js";
+import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 export const listUsers = asyncHandler(async (_req, res) => {
+  if (!isDbConnected()) {
+    res.json({ users: [] });
+    return;
+  }
   const users = await User.find().select("name email role createdAt").sort({ createdAt: -1 });
   res.json({
     users: users.map((user) => ({
@@ -16,6 +21,7 @@ export const listUsers = asyncHandler(async (_req, res) => {
 });
 
 export const updateUserRole = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
   const { id } = req.params;
   const { role } = req.body;
   const user = await User.findById(id);

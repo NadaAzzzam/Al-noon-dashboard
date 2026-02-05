@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../services/api";
+import { api, ApiError } from "../services/api";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@localhost");
+  const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -14,11 +14,15 @@ const LoginPage = () => {
     setError("");
     setLoading(true);
     try {
-      const response = await api.login(email, password);
+      const response = await api.login(email, password) as { token: string };
       localStorage.setItem("al_noon_token", response.token);
       navigate("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      if (err instanceof ApiError) {
+        setError(err.message || (err.status === 401 ? "Invalid email or password." : "Something went wrong."));
+      } else {
+        setError(err instanceof Error ? err.message : "Login failed");
+      }
     } finally {
       setLoading(false);
     }
