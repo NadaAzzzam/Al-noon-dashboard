@@ -5,8 +5,9 @@ import { validate } from "../middlewares/validate.js";
 import { updateSettingsSchema } from "../validators/settings.js";
 
 const router = Router();
-router.get("/", getSettings);
+
 router.use(authenticate, requireRole(["ADMIN"]));
-router.patch("/", validate(updateSettingsSchema), updateSettings);
+router.get("/", getSettings);
+router.put("/", validate(updateSettingsSchema), updateSettings);
 
 export default router;

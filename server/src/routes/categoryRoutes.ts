@@ -8,7 +8,11 @@ import {
 } from "../controllers/categoriesController.js";
 import { authenticate, requireRole } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
-import { categoryParamsSchema, categorySchema, categoryStatusSchema } from "../validators/categories.js";
+import {
+  categoryParamsSchema,
+  categorySchema,
+  categoryStatusSchema
+} from "../validators/categories.js";
 
 const router = Router();
 

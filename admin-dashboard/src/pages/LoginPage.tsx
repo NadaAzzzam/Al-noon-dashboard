@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { getStoredLanguage, setStoredLanguage, type Lang } from "../i18n";
 import { api, ApiError } from "../services/api";
 
 const LoginPage = () => {
-  const { t } = useTranslation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("admin@localhost");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
@@ -17,11 +16,12 @@ const LoginPage = () => {
     setError("");
     setLoading(true);
     try {
-      await api.login(email, password);
+      const response = await api.signIn(email, password) as { token: string };
+      localStorage.setItem("al_noon_token", response.token);
       navigate("/");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.getDisplayMessage());
+        setError(err.message || (err.status === 401 ? t("auth.invalid_credentials") : t("auth.something_wrong")));
       } else {
         setError(err instanceof Error ? err.message : t("auth.login_failed"));
       }
@@ -30,37 +30,9 @@ const LoginPage = () => {
     }
   };
 
-  const currentLang = getStoredLanguage();
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <div
-          className="lang-switcher"
-          style={{ justifyContent: "flex-end", marginBottom: 12 }}
-        >
-          <button
-            type="button"
-            className={
-              currentLang === "en"
-                ? "button lang-btn active"
-                : "button secondary lang-btn"
-            }
-            onClick={() => setStoredLanguage("en")}
-          >
-            EN
-          </button>
-          <button
-            type="button"
-            className={
-              currentLang === "ar"
-                ? "button lang-btn active"
-                : "button secondary lang-btn"
-            }
-            onClick={() => setStoredLanguage("ar")}
-          >
-            عربي
-          </button>
-        </div>
         <h1>{t("auth.login_title")}</h1>
         <p>{t("auth.login_subtitle")}</p>
         <input
@@ -78,12 +50,7 @@ const LoginPage = () => {
           required
         />
         {error && <div className="error">{error}</div>}
-        <button
-          className="button"
-          type="submit"
-          disabled={loading}
-          style={{ width: "100%", marginTop: 12 }}
-        >
+        <button className="button" type="submit" disabled={loading} style={{ width: "100%", marginTop: 12 }}>
           {loading ? t("auth.signing_in") : t("auth.sign_in")}
         </button>
       </form>

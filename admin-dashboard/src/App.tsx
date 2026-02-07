@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import CategoriesPage from "./pages/CategoriesPage";
+import CitiesPage from "./pages/CitiesPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import CustomersPage from "./pages/CustomersPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -14,8 +15,7 @@ import UsersPage from "./pages/UsersPage";
 import { getToken } from "./services/api";
 
 const RequireAuth = ({ children }: { children: JSX.Element }) => {
-  const token = getToken();
-  if (!token) {
+  if (!getToken()) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -35,13 +35,14 @@ const App = () => (
       <Route index element={<DashboardPage />} />
       <Route path="products" element={<ProductsPage />} />
       <Route path="categories" element={<CategoriesPage />} />
+      <Route path="cities" element={<CitiesPage />} />
       <Route path="inventory" element={<InventoryPage />} />
       <Route path="orders" element={<OrdersPage />} />
       <Route path="orders/:id" element={<OrderDetailPage />} />
       <Route path="customers" element={<CustomersPage />} />
       <Route path="customers/:id" element={<CustomerDetailPage />} />
-      <Route path="settings" element={<SettingsPage />} />
       <Route path="users" element={<UsersPage />} />
+      <Route path="settings" element={<SettingsPage />} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>

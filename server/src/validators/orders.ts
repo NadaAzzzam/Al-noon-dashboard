@@ -1,7 +1,6 @@
 import { z } from "zod";
 
-export const orderStatusEnum = z.enum(["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"]);
-export const paymentStatusEnum = z.enum(["UNPAID", "PENDING_APPROVAL", "PAID"]);
+const orderStatusEnum = z.enum(["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"]);
 
 export const orderSchema = z.object({
   body: z.object({
@@ -19,27 +18,25 @@ export const orderSchema = z.object({
   })
 });
 
-export const orderParamsSchema = z.object({
-  params: z.object({ id: z.string().min(1) })
-});
-
 export const orderStatusSchema = z.object({
-  params: z.object({ id: z.string().min(1) }),
-  body: z.object({ status: orderStatusEnum })
-});
-
-export const orderPaymentSchema = z.object({
-  params: z.object({ id: z.string().min(1) }),
+  params: z.object({
+    id: z.string().min(1)
+  }),
   body: z.object({
-    paymentStatus: paymentStatusEnum.optional(),
-    instaPayProof: z.string().optional()
+    status: orderStatusEnum
   })
 });
 
-export const listOrdersQuerySchema = z.object({
+export const orderParamsSchema = z.object({
+  params: z.object({
+    id: z.string().min(1)
+  })
+});
+
+export const orderQuerySchema = z.object({
   query: z.object({
-    page: z.coerce.number().int().min(1).optional(),
-    limit: z.coerce.number().int().min(1).max(100).optional(),
+    page: z.coerce.number().int().min(1).optional().default(1),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(20),
     status: orderStatusEnum.optional(),
     paymentMethod: z.enum(["COD", "INSTAPAY"]).optional()
   })

@@ -1,15 +1,11 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, clearAuth, Order } from "../services/api";
+import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
+import { api, ApiError, DashboardStats, Order } from "../services/api";
 
 const DashboardPage = () => {
-  const [stats, setStats] = useState<{
-    totalOrders: number;
-    ordersToday: number;
-    revenue: number;
-    lowStockCount: number;
-    bestSellingProducts: { name: string; totalQty: number }[];
-    ordersPerDay: { date: string; count: number }[];
-  } | null>(null);
+  const { t } = useTranslation();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,106 +14,110 @@ const DashboardPage = () => {
       setError(null);
       try {
         const [statsRes, ordersRes] = await Promise.all([
-          api.getDashboardStats(),
-          api.listOrders({ limit: 5 })
+          api.getDashboardStats(30) as DashboardStats,
+          api.listOrders({ limit: 5 }) as { orders: Order[] }
         ]);
         setStats(statsRes);
         setRecentOrders(ordersRes.orders ?? []);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
-          clearAuth();
           window.location.href = "/login";
           return;
         }
-        setError(err instanceof ApiError ? err.message : "Failed to load dashboard");
+        setError(err instanceof ApiError ? err.message : t("dashboard.failed_load"));
       }
     };
     load();
-  }, []);
+  }, [t]);
+
+  if (error) return <div className="error">{error}</div>;
+  if (!stats) return <div>{t("common.loading")}</div>;
+
+  const ordersPerDay = stats.ordersPerDay ?? [];
 
   return (
     <div>
-      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
         <div>
-          <h1>Dashboard</h1>
-          <p>Monitor store performance and daily activity.</p>
+          <h1>{t("dashboard.title")}</h1>
+          <p>{t("dashboard.subtitle")}</p>
         </div>
       </div>
       <div className="card-grid">
         <div className="card">
-          <h3>Total Orders</h3>
-          <p>{stats?.totalOrders ?? "—"}</p>
+          <h3>{t("dashboard.total_orders")}</h3>
+          <p className="card-value">{stats.totalOrders}</p>
         </div>
         <div className="card">
-          <h3>Orders Today</h3>
-          <p>{stats?.ordersToday ?? "—"}</p>
+          <h3>{t("dashboard.orders_today")}</h3>
+          <p className="card-value">{stats.ordersToday}</p>
         </div>
         <div className="card">
-          <h3>Revenue (Delivered)</h3>
-          <p>${stats != null ? stats.revenue.toFixed(2) : "—"}</p>
+          <h3>{t("dashboard.revenue_delivered")}</h3>
+          <p className="card-value">${(stats.revenue ?? 0).toFixed(2)}</p>
         </div>
         <div className="card">
-          <h3>Low Stock</h3>
-          <p>{stats?.lowStockCount ?? "—"}</p>
+          <h3>{t("dashboard.low_stock")}</h3>
+          <p className="card-value">
+            {stats.lowStockCount > 0 ? (
+              <Link to="/inventory" className="notif-badge low">{stats.lowStockCount}</Link>
+            ) : (
+              stats.lowStockCount
+            )}
+          </p>
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
         <div className="card">
-          <h3>Best Selling Products</h3>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Sold</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(stats?.bestSellingProducts ?? []).slice(0, 5).map((p, i) => (
-                <tr key={i}>
-                  <td>{p.name}</td>
-                  <td>{p.totalQty}</td>
-                </tr>
-              ))}
-              {(!stats?.bestSellingProducts?.length) && (
-                <tr><td colSpan={2}>No data</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="card">
-          <h3>Orders per day (last 30)</h3>
-          <div style={{ maxHeight: 240, overflowY: "auto" }}>
-            {(stats?.ordersPerDay ?? []).slice(-14).reverse().map((d) => (
-              <div key={d.date} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #e2e8f0" }}>
-                <span>{d.date}</span>
-                <span>{d.count}</span>
+          <h3>{t("dashboard.orders_per_day")}</h3>
+          <div className="chart-bars">
+            {ordersPerDay.slice(-14).map((d) => {
+            const maxCount = ordersPerDay.length ? Math.max(...ordersPerDay.map((x) => x.count)) : 1;
+            return (
+              <div key={d._id} className="chart-bar-row">
+                <span className="chart-label">{d._id}</span>
+                <div className="chart-bar-wrap">
+                  <div className="chart-bar" style={{ width: `${Math.min(100, (d.count / maxCount) * 100)}%` }} />
+                </div>
+                <span className="chart-value">{d.count}</span>
               </div>
-            ))}
-            {(!stats?.ordersPerDay?.length) && <p>No data</p>}
+            );
+          })}
           </div>
         </div>
+        <div className="card">
+          <h3>{t("dashboard.best_selling")}</h3>
+          <ul className="list">
+            {(stats.bestSelling ?? []).slice(0, 8).map((b, i) => (
+              <li key={b.productId ?? i}>
+                <span>{b.name}</span>
+                <span className="badge">{b.totalQty} {t("dashboard.sold")}</span>
+              </li>
+            ))}
+            {(!stats.bestSelling || stats.bestSelling.length === 0) && <li>{t("dashboard.no_data")}</li>}
+          </ul>
+        </div>
       </div>
-      <div className="card" style={{ marginTop: 24 }}>
-        <h3>Recent Orders</h3>
+      <div className="card">
+        <h3>{t("dashboard.recent_orders")}</h3>
         <table className="table">
           <thead>
             <tr>
-              <th>Order</th>
-              <th>Customer</th>
-              <th>Status</th>
-              <th>Payment</th>
-              <th>Total</th>
+              <th>{t("dashboard.order")}</th>
+              <th>{t("dashboard.customer")}</th>
+              <th>{t("dashboard.status")}</th>
+              <th>{t("dashboard.total")}</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {recentOrders.map((order) => (
               <tr key={order._id}>
-                <td>{order._id.slice(-6).toUpperCase()}</td>
+                <td>{order._id.slice(-8)}</td>
                 <td>{order.user?.name ?? "—"}</td>
                 <td><span className="badge">{order.status}</span></td>
-                <td><span className="badge">{order.paymentStatus}</span></td>
                 <td>${order.total.toFixed(2)}</td>
+                <td><Link to={`/orders/${order._id}`} className="button secondary">{t("common.view")}</Link></td>
               </tr>
             ))}
           </tbody>

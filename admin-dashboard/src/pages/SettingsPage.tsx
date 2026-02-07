@@ -1,27 +1,32 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, clearAuth, Settings } from "../services/api";
+import { useTranslation } from "react-i18next";
+import { api, ApiError, Settings } from "../services/api";
 
 const SettingsPage = () => {
-  const [settings, setSettings] = useState<Settings>({});
+  const { t } = useTranslation();
+  const [form, setForm] = useState<Settings>({
+    storeName: "",
+    logo: "",
+    instaPayNumber: "",
+    paymentMethods: { cod: true, instaPay: true },
+    lowStockThreshold: 5
+  });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      setError(null);
-      try {
-        const res = await api.getSettings();
-        setSettings(res.settings ?? {});
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          clearAuth();
-          window.location.href = "/login";
-          return;
-        }
-        setError(err instanceof ApiError ? err.message : "Failed to load settings");
-      }
-    };
-    load();
+    api.getSettings()
+      .then((res: unknown) => {
+        const d = (res as { settings: Settings }).settings;
+        setForm({
+          storeName: d.storeName ?? "",
+          logo: d.logo ?? "",
+          instaPayNumber: d.instaPayNumber ?? "",
+          paymentMethods: d.paymentMethods ?? { cod: true, instaPay: true },
+          lowStockThreshold: d.lowStockThreshold ?? 5
+        });
+      })
+      .catch(() => setError(t("settings.failed_load")));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,83 +34,102 @@ const SettingsPage = () => {
     setError(null);
     setSaved(false);
     try {
-      await api.updateSettings(settings);
+      await api.updateSettings(form);
       setSaved(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save");
+      setError(err instanceof ApiError ? err.message : t("settings.failed_save"));
     }
   };
 
   return (
-    <div>
-      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
-      {saved && <div style={{ marginBottom: 16, color: "green" }}>Settings saved.</div>}
+    <div className="settings-page">
+      {error && <div className="error settings-message" role="alert">{error}</div>}
+      {saved && <div className="badge badge-success settings-message" role="status">{t("common.saved")}</div>}
       <div className="header">
-        <h1>Settings</h1>
-        <p>Store info, delivery fee, payment methods, and stock threshold.</p>
+        <div>
+          <h1>{t("settings.title")}</h1>
+          <p className="header-subtitle">{t("settings.subtitle")}</p>
+        </div>
       </div>
-      <div className="card">
-        <form className="form-grid" onSubmit={handleSubmit} style={{ maxWidth: 480 }}>
-          <label>Store name</label>
-          <input
-            value={settings.storeName ?? ""}
-            onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
-            placeholder="Store name"
-          />
-          <label>Logo URL</label>
-          <input
-            value={settings.logo ?? ""}
-            onChange={(e) => setSettings({ ...settings, logo: e.target.value })}
-            placeholder="https://..."
-          />
-          <label>Delivery fee</label>
-          <input
-            type="number"
-            min={0}
-            step={0.01}
-            value={settings.deliveryFee ?? 0}
-            onChange={(e) => setSettings({ ...settings, deliveryFee: Number(e.target.value) })}
-          />
-          <label>InstaPay number</label>
-          <input
-            value={settings.instaPayNumber ?? ""}
-            onChange={(e) => setSettings({ ...settings, instaPayNumber: e.target.value })}
-            placeholder="Phone or account"
-          />
-          <label>Low stock threshold</label>
-          <input
-            type="number"
-            min={0}
-            value={settings.lowStockThreshold ?? 5}
-            onChange={(e) => setSettings({ ...settings, lowStockThreshold: Number(e.target.value) })}
-          />
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.paymentMethods?.cod ?? true}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  paymentMethods: { ...settings.paymentMethods, cod: e.target.checked, instaPay: settings.paymentMethods?.instaPay ?? true }
-                })}
-              />
-              {" "}Cash on Delivery
-            </label>
+      <div className="card settings-card">
+        <form onSubmit={handleSubmit} className="settings-form">
+          <section className="settings-section">
+            <h3 className="settings-section-title">{t("settings.section_store")}</h3>
+            <div className="settings-fields">
+              <div className="form-group">
+                <label htmlFor="settings-store-name">{t("settings.store_name")}</label>
+                <input
+                  id="settings-store-name"
+                  value={form.storeName}
+                  onChange={(e) => setForm({ ...form, storeName: e.target.value })}
+                  placeholder={t("settings.store_name")}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="settings-logo">{t("settings.logo_url")}</label>
+                <input
+                  id="settings-logo"
+                  value={form.logo}
+                  onChange={(e) => setForm({ ...form, logo: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+          </section>
+          <section className="settings-section">
+            <h3 className="settings-section-title">{t("settings.section_delivery_payment")}</h3>
+            <div className="settings-fields">
+              <div className="form-group">
+                <label htmlFor="settings-instapay">{t("settings.instapay_number")}</label>
+                <input
+                  id="settings-instapay"
+                  value={form.instaPayNumber}
+                  onChange={(e) => setForm({ ...form, instaPayNumber: e.target.value })}
+                  placeholder={t("settings.instapay_placeholder")}
+                />
+              </div>
+            </div>
+            <p className="settings-hint">{t("settings.cities_manage_hint")}</p>
+          </section>
+          <section className="settings-section">
+            <h3 className="settings-section-title">{t("settings.section_payment_methods")}</h3>
+            <div className="settings-fields settings-fields-inline">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={form.paymentMethods.cod}
+                  onChange={(e) => setForm({ ...form, paymentMethods: { ...form.paymentMethods, cod: e.target.checked } })}
+                />
+                <span>{t("settings.cod")}</span>
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={form.paymentMethods.instaPay}
+                  onChange={(e) => setForm({ ...form, paymentMethods: { ...form.paymentMethods, instaPay: e.target.checked } })}
+                />
+                <span>{t("settings.instapay")}</span>
+              </label>
+            </div>
+          </section>
+          <section className="settings-section">
+            <h3 className="settings-section-title">{t("settings.section_inventory")}</h3>
+            <div className="settings-fields">
+              <div className="form-group form-group-narrow">
+                <label htmlFor="settings-threshold">{t("settings.low_stock_threshold")}</label>
+                <input
+                  id="settings-threshold"
+                  type="number"
+                  min={0}
+                  value={form.lowStockThreshold}
+                  onChange={(e) => setForm({ ...form, lowStockThreshold: Math.max(0, Number(e.target.value) || 0) })}
+                />
+              </div>
+            </div>
+          </section>
+          <div className="settings-actions">
+            <button className="button" type="submit">{t("settings.save_settings")}</button>
           </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.paymentMethods?.instaPay ?? true}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  paymentMethods: { cod: settings.paymentMethods?.cod ?? true, instaPay: e.target.checked, ...settings.paymentMethods }
-                })}
-              />
-              {" "}InstaPay
-            </label>
-          </div>
-          <button className="button" type="submit">Save settings</button>
         </form>
       </div>
     </div>

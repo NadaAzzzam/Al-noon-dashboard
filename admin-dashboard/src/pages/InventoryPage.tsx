@@ -1,43 +1,49 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, Product, clearAuth } from "../services/api";
+import { useTranslation } from "react-i18next";
+import { api, ApiError, Product } from "../services/api";
 
 const InventoryPage = () => {
+  const { t } = useTranslation();
   const [lowStock, setLowStock] = useState<Product[]>([]);
   const [outOfStock, setOutOfStock] = useState<Product[]>([]);
   const [threshold, setThreshold] = useState(5);
-  const [editingStock, setEditingStock] = useState<{ id: string; value: number } | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [stockValue, setStockValue] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     setError(null);
     try {
       const [lowRes, outRes] = await Promise.all([
-        api.getLowStockProducts(),
-        api.getOutOfStockProducts()
+        api.getLowStock() as { products: Product[]; threshold: number },
+        api.getOutOfStock() as { products: Product[] }
       ]);
       setLowStock(lowRes.products ?? []);
       setOutOfStock(outRes.products ?? []);
       setThreshold(lowRes.threshold ?? 5);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        clearAuth();
         window.location.href = "/login";
         return;
       }
-      setError(err instanceof ApiError ? err.message : "Failed to load inventory");
+      setError(err instanceof ApiError ? err.message : t("inventory.failed_load"));
     }
   };
 
   useEffect(() => { load(); }, []);
 
-  const saveStock = async (id: string, stock: number) => {
+  const updateStock = async (productId: string) => {
+    const value = stockValue[productId] ?? 0;
+    setUpdatingId(productId);
     setError(null);
     try {
-      await api.updateProductStock(id, stock);
-      setEditingStock(null);
+      await api.updateProductStock(productId, value);
+      setStockValue((prev) => ({ ...prev, [productId]: undefined }));
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update stock");
+      setError(err instanceof ApiError ? err.message : t("inventory.failed_update"));
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -45,86 +51,84 @@ const InventoryPage = () => {
     <div>
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
-        <h1>Inventory</h1>
-        <p>Low stock threshold: {threshold}. Update stock manually.</p>
+        <div>
+          <h1>{t("inventory.title")}</h1>
+          <p>{t("inventory.subtitle", { count: threshold })}</p>
+        </div>
       </div>
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h3>Low stock</h3>
+      <div className="card">
+        <h3>{t("inventory.low_stock_title", { count: threshold })}</h3>
         <table className="table">
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Category</th>
-              <th>Stock</th>
-              <th>Action</th>
+              <th>{t("order_detail.product")}</th>
+              <th>{t("products.stock")}</th>
+              <th>{t("common.update")}</th>
             </tr>
           </thead>
           <tbody>
+            {lowStock.length === 0 && <tr><td colSpan={3}>{t("common.none")}</td></tr>}
             {lowStock.map((p) => (
               <tr key={p._id}>
                 <td>{p.name}</td>
-                <td>{typeof p.category === "object" && p.category ? p.category.name : ""}</td>
+                <td><span className="badge badge-warning">{p.stock}</span></td>
                 <td>
-                  {editingStock?.id === p._id ? (
-                    <input
-                      type="number"
-                      min={0}
-                      value={editingStock.value}
-                      onChange={(e) => setEditingStock({ id: p._id, value: Number(e.target.value) })}
-                      onBlur={() => editingStock && saveStock(p._id, editingStock.value)}
-                    />
-                  ) : (
-                    <span className="badge" style={{ background: "#fef3c7", color: "#92400e" }}>{p.stock}</span>
-                  )}
-                </td>
-                <td>
-                  {editingStock?.id === p._id ? (
-                    <button className="button" onClick={() => editingStock && saveStock(p._id, editingStock.value)}>Save</button>
-                  ) : (
-                    <button className="button secondary" onClick={() => setEditingStock({ id: p._id, value: p.stock })}>Edit</button>
-                  )}
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder={t("inventory.new_qty")}
+                    value={stockValue[p._id] ?? ""}
+                    onChange={(e) => setStockValue((prev) => ({ ...prev, [p._id]: Number(e.target.value) || 0 }))}
+                    style={{ width: 80, marginRight: 8 }}
+                  />
+                  <button
+                    className="button"
+                    disabled={updatingId === p._id}
+                    onClick={() => updateStock(p._id)}
+                  >
+                    {updatingId === p._id ? t("inventory.updating") : t("common.update")}
+                  </button>
                 </td>
               </tr>
             ))}
-            {!lowStock.length && <tr><td colSpan={4}>No low stock items</td></tr>}
           </tbody>
         </table>
       </div>
       <div className="card">
-        <h3>Out of stock</h3>
+        <h3>{t("inventory.out_of_stock")}</h3>
         <table className="table">
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Category</th>
-              <th>Stock</th>
-              <th>Action</th>
+              <th>{t("order_detail.product")}</th>
+              <th>{t("products.stock")}</th>
+              <th>{t("common.update")}</th>
             </tr>
           </thead>
           <tbody>
+            {outOfStock.length === 0 && <tr><td colSpan={3}>{t("common.none")}</td></tr>}
             {outOfStock.map((p) => (
               <tr key={p._id}>
                 <td>{p.name}</td>
-                <td>{typeof p.category === "object" && p.category ? p.category.name : ""}</td>
-                <td><span className="badge" style={{ background: "#fee2e2", color: "#991b1b" }}>0</span></td>
+                <td><span className="badge badge-danger">0</span></td>
                 <td>
-                  {editingStock?.id === p._id ? (
-                    <>
-                      <input
-                        type="number"
-                        min={0}
-                        value={editingStock.value}
-                        onChange={(e) => setEditingStock({ id: p._id, value: Number(e.target.value) })}
-                      />
-                      <button className="button" onClick={() => editingStock && saveStock(p._id, editingStock.value)}>Save</button>
-                    </>
-                  ) : (
-                    <button className="button secondary" onClick={() => setEditingStock({ id: p._id, value: 0 })}>Update stock</button>
-                  )}
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder={t("inventory.new_qty")}
+                    value={stockValue[p._id] ?? ""}
+                    onChange={(e) => setStockValue((prev) => ({ ...prev, [p._id]: Number(e.target.value) || 0 }))}
+                    style={{ width: 80, marginRight: 8 }}
+                  />
+                  <button
+                    className="button"
+                    disabled={updatingId === p._id}
+                    onClick={() => updateStock(p._id)}
+                  >
+                    {updatingId === p._id ? t("inventory.updating") : t("common.update")}
+                  </button>
                 </td>
               </tr>
             ))}
-            {!outOfStock.length && <tr><td colSpan={4}>No out of stock items</td></tr>}
           </tbody>
         </table>
       </div>

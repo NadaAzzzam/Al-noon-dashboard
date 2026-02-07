@@ -11,12 +11,6 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   body: z.object({
     email: z.union([z.string().email(), z.literal("admin@localhost")]),
-    password: z.string().min(1)
-  })
-});
-
-export const refreshSchema = z.object({
-  body: z.object({
-    refreshToken: z.string().min(1).optional()
+    password: z.string().min(6)
   })
 });

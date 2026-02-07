@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, ApiError, User } from "../services/api";
 
 const UsersPage = () => {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +19,7 @@ const UsersPage = () => {
           window.location.href = "/login";
           return;
         }
-        setError(err instanceof ApiError ? err.message : "Failed to load users");
+        setError(err instanceof ApiError ? err.message : t("users.failed_load"));
       }
     };
     load();
@@ -28,17 +30,17 @@ const UsersPage = () => {
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
         <div>
-          <h1>Users</h1>
-          <p>Manage customer access and roles.</p>
+          <h1>{t("users.title")}</h1>
+          <p>{t("users.subtitle")}</p>
         </div>
       </div>
       <div className="card">
         <table className="table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
+              <th>{t("categories.name")}</th>
+              <th>{t("auth.email")}</th>
+              <th>{t("common.role")}</th>
             </tr>
           </thead>
           <tbody>

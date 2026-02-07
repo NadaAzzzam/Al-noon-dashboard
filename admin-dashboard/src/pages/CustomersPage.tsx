@@ -1,26 +1,25 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { api, ApiError, clearAuth, Order } from "../services/api";
-
-type Customer = { id: string; name: string; email: string; createdAt: string };
+import { api, ApiError, User } from "../services/api";
 
 const CustomersPage = () => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const { t } = useTranslation();
+  const [users, setUsers] = useState<User[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       setError(null);
       try {
-        const res = await api.listCustomers();
-        setCustomers(res.customers ?? []);
+        const response = await api.listUsers() as { users: User[] };
+        setUsers(response.users ?? []);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
-          clearAuth();
           window.location.href = "/login";
           return;
         }
-        setError(err instanceof ApiError ? err.message : "Failed to load customers");
+        setError(err instanceof ApiError ? err.message : t("customers.failed_load"));
       }
     };
     load();
@@ -30,25 +29,29 @@ const CustomersPage = () => {
     <div>
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
-        <h1>Customers</h1>
-        <p>View customer list and order history.</p>
+        <div>
+          <h1>{t("customers.title")}</h1>
+          <p>{t("customers.subtitle")}</p>
+        </div>
       </div>
       <div className="card">
         <table className="table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Actions</th>
+              <th>{t("categories.name")}</th>
+              <th>{t("auth.email")}</th>
+              <th>{t("common.role")}</th>
+              <th>{t("common.actions")}</th>
             </tr>
           </thead>
           <tbody>
-            {customers.map((c) => (
-              <tr key={c.id}>
-                <td>{c.name}</td>
-                <td>{c.email}</td>
+            {users.map((user) => (
+              <tr key={user.id}>
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+                <td><span className="badge">{user.role}</span></td>
                 <td>
-                  <Link to={`/customers/${c.id}`} className="button secondary">Details</Link>
+                  <Link to={`/customers/${user.id}`} className="button secondary">{t("common.view")}</Link>
                 </td>
               </tr>
             ))}

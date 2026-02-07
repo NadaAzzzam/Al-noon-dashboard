@@ -1,26 +1,23 @@
 import { Order } from "../models/Order.js";
+import { Payment } from "../models/Payment.js";
 import { Product } from "../models/Product.js";
-import { Settings } from "../models/Settings.js";
 import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-const defaultLimit = 20;
-
 export const listOrders = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    res.json({ orders: [], total: 0, page: 1, limit: defaultLimit, totalPages: 0 });
-    return;
+    return res.json({ orders: [], total: 0, page: 1, limit: 20, totalPages: 0 });
   }
   const isAdmin = req.auth?.role === "ADMIN";
   const filter: Record<string, unknown> = isAdmin ? {} : { user: req.auth?.userId };
+
+  const page = Number(req.query.page) || 1;
+  const limit = Math.min(Number(req.query.limit) || 20, 100);
   const status = req.query.status as string | undefined;
   const paymentMethod = req.query.paymentMethod as string | undefined;
   if (status) filter.status = status;
   if (paymentMethod) filter.paymentMethod = paymentMethod;
-
-  const page = Number(req.query.page) || 1;
-  const limit = Math.min(Number(req.query.limit) || defaultLimit, 100);
 
   const [orders, total] = await Promise.all([
     Order.find(filter)
@@ -33,12 +30,38 @@ export const listOrders = asyncHandler(async (req, res) => {
     Order.countDocuments(filter)
   ]);
 
+  const orderIds = orders.map((o) => (o as { _id: unknown })._id);
+  const payments = await Payment.find({ order: { $in: orderIds } }).lean();
+  const paymentByOrder = Object.fromEntries(
+    payments.map((p) => {
+      const oid = (p as { order: { toString: () => string } }).order;
+      return [typeof oid === "object" && oid && "toString" in oid ? oid.toString() : String(oid), p];
+    })
+  );
+
+  const withPayment = orders.map((o) => {
+    const ord = o as { _id: { toString: () => string }; paymentMethod?: string };
+    const pay = paymentByOrder[ord._id.toString()];
+    return {
+      ...ord,
+      payment: pay
+        ? {
+            method: (pay as { method: string }).method,
+            status: (pay as { status: string }).status,
+            instaPayProofUrl: (pay as { instaPayProofUrl?: string }).instaPayProofUrl
+          }
+        : ord.paymentMethod
+        ? { method: ord.paymentMethod, status: "UNPAID" as const }
+        : undefined
+    };
+  });
+
   res.json({
-    orders,
+    orders: withPayment,
     total,
     page,
     limit,
-    totalPages: Math.ceil(total / limit) || 0
+    totalPages: Math.ceil(total / limit)
   });
 });
 
@@ -46,31 +69,44 @@ export const getOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
   const order = await Order.findById(req.params.id)
     .populate("user", "name email")
-    .populate("items.product", "name price discountPrice images");
-  if (!order) throw new ApiError(404, "Order not found");
+    .populate("items.product", "name price discountPrice images stock");
+  if (!order) {
+    throw new ApiError(404, "Order not found");
+  }
   const isAdmin = req.auth?.role === "ADMIN";
-  if (!isAdmin && String(order.user._id) !== req.auth?.userId) {
+  if (!isAdmin && order.user._id.toString() !== req.auth?.userId) {
     throw new ApiError(403, "Forbidden");
   }
-  res.json({ order });
+  const payment = await Payment.findOne({ order: order._id }).lean();
+  res.json({
+    order: {
+      ...order.toObject(),
+      payment: payment ?? (order.paymentMethod ? { method: order.paymentMethod, status: "UNPAID" } : undefined)
+    }
+  });
 });
 
 export const createOrder = asyncHandler(async (req, res) => {
-  if (!req.auth) throw new ApiError(401, "Unauthorized");
+  if (!req.auth) {
+    throw new ApiError(401, "Unauthorized");
+  }
   if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
-  const { items, paymentMethod = "COD", shippingAddress } = req.body;
-  const subtotal = items.reduce((sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price, 0);
-  const settings = await Settings.findOne().lean();
-  const deliveryFee = settings?.deliveryFee ?? 0;
-  const total = subtotal + deliveryFee;
+  const { items, paymentMethod, shippingAddress } = req.body;
+  const total = items.reduce(
+    (sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price,
+    0
+  );
   const order = await Order.create({
     user: req.auth.userId,
     items,
     total,
-    deliveryFee,
-    paymentMethod,
-    paymentStatus: paymentMethod === "INSTAPAY" ? "PENDING_APPROVAL" : "UNPAID",
+    paymentMethod: paymentMethod || "COD",
     shippingAddress
+  });
+  await Payment.create({
+    order: order._id,
+    method: paymentMethod || "COD",
+    status: paymentMethod === "INSTAPAY" ? "UNPAID" : "UNPAID"
   });
   res.status(201).json({ order });
 });
@@ -78,111 +114,36 @@ export const createOrder = asyncHandler(async (req, res) => {
 export const updateOrderStatus = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
   const order = await Order.findById(req.params.id);
-  if (!order) throw new ApiError(404, "Order not found");
+  if (!order) {
+    throw new ApiError(404, "Order not found");
+  }
   const newStatus = req.body.status;
-
-  if (newStatus === "CANCELLED") {
-    order.status = "CANCELLED";
-    await order.save();
-    const populated = await Order.findById(order.id)
-      .populate("user", "name email")
-      .populate("items.product", "name price");
-    res.json({ order: populated });
-    return;
-  }
-
-  const validTransitions: Record<string, string[]> = {
-    PENDING: ["CONFIRMED", "CANCELLED"],
-    CONFIRMED: ["SHIPPED", "CANCELLED"],
-    SHIPPED: ["DELIVERED"],
-    DELIVERED: [],
-    CANCELLED: []
-  };
-  const allowed = validTransitions[order.status];
-  if (!allowed?.includes(newStatus)) {
-    throw new ApiError(400, `Cannot change status from ${order.status} to ${newStatus}`);
-  }
-
+  order.status = newStatus;
+  await order.save();
   if (newStatus === "CONFIRMED") {
     for (const item of order.items) {
       await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
     }
   }
-
-  order.status = newStatus;
-  await order.save();
-  const populated = await Order.findById(order.id)
-    .populate("user", "name email")
-    .populate("items.product", "name price");
-  res.json({ order: populated });
+  res.json({ order });
 });
 
 export const cancelOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
   const order = await Order.findById(req.params.id);
-  if (!order) throw new ApiError(404, "Order not found");
-  if (order.status !== "PENDING" && order.status !== "CONFIRMED") {
-    throw new ApiError(400, "Only PENDING or CONFIRMED orders can be cancelled");
+  if (!order) {
+    throw new ApiError(404, "Order not found");
   }
+  if (order.status !== "PENDING" && order.status !== "CONFIRMED") {
+    throw new ApiError(400, "Only pending or confirmed orders can be cancelled");
+  }
+  const wasConfirmed = order.status === "CONFIRMED";
   order.status = "CANCELLED";
   await order.save();
-  const populated = await Order.findById(order.id)
-    .populate("user", "name email")
-    .populate("items.product", "name price");
-  res.json({ order: populated });
-});
-
-export const updateOrderPayment = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
-  const order = await Order.findById(req.params.id);
-  if (!order) throw new ApiError(404, "Order not found");
-  if (req.body.paymentStatus !== undefined) {
-    order.paymentStatus = req.body.paymentStatus;
-    if (req.body.paymentStatus === "PAID" && order.status === "PENDING") {
-      order.status = "CONFIRMED";
-      for (const item of order.items) {
-        await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
-      }
-    }
-  }
-  if (req.body.instaPayProof !== undefined) order.instaPayProof = req.body.instaPayProof;
-  await order.save();
-  const populated = await Order.findById(order.id)
-    .populate("user", "name email")
-    .populate("items.product", "name price");
-  res.json({ order: populated });
-});
-
-export const attachPaymentProof = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
-  const order = await Order.findById(req.params.id);
-  if (!order) throw new ApiError(404, "Order not found");
-  if (order.paymentMethod !== "INSTAPAY") {
-    throw new ApiError(400, "Order is not InstaPay");
-  }
-  order.instaPayProof = req.body.instaPayProof ?? "";
-  order.paymentStatus = "PENDING_APPROVAL";
-  await order.save();
-  const populated = await Order.findById(order.id)
-    .populate("user", "name email")
-    .populate("items.product", "name price");
-  res.json({ order: populated });
-});
-
-export const confirmPayment = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
-  const order = await Order.findById(req.params.id);
-  if (!order) throw new ApiError(404, "Order not found");
-  order.paymentStatus = "PAID";
-  if (order.status === "PENDING") {
-    order.status = "CONFIRMED";
+  if (wasConfirmed) {
     for (const item of order.items) {
-      await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
+      await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } });
     }
   }
-  await order.save();
-  const populated = await Order.findById(order.id)
-    .populate("user", "name email")
-    .populate("items.product", "name price");
-  res.json({ order: populated });
+  res.json({ order });
 });

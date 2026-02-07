@@ -1,5 +1,3 @@
-import i18n from "../i18n";
-
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 export type User = {
@@ -15,35 +13,30 @@ export type Product = {
   description?: string;
   price: number;
   discountPrice?: number;
+  images?: string[];
   stock: number;
   status: "ACTIVE" | "INACTIVE";
-  images?: string[];
-  category?: { _id: string; name: string; isVisible?: boolean } | string;
-  createdAt?: string;
+  category?: { name: string; status?: string } | string;
 };
 
 export type Category = {
   _id: string;
   name: string;
   description?: string;
-  isVisible?: boolean;
+  status: "visible" | "hidden";
 };
 
 export type OrderStatus = "PENDING" | "CONFIRMED" | "SHIPPED" | "DELIVERED" | "CANCELLED";
-export type PaymentMethod = "COD" | "INSTAPAY";
-export type PaymentStatus = "UNPAID" | "PENDING_APPROVAL" | "PAID";
 
 export type Order = {
   _id: string;
   status: OrderStatus;
-  paymentMethod: PaymentMethod;
-  paymentStatus: PaymentStatus;
   total: number;
-  deliveryFee?: number;
-  instaPayProof?: string;
+  paymentMethod?: "COD" | "INSTAPAY";
   shippingAddress?: string;
-  user?: { _id: string; name: string; email: string };
-  items?: { product: { _id: string; name: string; price: number; discountPrice?: number }; quantity: number; price: number }[];
+  user?: { name: string; email: string };
+  items?: { product: { name: string; price: number; discountPrice?: number }; quantity: number; price: number }[];
+  payment?: { method: string; status: string; instaPayProofUrl?: string };
   createdAt: string;
 };
 
@@ -52,66 +45,39 @@ export type DashboardStats = {
   ordersToday: number;
   revenue: number;
   lowStockCount: number;
-  bestSellingProducts: { name: string; totalQty: number }[];
-  ordersPerDay: { date: string; count: number }[];
+  bestSelling: { productId: string; name: string; totalQty: number }[];
+  ordersPerDay: { _id: string; count: number; revenue: number }[];
+};
+
+export type City = {
+  _id: string;
+  name: string;
+  deliveryFee: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Settings = {
-  storeName?: string;
+  storeName: string;
   logo?: string;
-  deliveryFee?: number;
-  instaPayNumber?: string;
-  paymentMethods?: { cod: boolean; instaPay: boolean };
-  lowStockThreshold?: number;
+  instaPayNumber: string;
+  paymentMethods: { cod: boolean; instaPay: boolean };
+  lowStockThreshold: number;
 };
 
-/** Thrown for any non-2xx API response. Includes optional code for i18n. */
-export interface ApiErrorBody {
-  message?: string;
-  code?: string;
-  details?: unknown;
-}
-
+/** Thrown for any non-2xx API response. */
 export class ApiError extends Error {
-  declare public status: number;
-  declare public body: ApiErrorBody | undefined;
-
   constructor(
-    status: number,
+    public status: number,
     message: string,
-    body?: ApiErrorBody
+    public body?: unknown
   ) {
     super(message);
     this.name = "ApiError";
-    this.status = status;
-    this.body = body;
-  }
-
-  /** User-facing message: prefer FE translation by code if available, else server message. */
-  getDisplayMessage(): string {
-    const code = this.body?.code;
-    if (code && typeof i18n.t(code) === "string" && i18n.t(code) !== code) {
-      return i18n.t(code);
-    }
-    return this.message;
   }
 }
 
-const TOKEN_KEY = "al_noon_token";
-const REFRESH_KEY = "al_noon_refresh";
-
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
-export const getRefreshToken = () => localStorage.getItem(REFRESH_KEY);
-
-function setTokens(token: string, refreshToken?: string) {
-  localStorage.setItem(TOKEN_KEY, token);
-  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
-}
-
-export function clearAuth() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
-}
+export const getToken = () => localStorage.getItem("al_noon_token");
 
 async function parseErrorResponse(response: Response): Promise<{ message: string; body?: unknown }> {
   const text = await response.text();
@@ -132,122 +98,102 @@ async function parseErrorResponse(response: Response): Promise<{ message: string
   return { message, body };
 }
 
-async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
+const request = async (path: string, options: RequestInit = {}): Promise<unknown> => {
+  const token = getToken();
+  const headers = new Headers(options.headers);
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  let response: Response;
   try {
-    const response = await fetch(`${API_BASE}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken })
-    });
-    if (!response.ok) return false;
-    const data = (await response.json()) as { token: string };
-    localStorage.setItem(TOKEN_KEY, data.token);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const request = async (path: string, options: RequestInit = {}, skipRefresh = false): Promise<unknown> => {
-  const doRequest = async (token: string | null): Promise<Response> => {
-    const headers = new Headers(options.headers);
-    headers.set("Content-Type", "application/json");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    return fetch(`${API_BASE}${path}`, { ...options, headers });
-  };
-
-  let token = getToken();
-  let response = await doRequest(token);
-
-  if (response.status === 401 && !skipRefresh && getRefreshToken()) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
-      token = getToken();
-      response = await doRequest(token);
-    }
+    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Network error";
+    throw new ApiError(0, `Cannot reach server. ${msg}`);
   }
 
   if (!response.ok) {
     const { message, body } = await parseErrorResponse(response);
-    throw new ApiError(response.status, message, body as ApiErrorBody);
+    throw new ApiError(response.status, message, body);
   }
   if (response.status === 204) return null;
   return response.json();
 };
 
 export const api = {
-  login: async (email: string, password: string) => {
-    const data = await request("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    }, true) as { token: string; refreshToken?: string; user: User };
-    setTokens(data.token, data.refreshToken);
-    return data;
-  },
-  logout: () =>
-    request("/auth/logout", { method: "POST" }).then(() => clearAuth()).catch(() => clearAuth()),
-  me: () => request("/auth/me") as Promise<{ user: User }>,
-  refresh: () => request("/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken: getRefreshToken() }) }, true),
+  /** POST /auth/sign-in – conventional name for login */
+  signIn: (email: string, password: string) =>
+    request("/auth/sign-in", { method: "POST", body: JSON.stringify({ email, password }) }),
+  /** GET /auth/profile – current user (conventional name for "me") */
+  getProfile: () => request("/auth/profile"),
 
-  listUsers: () => request("/users") as Promise<{ users: User[] }>,
-  listProducts: (params?: { page?: number; limit?: number; search?: string; category?: string; status?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.page) q.set("page", String(params.page));
-    if (params?.limit) q.set("limit", String(params.limit));
-    if (params?.search) q.set("search", params.search);
-    if (params?.category) q.set("category", params.category);
-    if (params?.status) q.set("status", params.status);
-    const query = q.toString();
-    return request(`/products${query ? `?${query}` : ""}`) as Promise<{ products: Product[]; total: number; page: number; limit: number; totalPages: number }>;
+  listUsers: () => request("/users"),
+  getCustomer: (id: string) => request(`/users/${id}`),
+  getCustomerOrders: (id: string) => request(`/users/${id}/orders`),
+
+  listProducts: (params?: { page?: number; limit?: number; search?: string; status?: string; category?: string }) => {
+    const sp = new URLSearchParams();
+    if (params?.page != null) sp.set("page", String(params.page));
+    if (params?.limit != null) sp.set("limit", String(params.limit));
+    if (params?.search) sp.set("search", params.search);
+    if (params?.status) sp.set("status", params.status);
+    if (params?.category) sp.set("category", params.category);
+    const q = sp.toString();
+    return request(`/products${q ? `?${q}` : ""}`);
   },
-  getProduct: (id: string) => request(`/products/${id}`) as Promise<{ product: Product }>,
+  getProduct: (id: string) => request(`/products/${id}`),
   createProduct: (payload: Partial<Product>) =>
     request("/products", { method: "POST", body: JSON.stringify(payload) }),
   updateProduct: (id: string, payload: Partial<Product>) =>
     request(`/products/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   setProductStatus: (id: string, status: "ACTIVE" | "INACTIVE") =>
     request(`/products/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
-  updateProductStock: (id: string, stock: number) =>
-    request(`/products/${id}/stock`, { method: "PATCH", body: JSON.stringify({ stock }) }),
+  updateProductStock: (productId: string, stock: number) =>
+    request(`/products/${productId}/stock`, { method: "PATCH", body: JSON.stringify({ stock }) }),
   deleteProduct: (id: string) => request(`/products/${id}`, { method: "DELETE" }),
-  getLowStockProducts: () => request("/products/low-stock") as Promise<{ products: Product[]; threshold: number }>,
-  getOutOfStockProducts: () => request("/products/out-of-stock") as Promise<{ products: Product[] }>,
 
-  listCategories: () => request("/categories") as Promise<{ categories: Category[] }>,
-  createCategory: (payload: { name: string; description?: string; isVisible?: boolean }) =>
+  listCities: () => request("/cities"),
+  getCity: (id: string) => request(`/cities/${id}`),
+  createCity: (payload: { name: string; deliveryFee?: number }) =>
+    request("/cities", { method: "POST", body: JSON.stringify(payload) }),
+  updateCity: (id: string, payload: { name?: string; deliveryFee?: number }) =>
+    request(`/cities/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteCity: (id: string) => request(`/cities/${id}`, { method: "DELETE" }),
+
+  listCategories: () => request("/categories"),
+  createCategory: (payload: Partial<Category>) =>
     request("/categories", { method: "POST", body: JSON.stringify(payload) }),
   updateCategory: (id: string, payload: Partial<Category>) =>
     request(`/categories/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
-  setCategoryStatus: (id: string, isVisible: boolean) =>
-    request(`/categories/${id}/status`, { method: "PATCH", body: JSON.stringify({ isVisible }) }),
+  setCategoryStatus: (id: string, status: "visible" | "hidden") =>
+    request(`/categories/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   deleteCategory: (id: string) => request(`/categories/${id}`, { method: "DELETE" }),
 
+  getLowStock: () => request("/inventory/low-stock"),
+  getOutOfStock: () => request("/inventory/out-of-stock"),
+
   listOrders: (params?: { page?: number; limit?: number; status?: string; paymentMethod?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.page) q.set("page", String(params.page));
-    if (params?.limit) q.set("limit", String(params.limit));
-    if (params?.status) q.set("status", params.status);
-    if (params?.paymentMethod) q.set("paymentMethod", params.paymentMethod);
-    const query = q.toString();
-    return request(`/orders${query ? `?${query}` : ""}`) as Promise<{ orders: Order[]; total: number; page: number; limit: number; totalPages: number }>;
+    const sp = new URLSearchParams();
+    if (params?.page != null) sp.set("page", String(params.page));
+    if (params?.limit != null) sp.set("limit", String(params.limit));
+    if (params?.status) sp.set("status", params.status);
+    if (params?.paymentMethod) sp.set("paymentMethod", params.paymentMethod);
+    const q = sp.toString();
+    return request(`/orders${q ? `?${q}` : ""}`);
   },
-  getOrder: (id: string) => request(`/orders/${id}`) as Promise<{ order: Order }>,
+  getOrder: (id: string) => request(`/orders/${id}`),
   updateOrderStatus: (id: string, status: OrderStatus) =>
     request(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
-  updateOrderPayment: (id: string, payload: { paymentStatus?: PaymentStatus; instaPayProof?: string }) =>
-    request(`/orders/${id}/payment`, { method: "PATCH", body: JSON.stringify(payload) }),
   cancelOrder: (id: string) => request(`/orders/${id}/cancel`, { method: "POST" }),
-  confirmPayment: (id: string) => request(`/orders/${id}/confirm-payment`, { method: "POST" }),
+  attachPaymentProof: (orderId: string, instaPayProofUrl: string) =>
+    request(`/orders/${orderId}/payment-proof`, { method: "PATCH", body: JSON.stringify({ instaPayProofUrl }) }),
+  confirmPayment: (orderId: string, approved: boolean) =>
+    request(`/orders/${orderId}/payments/confirm`, { method: "POST", body: JSON.stringify({ approved }) }),
 
-  getDashboardStats: () => request("/dashboard/stats") as Promise<{ totalOrders: number; ordersToday: number; revenue: number; lowStockCount: number; bestSellingProducts: { name: string; totalQty: number }[]; ordersPerDay: { date: string; count: number }[] }>,
+  getDashboardStats: (days?: number) =>
+    request(`/dashboard/stats${days != null ? `?days=${days}` : ""}`),
 
-  listCustomers: () => request("/customers") as Promise<{ customers: { id: string; name: string; email: string; createdAt: string }[] }>,
-  getCustomer: (id: string) => request(`/customers/${id}`) as Promise<{ customer: { id: string; name: string; email: string; createdAt: string } }>,
-  getCustomerOrders: (id: string) => request(`/customers/${id}/orders`) as Promise<{ orders: Order[] }>,
-
-  getSettings: () => request("/settings") as Promise<{ settings: Settings }>,
+  getSettings: () => request("/settings"),
   updateSettings: (payload: Partial<Settings>) =>
-    request("/settings", { method: "PATCH", body: JSON.stringify(payload) })
+    request("/settings", { method: "PUT", body: JSON.stringify(payload) })
 };

@@ -9,7 +9,7 @@ export const productSchema = z.object({
     stock: z.number().int().nonnegative(),
     category: z.string().min(1),
     status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
-    images: z.array(z.string().min(1)).optional()
+    images: z.array(z.string()).optional()
   })
 });
 
@@ -19,22 +19,17 @@ export const productParamsSchema = z.object({
   })
 });
 
+export const productQuerySchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).optional().default(1),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+    search: z.string().optional(),
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+    category: z.string().optional()
+  })
+});
+
 export const productStatusSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({ status: z.enum(["ACTIVE", "INACTIVE"]) })
-});
-
-export const productStockSchema = z.object({
-  params: z.object({ id: z.string().min(1) }),
-  body: z.object({ stock: z.number().int().nonnegative() })
-});
-
-export const listProductsQuerySchema = z.object({
-  query: z.object({
-    page: z.coerce.number().int().min(1).optional(),
-    limit: z.coerce.number().int().min(1).max(100).optional(),
-    search: z.string().optional(),
-    category: z.string().optional(),
-    status: z.enum(["ACTIVE", "INACTIVE"]).optional()
-  })
 });

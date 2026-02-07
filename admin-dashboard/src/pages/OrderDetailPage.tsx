@@ -1,90 +1,151 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { api, ApiError, Order, OrderStatus, clearAuth } from "../services/api";
+import { useTranslation } from "react-i18next";
+import { Link, useParams } from "react-router-dom";
+import { api, ApiError, Order, OrderStatus } from "../services/api";
+
+const statusOptions: OrderStatus[] = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
 
 const OrderDetailPage = () => {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
+  const [proofUrl, setProofUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = async () => {
     if (!id) return;
-    const load = async () => {
-      setError(null);
-      try {
-        const res = await api.getOrder(id);
-        setOrder(res.order);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          clearAuth();
-          window.location.href = "/login";
-          return;
-        }
-        setError(err instanceof ApiError ? err.message : "Failed to load order");
+    setError(null);
+    try {
+      const res = await api.getOrder(id) as { order: Order };
+      setOrder(res.order);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        window.location.href = "/login";
+        return;
       }
-    };
-    load();
-  }, [id]);
+      setError(err instanceof ApiError ? err.message : t("order_detail.failed_load"));
+    }
+  };
+
+  useEffect(() => { load(); }, [id]);
 
   const updateStatus = async (status: OrderStatus) => {
     if (!id) return;
     setError(null);
     try {
-      const res = await api.updateOrderStatus(id, status) as { order: Order };
-      setOrder(res.order);
+      await api.updateOrderStatus(id, status);
+      load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update");
+      setError(err instanceof ApiError ? err.message : t("order_detail.failed_status"));
     }
   };
 
-  const confirmPayment = async () => {
+  const cancel = async () => {
+    if (!id || !confirm(t("order_detail.cancel_confirm"))) return;
+    setError(null);
+    try {
+      await api.cancelOrder(id);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("order_detail.failed_cancel"));
+    }
+  };
+
+  const attachProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !proofUrl.trim()) return;
+    setError(null);
+    try {
+      await api.attachPaymentProof(id, proofUrl.trim());
+      setProofUrl("");
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("order_detail.failed_proof"));
+    }
+  };
+
+  const confirmPayment = async (approved: boolean) => {
     if (!id) return;
     setError(null);
     try {
-      const res = await api.confirmPayment(id) as { order: Order };
-      setOrder(res.order);
+      await api.confirmPayment(id, approved);
+      load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to confirm payment");
+      setError(err instanceof ApiError ? err.message : t("order_detail.failed_payment"));
     }
   };
 
-  const cancelOrder = async () => {
-    if (!id || !confirm("Cancel this order?")) return;
-    setError(null);
-    try {
-      const res = await api.cancelOrder(id) as { order: Order };
-      setOrder(res.order);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to cancel");
-    }
-  };
+  if (!order) return <div>{error || t("common.loading")}</div>;
 
-  if (!order) return <div>{error || "Loading…"}</div>;
-
-  const statusOptions: OrderStatus[] = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
+  const payment = order.payment as { method?: string; status?: string; instaPayProofUrl?: string } | undefined;
+  const isInstaPay = payment?.method === "INSTAPAY";
+  const canCancel = order.status === "PENDING" || order.status === "CONFIRMED";
 
   return (
     <div>
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
-        <Link to="/orders" className="button secondary" style={{ marginBottom: 16 }}>← Orders</Link>
-        <h1>Order {order._id.slice(-8).toUpperCase()}</h1>
-        <p>Status: <span className="badge">{order.status}</span> | Payment: <span className="badge">{order.paymentStatus}</span> | {order.paymentMethod}</p>
+        <Link to="/orders" className="button secondary">{t("order_detail.back_orders")}</Link>
       </div>
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h3>Customer</h3>
-        <p>{order.user?.name} — {order.user?.email}</p>
-        {order.shippingAddress && <p><strong>Address:</strong> {order.shippingAddress}</p>}
+      <div className="card">
+        <h3>{t("order_detail.order_id", { id: order._id.slice(-8) })}</h3>
+        <p><strong>{t("order_detail.customer")}:</strong> {order.user?.name} – {order.user?.email}</p>
+        {order.shippingAddress && <p><strong>{t("order_detail.address")}:</strong> {order.shippingAddress}</p>}
+        <p><strong>{t("order_detail.status")}:</strong>{" "}
+          <select
+            value={order.status}
+            onChange={(e) => updateStatus(e.target.value as OrderStatus)}
+          >
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </p>
+        {canCancel && (
+          <button className="button secondary" style={{ marginTop: 8 }} onClick={cancel}>{t("order_detail.cancel_order")}</button>
+        )}
       </div>
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h3>Items</h3>
+      <div className="card">
+        <h3>{t("order_detail.payment")}</h3>
+        <p><strong>{t("order_detail.method")}:</strong> {payment?.method ?? order.paymentMethod ?? "—"}</p>
+        <p><strong>{t("order_detail.status")}:</strong> <span className="badge">{payment?.status ?? "UNPAID"}</span></p>
+        {isInstaPay && (
+          <>
+            {payment?.instaPayProofUrl ? (
+              <p>
+                <strong>{t("order_detail.proof")}:</strong>{" "}
+                <a href={payment.instaPayProofUrl} target="_blank" rel="noopener noreferrer">{t("order_detail.view_screenshot")}</a>
+              </p>
+            ) : (
+              <form onSubmit={attachProof} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                <input
+                  type="url"
+                  placeholder={t("order_detail.instapay_proof_placeholder")}
+                  value={proofUrl}
+                  onChange={(e) => setProofUrl(e.target.value)}
+                  style={{ flex: 1, maxWidth: 320 }}
+                />
+                <button className="button" type="submit">{t("order_detail.attach_proof")}</button>
+              </form>
+            )}
+            {payment?.status === "UNPAID" && payment?.instaPayProofUrl && (
+              <div style={{ marginTop: 12 }}>
+                <button className="button" onClick={() => confirmPayment(true)}>{t("order_detail.approve_payment")}</button>
+                <button className="button secondary" style={{ marginLeft: 8 }} onClick={() => confirmPayment(false)}>{t("order_detail.reject")}</button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <div className="card">
+        <h3>{t("order_detail.items")}</h3>
         <table className="table">
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Subtotal</th>
+              <th>{t("order_detail.product")}</th>
+              <th>{t("order_detail.qty")}</th>
+              <th>{t("order_detail.price")}</th>
+              <th>{t("order_detail.subtotal")}</th>
             </tr>
           </thead>
           <tbody>
@@ -98,33 +159,7 @@ const OrderDetailPage = () => {
             ))}
           </tbody>
         </table>
-        <p><strong>Total:</strong> ${order.total.toFixed(2)}</p>
-      </div>
-      {order.paymentMethod === "INSTAPAY" && order.instaPayProof && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h3>InstaPay proof</h3>
-          <a href={order.instaPayProof} target="_blank" rel="noreferrer">View proof</a>
-        </div>
-      )}
-      <div className="card">
-        <h3>Actions</h3>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <select
-            value={order.status}
-            onChange={(e) => updateStatus(e.target.value as OrderStatus)}
-            disabled={order.status === "CANCELLED"}
-          >
-            {statusOptions.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          {order.paymentMethod === "INSTAPAY" && order.paymentStatus === "PENDING_APPROVAL" && (
-            <button className="button" onClick={confirmPayment}>Approve payment</button>
-          )}
-          {(order.status === "PENDING" || order.status === "CONFIRMED") && (
-            <button className="button secondary" onClick={cancelOrder}>Cancel order</button>
-          )}
-        </div>
+        <p><strong>{t("order_detail.total_label")}: ${order.total.toFixed(2)}</strong></p>
       </div>
     </div>
   );

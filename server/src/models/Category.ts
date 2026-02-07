@@ -3,7 +3,7 @@ import mongoose, { Schema } from "mongoose";
 export interface CategoryDocument {
   name: string;
   description?: string;
-  isVisible: boolean;
+  status: "visible" | "hidden";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -12,7 +12,7 @@ const categorySchema = new Schema<CategoryDocument>(
   {
     name: { type: String, required: true },
     description: { type: String },
-    isVisible: { type: Boolean, default: true }
+    status: { type: String, enum: ["visible", "hidden"], default: "visible" }
   },
   { timestamps: true }
 );

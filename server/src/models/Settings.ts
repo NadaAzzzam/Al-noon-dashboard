@@ -3,8 +3,7 @@ import mongoose, { Schema } from "mongoose";
 export interface SettingsDocument {
   storeName: string;
   logo?: string;
-  deliveryFee: number;
-  instaPayNumber?: string;
+  instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
   lowStockThreshold: number;
   updatedAt: Date;
@@ -14,8 +13,7 @@ const settingsSchema = new Schema<SettingsDocument>(
   {
     storeName: { type: String, default: "Al-noon" },
     logo: { type: String },
-    deliveryFee: { type: Number, default: 0 },
-    instaPayNumber: { type: String },
+    instaPayNumber: { type: String, default: "" },
     paymentMethods: {
       cod: { type: Boolean, default: true },
       instaPay: { type: Boolean, default: true }

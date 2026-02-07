@@ -2,36 +2,32 @@ import { Router } from "express";
 import {
   createProduct,
   deleteProduct,
-  getLowStockProducts,
-  getOutOfStockProducts,
   getProduct,
   listProducts,
   setProductStatus,
-  updateProduct,
-  updateStock
+  updateProduct
 } from "../controllers/productsController.js";
+import { updateStock } from "../controllers/inventoryController.js";
 import { authenticate, requireRole } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
-  listProductsQuerySchema,
   productParamsSchema,
+  productQuerySchema,
   productSchema,
-  productStatusSchema,
-  productStockSchema
+  productStatusSchema
 } from "../validators/products.js";
+import { stockUpdateSchema } from "../validators/inventory.js";
 
 const router = Router();
 
-router.get("/", validate(listProductsQuerySchema), listProducts);
-router.get("/low-stock", authenticate, requireRole(["ADMIN"]), getLowStockProducts);
-router.get("/out-of-stock", authenticate, requireRole(["ADMIN"]), getOutOfStockProducts);
+router.get("/", validate(productQuerySchema), listProducts);
 router.get("/:id", validate(productParamsSchema), getProduct);
 
 router.use(authenticate, requireRole(["ADMIN"]));
 router.post("/", validate(productSchema), createProduct);
 router.put("/:id", validate(productSchema.merge(productParamsSchema)), updateProduct);
 router.patch("/:id/status", validate(productStatusSchema), setProductStatus);
-router.patch("/:id/stock", validate(productStockSchema), updateStock);
+router.patch("/:id/stock", validate(stockUpdateSchema), updateStock);
 router.delete("/:id", validate(productParamsSchema), deleteProduct);
 
 export default router;

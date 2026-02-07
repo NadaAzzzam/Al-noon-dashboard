@@ -1,28 +1,50 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, Category, clearAuth } from "../services/api";
+import { useTranslation } from "react-i18next";
+import { api, ApiError, Category } from "../services/api";
 
 const CategoriesPage = () => {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [form, setForm] = useState<{ name: string; description: string; status: "visible" | "hidden" }>({
+    name: "",
+    description: "",
+    status: "visible"
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const load = async () => {
     setError(null);
     try {
-      const res = await api.listCategories();
+      const res = await api.listCategories() as { categories: Category[] };
       setCategories(res.categories ?? []);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        clearAuth();
         window.location.href = "/login";
         return;
       }
-      setError(err instanceof ApiError ? err.message : "Failed to load categories");
+      setError(err instanceof ApiError ? err.message : t("categories.failed_load"));
     }
   };
 
   useEffect(() => { load(); }, []);
+
+  const openAdd = () => {
+    setForm({ name: "", description: "", status: "visible" });
+    setEditingId(null);
+    setModalOpen(true);
+  };
+
+  const openEdit = (c: Category) => {
+    setForm({
+      name: c.name,
+      description: c.description ?? "",
+      status: c.status ?? "visible"
+    });
+    setEditingId(c._id);
+    setModalOpen(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,32 +55,31 @@ const CategoriesPage = () => {
       } else {
         await api.createCategory(form);
       }
-      setForm({ name: "", description: "" });
-      setEditingId(null);
+      setModalOpen(false);
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to save");
+      setError(err instanceof ApiError ? err.message : t("categories.failed_save"));
     }
   };
 
-  const toggleVisible = async (id: string, isVisible: boolean) => {
+  const setStatus = async (id: string, status: "visible" | "hidden") => {
     setError(null);
     try {
-      await api.setCategoryStatus(id, !isVisible);
+      await api.setCategoryStatus(id, status);
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update");
+      setError(err instanceof ApiError ? err.message : t("categories.failed_status"));
     }
   };
 
-  const deleteCat = async (id: string) => {
-    if (!confirm("Delete this category?")) return;
+  const remove = async (id: string) => {
+    if (!confirm(t("categories.delete_confirm"))) return;
     setError(null);
     try {
       await api.deleteCategory(id);
       load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete");
+      setError(err instanceof ApiError ? err.message : t("categories.failed_delete"));
     }
   };
 
@@ -66,38 +87,19 @@ const CategoriesPage = () => {
     <div>
       {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="header">
-        <h1>Categories</h1>
-        <p>Manage product categories and visibility.</p>
-      </div>
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h3>{editingId ? "Edit category" : "New category"}</h3>
-        <form className="form-grid" onSubmit={handleSubmit} style={{ maxWidth: 400 }}>
-          <input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <input
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-          <button className="button" type="submit">{editingId ? "Update" : "Create"}</button>
-          {editingId && (
-            <button className="button secondary" type="button" onClick={() => { setEditingId(null); setForm({ name: "", description: "" }); }}>
-              Cancel
-            </button>
-          )}
-        </form>
+        <div>
+          <h1>{t("categories.title")}</h1>
+          <p>{t("categories.subtitle")}</p>
+        </div>
+        <button className="button" onClick={openAdd}>{t("categories.add_category")}</button>
       </div>
       <div className="card">
         <table className="table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Visible</th>
-              <th>Actions</th>
+              <th>{t("categories.name")}</th>
+              <th>{t("dashboard.status")}</th>
+              <th>{t("common.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -105,24 +107,57 @@ const CategoriesPage = () => {
               <tr key={c._id}>
                 <td>{c.name}</td>
                 <td>
-                  <button
-                    type="button"
-                    className="button secondary"
-                    onClick={() => toggleVisible(c._id, c.isVisible ?? true)}
-                  >
-                    {c.isVisible !== false ? "Hide" : "Show"}
-                  </button>
+                  <span className={`badge ${c.status === "visible" ? "badge-success" : "badge-muted"}`}>
+                    {c.status === "visible" ? t("categories.visible") : t("categories.hidden")}
+                  </span>
                 </td>
                 <td>
-                  <button className="button secondary" onClick={() => { setEditingId(c._id); setForm({ name: c.name, description: c.description ?? "" }); }}>Edit</button>
-                  {" "}
-                  <button className="button" onClick={() => deleteCat(c._id)}>Delete</button>
+                  <button className="button secondary" onClick={() => openEdit(c)}>{t("common.edit")}</button>
+                  <button
+                    className="button secondary"
+                    style={{ marginLeft: 8 }}
+                    onClick={() => setStatus(c._id, c.status === "visible" ? "hidden" : "visible")}
+                  >
+                    {c.status === "visible" ? t("categories.hide") : t("categories.show")}
+                  </button>
+                  <button className="button" style={{ marginLeft: 8 }} onClick={() => remove(c._id)}>{t("common.delete")}</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {modalOpen && (
+        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{editingId ? t("categories.edit_category") : t("categories.new_category")}</h3>
+            <form onSubmit={handleSubmit} className="form-grid">
+              <input
+                placeholder={t("categories.name")}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+              <input
+                placeholder={t("categories.description")}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value as "visible" | "hidden" })}
+              >
+                <option value="visible">{t("categories.visible")}</option>
+                <option value="hidden">{t("categories.hidden")}</option>
+              </select>
+              <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+                <button className="button" type="submit">{editingId ? t("common.update") : t("common.create")}</button>
+                <button className="button secondary" type="button" onClick={() => setModalOpen(false)}>{t("common.cancel")}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

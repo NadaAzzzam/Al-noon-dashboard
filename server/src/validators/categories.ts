@@ -4,7 +4,7 @@ export const categorySchema = z.object({
   body: z.object({
     name: z.string().min(2),
     description: z.string().optional(),
-    isVisible: z.boolean().optional()
+    status: z.enum(["visible", "hidden"]).optional()
   })
 });
 
@@ -16,5 +16,5 @@ export const categoryParamsSchema = z.object({
 
 export const categoryStatusSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
-  body: z.object({ isVisible: z.boolean() })
+  body: z.object({ status: z.enum(["visible", "hidden"]) })
 });
