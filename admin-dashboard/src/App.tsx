@@ -9,6 +9,7 @@ import InventoryPage from "./pages/InventoryPage";
 import LoginPage from "./pages/LoginPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import OrdersPage from "./pages/OrdersPage";
+import ProductFormPage from "./pages/ProductFormPage";
 import ProductsPage from "./pages/ProductsPage";
 import SettingsPage from "./pages/SettingsPage";
 import UsersPage from "./pages/UsersPage";
@@ -34,6 +35,8 @@ const App = () => (
     >
       <Route index element={<DashboardPage />} />
       <Route path="products" element={<ProductsPage />} />
+      <Route path="products/new" element={<ProductFormPage />} />
+      <Route path="products/:id/edit" element={<ProductFormPage />} />
       <Route path="categories" element={<CategoriesPage />} />
       <Route path="cities" element={<CitiesPage />} />
       <Route path="inventory" element={<InventoryPage />} />

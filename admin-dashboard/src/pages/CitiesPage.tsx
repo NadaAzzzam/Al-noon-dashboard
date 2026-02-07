@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError, City } from "../services/api";
+import { TableActionsDropdown } from "../components/TableActionsDropdown";
+import { useLocalized } from "../utils/localized";
+
+type CityForm = { nameEn: string; nameAr: string; deliveryFee: number };
 
 const CitiesPage = () => {
   const { t } = useTranslation();
+  const localized = useLocalized();
   const [cities, setCities] = useState<City[]>([]);
-  const [form, setForm] = useState<{ name: string; deliveryFee: number }>({
-    name: "",
-    deliveryFee: 0
-  });
+  const [form, setForm] = useState<CityForm>({ nameEn: "", nameAr: "", deliveryFee: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -32,13 +34,14 @@ const CitiesPage = () => {
   }, []);
 
   const openAdd = () => {
-    setForm({ name: "", deliveryFee: 0 });
+    setForm({ nameEn: "", nameAr: "", deliveryFee: 0 });
     setEditingId(null);
     setModalOpen(true);
   };
 
   const openEdit = (c: City) => {
-    setForm({ name: c.name, deliveryFee: c.deliveryFee ?? 0 });
+    const name = typeof c.name === "object" ? c.name : { en: c.name as unknown as string, ar: c.name as unknown as string };
+    setForm({ nameEn: name.en ?? "", nameAr: name.ar ?? "", deliveryFee: c.deliveryFee ?? 0 });
     setEditingId(c._id);
     setModalOpen(true);
   };
@@ -47,10 +50,11 @@ const CitiesPage = () => {
     e.preventDefault();
     setError(null);
     try {
+      const payload = { nameEn: form.nameEn.trim(), nameAr: form.nameAr.trim(), deliveryFee: form.deliveryFee };
       if (editingId) {
-        await api.updateCity(editingId, form);
+        await api.updateCity(editingId, payload);
       } else {
-        await api.createCity(form);
+        await api.createCity(payload);
       }
       setModalOpen(false);
       load();
@@ -97,15 +101,16 @@ const CitiesPage = () => {
             )}
             {cities.map((c) => (
               <tr key={c._id}>
-                <td>{c.name}</td>
-                <td>{Number(c.deliveryFee ?? 0).toFixed(2)}</td>
+                <td>{localized(c.name)}</td>
+                <td>{Number(c.deliveryFee ?? 0).toFixed(2)} EGP</td>
                 <td>
-                  <button className="button secondary" onClick={() => openEdit(c)}>
-                    {t("common.edit")}
-                  </button>
-                  <button className="button" style={{ marginLeft: 8 }} onClick={() => remove(c._id)}>
-                    {t("common.delete")}
-                  </button>
+                  <TableActionsDropdown
+                    ariaLabel={t("common.actions")}
+                    actions={[
+                      { label: t("common.edit"), onClick: () => openEdit(c) },
+                      { label: t("common.delete"), onClick: () => remove(c._id), danger: true }
+                    ]}
+                  />
                 </td>
               </tr>
             ))}
@@ -118,9 +123,15 @@ const CitiesPage = () => {
             <h3>{editingId ? t("cities.edit_city") : t("cities.new_city")}</h3>
             <form onSubmit={handleSubmit} className="form-grid">
               <input
-                placeholder={t("cities.name")}
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder={t("cities.name_en")}
+                value={form.nameEn}
+                onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
+                required
+              />
+              <input
+                placeholder={t("cities.name_ar")}
+                value={form.nameAr}
+                onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
                 required
               />
               <input

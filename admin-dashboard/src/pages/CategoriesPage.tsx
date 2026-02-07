@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError, Category } from "../services/api";
+import { TableActionsDropdown } from "../components/TableActionsDropdown";
+import { useLocalized } from "../utils/localized";
+
+type CategoryForm = { nameEn: string; nameAr: string; descriptionEn: string; descriptionAr: string; status: "visible" | "hidden" };
+
+const emptyForm: CategoryForm = { nameEn: "", nameAr: "", descriptionEn: "", descriptionAr: "", status: "visible" };
 
 const CategoriesPage = () => {
   const { t } = useTranslation();
+  const localized = useLocalized();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [form, setForm] = useState<{ name: string; description: string; status: "visible" | "hidden" }>({
-    name: "",
-    description: "",
-    status: "visible"
-  });
+  const [form, setForm] = useState<CategoryForm>({ ...emptyForm });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -31,15 +34,23 @@ const CategoriesPage = () => {
   useEffect(() => { load(); }, []);
 
   const openAdd = () => {
-    setForm({ name: "", description: "", status: "visible" });
+    setForm({ ...emptyForm });
     setEditingId(null);
     setModalOpen(true);
   };
 
   const openEdit = (c: Category) => {
+    const name = typeof c.name === "object" && c.name
+      ? { en: c.name.en ?? "", ar: c.name.ar ?? "" }
+      : { en: String(c.name ?? ""), ar: String(c.name ?? "") };
+    const desc = c.description && typeof c.description === "object"
+      ? { en: c.description.en ?? "", ar: c.description.ar ?? "" }
+      : { en: String(c.description ?? ""), ar: String(c.description ?? "") };
     setForm({
-      name: c.name,
-      description: c.description ?? "",
+      nameEn: name.en,
+      nameAr: name.ar,
+      descriptionEn: desc.en,
+      descriptionAr: desc.ar,
       status: c.status ?? "visible"
     });
     setEditingId(c._id);
@@ -50,10 +61,11 @@ const CategoriesPage = () => {
     e.preventDefault();
     setError(null);
     try {
+      const payload = { nameEn: form.nameEn.trim(), nameAr: form.nameAr.trim(), descriptionEn: form.descriptionEn.trim() || undefined, descriptionAr: form.descriptionAr.trim() || undefined, status: form.status };
       if (editingId) {
-        await api.updateCategory(editingId, form);
+        await api.updateCategory(editingId, payload);
       } else {
-        await api.createCategory(form);
+        await api.createCategory(payload);
       }
       setModalOpen(false);
       load();
@@ -105,22 +117,21 @@ const CategoriesPage = () => {
           <tbody>
             {categories.map((c) => (
               <tr key={c._id}>
-                <td>{c.name}</td>
+                <td>{localized(c.name)}</td>
                 <td>
                   <span className={`badge ${c.status === "visible" ? "badge-success" : "badge-muted"}`}>
                     {c.status === "visible" ? t("categories.visible") : t("categories.hidden")}
                   </span>
                 </td>
                 <td>
-                  <button className="button secondary" onClick={() => openEdit(c)}>{t("common.edit")}</button>
-                  <button
-                    className="button secondary"
-                    style={{ marginLeft: 8 }}
-                    onClick={() => setStatus(c._id, c.status === "visible" ? "hidden" : "visible")}
-                  >
-                    {c.status === "visible" ? t("categories.hide") : t("categories.show")}
-                  </button>
-                  <button className="button" style={{ marginLeft: 8 }} onClick={() => remove(c._id)}>{t("common.delete")}</button>
+                  <TableActionsDropdown
+                    ariaLabel={t("common.actions")}
+                    actions={[
+                      { label: t("common.edit"), onClick: () => openEdit(c) },
+                      { label: c.status === "visible" ? t("categories.hide") : t("categories.show"), onClick: () => setStatus(c._id, c.status === "visible" ? "hidden" : "visible") },
+                      { label: t("common.delete"), onClick: () => remove(c._id), danger: true }
+                    ]}
+                  />
                 </td>
               </tr>
             ))}
@@ -133,15 +144,26 @@ const CategoriesPage = () => {
             <h3>{editingId ? t("categories.edit_category") : t("categories.new_category")}</h3>
             <form onSubmit={handleSubmit} className="form-grid">
               <input
-                placeholder={t("categories.name")}
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder={t("categories.name_en")}
+                value={form.nameEn}
+                onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
                 required
               />
               <input
-                placeholder={t("categories.description")}
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder={t("categories.name_ar")}
+                value={form.nameAr}
+                onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
+                required
+              />
+              <input
+                placeholder={t("categories.description_en")}
+                value={form.descriptionEn}
+                onChange={(e) => setForm({ ...form, descriptionEn: e.target.value })}
+              />
+              <input
+                placeholder={t("categories.description_ar")}
+                value={form.descriptionAr}
+                onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
               />
               <select
                 value={form.status}

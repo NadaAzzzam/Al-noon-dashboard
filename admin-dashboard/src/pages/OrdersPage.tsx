@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import { api, ApiError, Order, OrderStatus } from "../services/api";
+import { TableActionsDropdown } from "../components/TableActionsDropdown";
+import { formatPriceEGP } from "../utils/format";
 
 const OrdersPage = () => {
   const { t } = useTranslation();
@@ -90,7 +91,7 @@ const OrdersPage = () => {
                 <td>{order.user?.name ?? "—"}</td>
                 <td><span className="badge">{order.status}</span></td>
                 <td>{(order.payment as { method?: string; status?: string })?.method ?? "—"} / {(order.payment as { status?: string })?.status ?? "—"}</td>
-                <td>${order.total.toFixed(2)}</td>
+                <td>{formatPriceEGP(order.total)}</td>
                 <td>
                   {order.status !== "CANCELLED" && (
                     <select
@@ -105,7 +106,12 @@ const OrdersPage = () => {
                     </select>
                   )}
                 </td>
-                <td><Link to={`/orders/${order._id}`} className="button secondary">{t("common.view")}</Link></td>
+                <td>
+                    <TableActionsDropdown
+                      ariaLabel={t("common.actions")}
+                      actions={[{ label: t("common.view"), to: `/orders/${order._id}` }]}
+                    />
+                  </td>
               </tr>
             ))}
           </tbody>

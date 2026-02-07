@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { api, ApiError } from "../services/api";
+import { api, ApiError, setToken } from "../services/api";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       const response = await api.signIn(email, password) as { token: string };
-      localStorage.setItem("al_noon_token", response.token);
+      setToken(response.token);
       navigate("/");
     } catch (err) {
       if (err instanceof ApiError) {

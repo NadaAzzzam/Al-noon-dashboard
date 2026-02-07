@@ -2,11 +2,14 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError, Order, OrderStatus } from "../services/api";
+import { formatPriceEGP } from "../utils/format";
+import { useLocalized } from "../utils/localized";
 
 const statusOptions: OrderStatus[] = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
 
 const OrderDetailPage = () => {
   const { t } = useTranslation();
+  const localized = useLocalized();
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [proofUrl, setProofUrl] = useState("");
@@ -151,15 +154,15 @@ const OrderDetailPage = () => {
           <tbody>
             {(order.items ?? []).map((item, i) => (
               <tr key={i}>
-                <td>{item.product?.name ?? "—"}</td>
+                <td>{item.product?.name != null ? localized(item.product.name) : "—"}</td>
                 <td>{item.quantity}</td>
-                <td>${(item.price ?? 0).toFixed(2)}</td>
-                <td>${((item.quantity ?? 0) * (item.price ?? 0)).toFixed(2)}</td>
+                <td>{formatPriceEGP(item.price ?? 0)}</td>
+                <td>{formatPriceEGP((item.quantity ?? 0) * (item.price ?? 0))}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p><strong>{t("order_detail.total_label")}: ${order.total.toFixed(2)}</strong></p>
+        <p><strong>{t("order_detail.total_label")}: {formatPriceEGP(order.total)}</strong></p>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { getStoredLanguage, setStoredLanguage, type Lang } from "../i18n";
-import { api } from "../services/api";
+import { api, clearToken } from "../services/api";
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -23,8 +23,10 @@ const Layout = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("al_noon_token");
-    navigate("/login");
+    api.signOut().catch(() => {}).finally(() => {
+      clearToken();
+      navigate("/login");
+    });
   };
 
   return (

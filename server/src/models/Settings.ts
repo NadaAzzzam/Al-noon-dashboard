@@ -1,7 +1,12 @@
 import mongoose, { Schema } from "mongoose";
 
+export interface LocalizedString {
+  en: string;
+  ar: string;
+}
+
 export interface SettingsDocument {
-  storeName: string;
+  storeName: LocalizedString;
   logo?: string;
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
@@ -9,9 +14,11 @@ export interface SettingsDocument {
   updatedAt: Date;
 }
 
+const localizedSchema = new Schema({ en: { type: String, default: "" }, ar: { type: String, default: "" } }, { _id: false });
+
 const settingsSchema = new Schema<SettingsDocument>(
   {
-    storeName: { type: String, default: "Al-noon" },
+    storeName: { type: localizedSchema, default: () => ({ en: "Al-noon", ar: "النون" }) },
     logo: { type: String },
     instaPayNumber: { type: String, default: "" },
     paymentMethods: {

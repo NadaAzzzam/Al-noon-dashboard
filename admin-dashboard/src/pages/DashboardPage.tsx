@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { api, ApiError, DashboardStats, Order } from "../services/api";
+import { api, ApiError, DashboardStats, Order, getProductImageUrl } from "../services/api";
+import { TableActionsDropdown } from "../components/TableActionsDropdown";
+import { formatPriceEGP } from "../utils/format";
+import { useLocalized } from "../utils/localized";
 
 const DashboardPage = () => {
   const { t } = useTranslation();
+  const localized = useLocalized();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -14,11 +18,11 @@ const DashboardPage = () => {
       setError(null);
       try {
         const [statsRes, ordersRes] = await Promise.all([
-          api.getDashboardStats(30) as DashboardStats,
-          api.listOrders({ limit: 5 }) as { orders: Order[] }
+          api.getDashboardStats(30),
+          api.listOrders({ limit: 5 })
         ]);
-        setStats(statsRes);
-        setRecentOrders(ordersRes.orders ?? []);
+        setStats(statsRes as DashboardStats);
+        setRecentOrders((ordersRes as { orders: Order[] }).orders ?? []);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           window.location.href = "/login";
@@ -54,7 +58,7 @@ const DashboardPage = () => {
         </div>
         <div className="card">
           <h3>{t("dashboard.revenue_delivered")}</h3>
-          <p className="card-value">${(stats.revenue ?? 0).toFixed(2)}</p>
+          <p className="card-value">{formatPriceEGP(stats.revenue ?? 0)}</p>
         </div>
         <div className="card">
           <h3>{t("dashboard.low_stock")}</h3>
@@ -71,26 +75,32 @@ const DashboardPage = () => {
         <div className="card">
           <h3>{t("dashboard.orders_per_day")}</h3>
           <div className="chart-bars">
-            {ordersPerDay.slice(-14).map((d) => {
-            const maxCount = ordersPerDay.length ? Math.max(...ordersPerDay.map((x) => x.count)) : 1;
-            return (
-              <div key={d._id} className="chart-bar-row">
-                <span className="chart-label">{d._id}</span>
-                <div className="chart-bar-wrap">
-                  <div className="chart-bar" style={{ width: `${Math.min(100, (d.count / maxCount) * 100)}%` }} />
+            {(() => {
+              const slice = ordersPerDay.slice(-14);
+              const maxCount = slice.length ? Math.max(...slice.map((x) => x.count)) : 1;
+              return slice.map((d) => (
+                <div key={d._id} className="chart-bar-row">
+                  <span className="chart-label">{d._id}</span>
+                  <div className="chart-bar-wrap">
+                    <div className="chart-bar" style={{ width: `${Math.min(100, (d.count / maxCount) * 100)}%` }} />
+                  </div>
+                  <span className="chart-value">{d.count}</span>
                 </div>
-                <span className="chart-value">{d.count}</span>
-              </div>
-            );
-          })}
+              ));
+            })()}
           </div>
         </div>
         <div className="card">
           <h3>{t("dashboard.best_selling")}</h3>
-          <ul className="list">
+          <ul className="list list-with-images">
             {(stats.bestSelling ?? []).slice(0, 8).map((b, i) => (
               <li key={b.productId ?? i}>
-                <span>{b.name}</span>
+                {b.image ? (
+                  <img src={getProductImageUrl(b.image)} alt="" className="dashboard-product-img" />
+                ) : (
+                  <span className="dashboard-product-img-placeholder" aria-hidden />
+                )}
+                <span className="list-item-label">{localized(b.name)}</span>
                 <span className="badge">{b.totalQty} {t("dashboard.sold")}</span>
               </li>
             ))}
@@ -116,8 +126,13 @@ const DashboardPage = () => {
                 <td>{order._id.slice(-8)}</td>
                 <td>{order.user?.name ?? "—"}</td>
                 <td><span className="badge">{order.status}</span></td>
-                <td>${order.total.toFixed(2)}</td>
-                <td><Link to={`/orders/${order._id}`} className="button secondary">{t("common.view")}</Link></td>
+                <td>{formatPriceEGP(order.total)}</td>
+                <td>
+                <TableActionsDropdown
+                  ariaLabel={t("common.actions")}
+                  actions={[{ label: t("common.view"), to: `/orders/${order._id}` }]}
+                />
+              </td>
               </tr>
             ))}
           </tbody>

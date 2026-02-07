@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import { api, ApiError, User } from "../services/api";
+import { TableActionsDropdown } from "../components/TableActionsDropdown";
 
 const CustomersPage = () => {
   const { t } = useTranslation();
@@ -51,7 +51,10 @@ const CustomersPage = () => {
                 <td>{user.email}</td>
                 <td><span className="badge">{user.role}</span></td>
                 <td>
-                  <Link to={`/customers/${user.id}`} className="button secondary">{t("common.view")}</Link>
+                  <TableActionsDropdown
+                    ariaLabel={t("common.actions")}
+                    actions={[{ label: t("common.view"), to: `/customers/${user.id}` }]}
+                  />
                 </td>
               </tr>
             ))}

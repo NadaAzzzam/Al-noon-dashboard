@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const citySchema = z.object({
   body: z.object({
-    name: z.string().min(1).max(100).trim(),
+    nameEn: z.string().min(1).max(100).trim(),
+    nameAr: z.string().min(1).max(100).trim(),
     deliveryFee: z.number().min(0).optional()
   })
 });

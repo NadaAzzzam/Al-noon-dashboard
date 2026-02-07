@@ -1,3 +1,4 @@
+import type { Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { isDbConnected } from "../config/db.js";
@@ -5,8 +6,33 @@ import { User } from "../models/User.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+const AUTH_COOKIE_NAME = "al_noon_token";
+
+/** Parse JWT expiresIn (e.g. "1d", "24h") to seconds for cookie maxAge */
+function expiresInToSeconds(expiresIn: string): number {
+  const match = /^(\d+)([dhms])?$/.exec(expiresIn.trim());
+  if (!match) return 86400;
+  const n = parseInt(match[1], 10);
+  const unit = match[2] ?? "d";
+  if (unit === "d") return n * 86400;
+  if (unit === "h") return n * 3600;
+  if (unit === "m") return n * 60;
+  return n; // seconds
+}
+
 const signToken = (userId: string, role: "ADMIN" | "USER") =>
   jwt.sign({ userId, role }, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);
+
+function setAuthCookie(res: Response, token: string) {
+  const isProduction = process.env.NODE_ENV === "production";
+  res.cookie(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "strict" : "lax",
+    maxAge: expiresInToSeconds(env.jwtExpiresIn) * 1000,
+    path: "/"
+  });
+}
 
 const DEV_ADMIN_ID = "dev-admin";
 
@@ -21,6 +47,7 @@ export const register = asyncHandler(async (req, res) => {
   }
   const user = await User.create({ name, email, password });
   const token = signToken(user.id, user.role);
+  setAuthCookie(res, token);
   res.status(201).json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
@@ -31,6 +58,7 @@ export const login = asyncHandler(async (req, res) => {
   const tryDevLogin = () => {
     if (email === env.adminEmail && password === env.adminPassword) {
       const token = signToken(DEV_ADMIN_ID, "ADMIN");
+      setAuthCookie(res, token);
       res.json({
         token,
         user: { id: DEV_ADMIN_ID, name: env.adminName, email: env.adminEmail, role: "ADMIN" as const }
@@ -55,6 +83,7 @@ export const login = asyncHandler(async (req, res) => {
       throw new ApiError(401, "Invalid credentials");
     }
     const token = signToken(user.id, user.role);
+    setAuthCookie(res, token);
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (e) {
     if (e instanceof ApiError) throw e;
@@ -79,4 +108,9 @@ export const me = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
   res.json({ user });
+});
+
+export const signOut = asyncHandler(async (_req, res) => {
+  res.clearCookie(AUTH_COOKIE_NAME, { path: "/" });
+  res.status(204).send();
 });

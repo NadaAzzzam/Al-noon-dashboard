@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, Product } from "../services/api";
+import { api, ApiError, Product, getProductImageUrl } from "../services/api";
+import { TableActionsDropdown } from "../components/TableActionsDropdown";
+import { useLocalized } from "../utils/localized";
 
 const InventoryPage = () => {
   const { t } = useTranslation();
+  const localized = useLocalized();
   const [lowStock, setLowStock] = useState<Product[]>([]);
   const [outOfStock, setOutOfStock] = useState<Product[]>([]);
   const [threshold, setThreshold] = useState(5);
@@ -61,16 +64,24 @@ const InventoryPage = () => {
         <table className="table">
           <thead>
             <tr>
+              <th>{t("inventory.image")}</th>
               <th>{t("order_detail.product")}</th>
               <th>{t("products.stock")}</th>
               <th>{t("common.update")}</th>
             </tr>
           </thead>
           <tbody>
-            {lowStock.length === 0 && <tr><td colSpan={3}>{t("common.none")}</td></tr>}
+            {lowStock.length === 0 && <tr><td colSpan={4}>{t("common.none")}</td></tr>}
             {lowStock.map((p) => (
               <tr key={p._id}>
-                <td>{p.name}</td>
+                <td>
+                  {p.images?.[0] ? (
+                    <img src={getProductImageUrl(p.images[0])} alt="" className="inventory-product-img" />
+                  ) : (
+                    <span className="inventory-product-img-placeholder">{t("common.none")}</span>
+                  )}
+                </td>
+                <td>{localized(p.name)}</td>
                 <td><span className="badge badge-warning">{p.stock}</span></td>
                 <td>
                   <input
@@ -81,13 +92,15 @@ const InventoryPage = () => {
                     onChange={(e) => setStockValue((prev) => ({ ...prev, [p._id]: Number(e.target.value) || 0 }))}
                     style={{ width: 80, marginRight: 8 }}
                   />
-                  <button
-                    className="button"
-                    disabled={updatingId === p._id}
-                    onClick={() => updateStock(p._id)}
-                  >
-                    {updatingId === p._id ? t("inventory.updating") : t("common.update")}
-                  </button>
+                  <TableActionsDropdown
+                    ariaLabel={t("common.actions")}
+                    actions={[
+                      {
+                        label: t("common.update"),
+                        onClick: () => updateStock(p._id)
+                      }
+                    ]}
+                  />
                 </td>
               </tr>
             ))}
@@ -99,16 +112,24 @@ const InventoryPage = () => {
         <table className="table">
           <thead>
             <tr>
+              <th>{t("inventory.image")}</th>
               <th>{t("order_detail.product")}</th>
               <th>{t("products.stock")}</th>
               <th>{t("common.update")}</th>
             </tr>
           </thead>
           <tbody>
-            {outOfStock.length === 0 && <tr><td colSpan={3}>{t("common.none")}</td></tr>}
+            {outOfStock.length === 0 && <tr><td colSpan={4}>{t("common.none")}</td></tr>}
             {outOfStock.map((p) => (
               <tr key={p._id}>
-                <td>{p.name}</td>
+                <td>
+                  {p.images?.[0] ? (
+                    <img src={getProductImageUrl(p.images[0])} alt="" className="inventory-product-img" />
+                  ) : (
+                    <span className="inventory-product-img-placeholder">{t("common.none")}</span>
+                  )}
+                </td>
+                <td>{localized(p.name)}</td>
                 <td><span className="badge badge-danger">0</span></td>
                 <td>
                   <input
@@ -119,13 +140,15 @@ const InventoryPage = () => {
                     onChange={(e) => setStockValue((prev) => ({ ...prev, [p._id]: Number(e.target.value) || 0 }))}
                     style={{ width: 80, marginRight: 8 }}
                   />
-                  <button
-                    className="button"
-                    disabled={updatingId === p._id}
-                    onClick={() => updateStock(p._id)}
-                  >
-                    {updatingId === p._id ? t("inventory.updating") : t("common.update")}
-                  </button>
+                  <TableActionsDropdown
+                    ariaLabel={t("common.actions")}
+                    actions={[
+                      {
+                        label: t("common.update"),
+                        onClick: () => updateStock(p._id)
+                      }
+                    ]}
+                  />
                 </td>
               </tr>
             ))}

@@ -1,16 +1,25 @@
 import { z } from "zod";
 
+const localizedBody = z.object({
+  nameEn: z.string().min(1, "Name (EN) required"),
+  nameAr: z.string().min(1, "Name (AR) required"),
+  descriptionEn: z.string().optional(),
+  descriptionAr: z.string().optional()
+});
+
 export const productSchema = z.object({
-  body: z.object({
-    name: z.string().min(2),
-    description: z.string().optional(),
+  body: localizedBody.merge(z.object({
     price: z.number().positive(),
     discountPrice: z.number().positive().optional(),
     stock: z.number().int().nonnegative(),
     category: z.string().min(1),
     status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
-    images: z.array(z.string()).optional()
-  })
+    images: z.array(z.string()).optional(),
+    imageColors: z.array(z.string()).optional(),
+    sizes: z.array(z.string()).optional(),
+    sizeDescriptions: z.array(z.string()).optional(),
+    colors: z.array(z.string()).optional()
+  }))
 });
 
 export const productParamsSchema = z.object({

@@ -74,6 +74,7 @@ export const getStats = asyncHandler(async (req, res) => {
       $project: {
         productId: "$_id",
         name: "$product.name",
+        image: { $arrayElemAt: ["$product.images", 0] },
         totalQty: 1,
         _id: 0
       }

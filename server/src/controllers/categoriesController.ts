@@ -12,15 +12,25 @@ export const listCategories = asyncHandler(async (_req, res) => {
   res.json({ categories });
 });
 
+function mapBodyToCategory(body: Record<string, unknown>) {
+  const { nameEn, nameAr, descriptionEn, descriptionAr, ...rest } = body;
+  const payload: Record<string, unknown> = { ...rest };
+  payload.name = { en: String(nameEn ?? "").trim(), ar: String(nameAr ?? "").trim() };
+  if (descriptionEn !== undefined || descriptionAr !== undefined) {
+    payload.description = { en: String(descriptionEn ?? "").trim(), ar: String(descriptionAr ?? "").trim() };
+  }
+  return payload;
+}
+
 export const createCategory = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
-  const category = await Category.create(req.body);
+  const category = await Category.create(mapBodyToCategory(req.body));
   res.status(201).json({ category });
 });
 
 export const updateCategory = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
-  const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const category = await Category.findByIdAndUpdate(req.params.id, mapBodyToCategory(req.body), { new: true });
   if (!category) {
     throw new ApiError(404, "Category not found");
   }

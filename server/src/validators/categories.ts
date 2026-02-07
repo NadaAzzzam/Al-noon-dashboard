@@ -2,8 +2,10 @@ import { z } from "zod";
 
 export const categorySchema = z.object({
   body: z.object({
-    name: z.string().min(2),
-    description: z.string().optional(),
+    nameEn: z.string().min(1, "Name (EN) required"),
+    nameAr: z.string().min(1, "Name (AR) required"),
+    descriptionEn: z.string().optional(),
+    descriptionAr: z.string().optional(),
     status: z.enum(["visible", "hidden"]).optional()
   })
 });

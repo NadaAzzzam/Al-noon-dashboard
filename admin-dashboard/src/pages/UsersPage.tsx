@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, User } from "../services/api";
+import { api, ApiError, User, clearToken } from "../services/api";
 
 const UsersPage = () => {
   const { t } = useTranslation();
@@ -15,7 +15,7 @@ const UsersPage = () => {
         setUsers(response.users ?? []);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
-          localStorage.removeItem("al_noon_token");
+          clearToken();
           window.location.href = "/login";
           return;
         }

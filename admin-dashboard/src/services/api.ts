@@ -1,5 +1,18 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
+/** Base URL for static uploads (logos). Use with logo path: getUploadsBaseUrl() + settings.logo */
+export function getUploadsBaseUrl(): string {
+  const base = import.meta.env.VITE_API_URL;
+  if (base && typeof base === "string") return base.replace(/\/api\/?$/, "");
+  return window.location.origin;
+}
+
+/** Full URL for a product image. Supports relative paths (uploads) and absolute URLs (e.g. seeder/Unsplash). */
+export function getProductImageUrl(path: string): string {
+  if (!path) return "";
+  return path.startsWith("http") ? path : getUploadsBaseUrl() + path;
+}
+
 export type User = {
   id: string;
   name: string;
@@ -7,23 +20,58 @@ export type User = {
   role: "ADMIN" | "USER";
 };
 
+export type LocalizedString = { en: string; ar: string };
+
 export type Product = {
   _id: string;
-  name: string;
-  description?: string;
+  name: LocalizedString;
+  description?: LocalizedString;
   price: number;
   discountPrice?: number;
   images?: string[];
+  /** Same length as images; imageColors[i] = color name for images[i]. "" = default (all colors). */
+  imageColors?: string[];
   stock: number;
   status: "ACTIVE" | "INACTIVE";
-  category?: { name: string; status?: string } | string;
+  sizes?: string[];
+  /** Optional description per size (e.g. weight), same length as sizes. */
+  sizeDescriptions?: string[];
+  colors?: string[];
+  category?: { name: LocalizedString; status?: string } | string;
+};
+
+/** Payload for create/update product (API accepts nameEn, nameAr, etc.) */
+export type ProductPayload = {
+  nameEn: string;
+  nameAr: string;
+  descriptionEn?: string;
+  descriptionAr?: string;
+  price: number;
+  discountPrice?: number;
+  stock: number;
+  category?: string;
+  status?: "ACTIVE" | "INACTIVE";
+  images?: string[];
+  imageColors?: string[];
+  sizes?: string[];
+  sizeDescriptions?: string[];
+  colors?: string[];
 };
 
 export type Category = {
   _id: string;
-  name: string;
-  description?: string;
+  name: LocalizedString;
+  description?: LocalizedString;
   status: "visible" | "hidden";
+};
+
+/** Payload for create/update category (API accepts nameEn, nameAr, etc.) */
+export type CategoryPayload = {
+  nameEn: string;
+  nameAr: string;
+  descriptionEn?: string;
+  descriptionAr?: string;
+  status?: "visible" | "hidden";
 };
 
 export type OrderStatus = "PENDING" | "CONFIRMED" | "SHIPPED" | "DELIVERED" | "CANCELLED";
@@ -35,7 +83,7 @@ export type Order = {
   paymentMethod?: "COD" | "INSTAPAY";
   shippingAddress?: string;
   user?: { name: string; email: string };
-  items?: { product: { name: string; price: number; discountPrice?: number }; quantity: number; price: number }[];
+  items?: { product: { name: LocalizedString; price: number; discountPrice?: number }; quantity: number; price: number }[];
   payment?: { method: string; status: string; instaPayProofUrl?: string };
   createdAt: string;
 };
@@ -45,25 +93,38 @@ export type DashboardStats = {
   ordersToday: number;
   revenue: number;
   lowStockCount: number;
-  bestSelling: { productId: string; name: string; totalQty: number }[];
+  bestSelling: { productId: string; name: LocalizedString; image?: string; totalQty: number }[];
   ordersPerDay: { _id: string; count: number; revenue: number }[];
 };
 
 export type City = {
   _id: string;
-  name: string;
+  name: LocalizedString;
   deliveryFee: number;
   createdAt?: string;
   updatedAt?: string;
 };
 
+/** Payload for create/update city (API accepts nameEn, nameAr) */
+export type CityPayload = { nameEn: string; nameAr: string; deliveryFee?: number };
+
 export type Settings = {
-  storeName: string;
+  storeName: LocalizedString;
   logo?: string;
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
   lowStockThreshold: number;
 };
+
+/** Payload for update settings (API accepts storeNameEn, storeNameAr, etc.) */
+export type SettingsPayload = Partial<{
+  storeNameEn: string;
+  storeNameAr: string;
+  logo: string;
+  instaPayNumber: string;
+  paymentMethods: { cod: boolean; instaPay: boolean };
+  lowStockThreshold: number;
+}>;
 
 /** Thrown for any non-2xx API response. */
 export class ApiError extends Error {
@@ -77,7 +138,10 @@ export class ApiError extends Error {
   }
 }
 
-export const getToken = () => localStorage.getItem("al_noon_token");
+const AUTH_TOKEN_KEY = "al_noon_token";
+export const getToken = () => sessionStorage.getItem(AUTH_TOKEN_KEY);
+export const setToken = (token: string) => sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+export const clearToken = () => sessionStorage.removeItem(AUTH_TOKEN_KEY);
 
 async function parseErrorResponse(response: Response): Promise<{ message: string; body?: unknown }> {
   const text = await response.text();
@@ -106,7 +170,7 @@ const request = async (path: string, options: RequestInit = {}): Promise<unknown
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    response = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: "include" });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Network error";
     throw new ApiError(0, `Cannot reach server. ${msg}`);
@@ -126,6 +190,8 @@ export const api = {
     request("/auth/sign-in", { method: "POST", body: JSON.stringify({ email, password }) }),
   /** GET /auth/profile – current user (conventional name for "me") */
   getProfile: () => request("/auth/profile"),
+  /** POST /auth/sign-out – clear session (cookie + FE token) */
+  signOut: () => request("/auth/sign-out", { method: "POST" }),
 
   listUsers: () => request("/users"),
   getCustomer: (id: string) => request(`/users/${id}`),
@@ -142,10 +208,30 @@ export const api = {
     return request(`/products${q ? `?${q}` : ""}`);
   },
   getProduct: (id: string) => request(`/products/${id}`),
-  createProduct: (payload: Partial<Product>) =>
+  createProduct: (payload: ProductPayload) =>
     request("/products", { method: "POST", body: JSON.stringify(payload) }),
-  updateProduct: (id: string, payload: Partial<Product>) =>
+  updateProduct: (id: string, payload: Partial<ProductPayload>) =>
     request(`/products/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  /** Upload product images; returns paths to use in product.images (max 10, 5MB each). */
+  uploadProductImages: async (files: File[]): Promise<string[]> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    files.forEach((f) => formData.append("images", f));
+    const response = await fetch(`${API_BASE}/products/images`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { paths: string[] };
+    return data.paths ?? [];
+  },
   setProductStatus: (id: string, status: "ACTIVE" | "INACTIVE") =>
     request(`/products/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   updateProductStock: (productId: string, stock: number) =>
@@ -154,16 +240,16 @@ export const api = {
 
   listCities: () => request("/cities"),
   getCity: (id: string) => request(`/cities/${id}`),
-  createCity: (payload: { name: string; deliveryFee?: number }) =>
+  createCity: (payload: CityPayload) =>
     request("/cities", { method: "POST", body: JSON.stringify(payload) }),
-  updateCity: (id: string, payload: { name?: string; deliveryFee?: number }) =>
+  updateCity: (id: string, payload: Partial<CityPayload>) =>
     request(`/cities/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteCity: (id: string) => request(`/cities/${id}`, { method: "DELETE" }),
 
   listCategories: () => request("/categories"),
-  createCategory: (payload: Partial<Category>) =>
+  createCategory: (payload: CategoryPayload) =>
     request("/categories", { method: "POST", body: JSON.stringify(payload) }),
-  updateCategory: (id: string, payload: Partial<Category>) =>
+  updateCategory: (id: string, payload: Partial<CategoryPayload>) =>
     request(`/categories/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   setCategoryStatus: (id: string, status: "visible" | "hidden") =>
     request(`/categories/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
@@ -194,6 +280,26 @@ export const api = {
     request(`/dashboard/stats${days != null ? `?days=${days}` : ""}`),
 
   getSettings: () => request("/settings"),
-  updateSettings: (payload: Partial<Settings>) =>
-    request("/settings", { method: "PUT", body: JSON.stringify(payload) })
+  updateSettings: (payload: SettingsPayload) =>
+    request("/settings", { method: "PUT", body: JSON.stringify(payload) }),
+  /** Upload logo image file. Returns the logo path (e.g. /uploads/logos/logo-123.png). */
+  uploadLogo: async (file: File): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("logo", file);
+    const response = await fetch(`${API_BASE}/settings/logo`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { logo: string };
+    return data.logo;
+  }
 };

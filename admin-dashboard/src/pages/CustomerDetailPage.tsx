@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError, Order } from "../services/api";
+import { TableActionsDropdown } from "../components/TableActionsDropdown";
+import { formatPriceEGP } from "../utils/format";
 
 type Customer = { id: string; name: string; email: string; role: string; createdAt: string };
 
@@ -68,9 +70,14 @@ const CustomerDetailPage = () => {
               <tr key={o._id}>
                 <td>{o._id.slice(-8)}</td>
                 <td><span className="badge">{o.status}</span></td>
-                <td>${o.total.toFixed(2)}</td>
+                <td>{formatPriceEGP(o.total)}</td>
                 <td>{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : ""}</td>
-                <td><Link to={`/orders/${o._id}`} className="button secondary">{t("common.view")}</Link></td>
+                <td>
+                <TableActionsDropdown
+                  ariaLabel={t("common.actions")}
+                  actions={[{ label: t("common.view"), to: `/orders/${o._id}` }]}
+                />
+              </td>
               </tr>
             ))}
           </tbody>

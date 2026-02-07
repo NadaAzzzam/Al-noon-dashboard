@@ -14,14 +14,17 @@ declare module "express-serve-static-core" {
   }
 }
 
+const AUTH_COOKIE_NAME = "al_noon_token";
+
 export const authenticate = (req: Request, _res: Response, next: NextFunction) => {
   try {
+    const cookieToken = req.cookies?.[AUTH_COOKIE_NAME];
     const header = req.headers.authorization;
-    if (!header?.startsWith("Bearer ")) {
-      return next(new ApiError(401, "Missing authorization header", { code: "errors.auth.unauthorized" }));
+    const bearerToken = header?.startsWith("Bearer ") ? header.split(" ")[1] : undefined;
+    const token = cookieToken ?? bearerToken;
+    if (!token) {
+      return next(new ApiError(401, "Missing authorization", { code: "errors.auth.unauthorized" }));
     }
-
-    const token = header.split(" ")[1];
     const payload = jwt.verify(token, env.jwtSecret) as AuthPayload;
     req.auth = payload;
     next();
