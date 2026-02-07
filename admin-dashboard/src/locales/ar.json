@@ -1,0 +1,87 @@
+{
+  "common": {
+    "loading": "جاري التحميل…",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "create": "إنشاء",
+    "update": "تحديث",
+    "back": "رجوع",
+    "error": "خطأ",
+    "network_error": "تعذر الاتصال بالخادم."
+  },
+  "nav": {
+    "overview": "نظرة عامة",
+    "products": "المنتجات",
+    "orders": "الطلبات",
+    "users": "المستخدمون",
+    "logout": "تسجيل الخروج"
+  },
+  "auth": {
+    "login_title": "تسجيل دخول المشرف",
+    "login_subtitle": "مرحباً بعودتك إلى إدارة النون.",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "sign_in": "تسجيل الدخول",
+    "signing_in": "جاري تسجيل الدخول...",
+    "invalid_credentials": "البريد أو كلمة المرور غير صحيحة.",
+    "login_failed": "فشل تسجيل الدخول"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "subtitle": "مراقبة أداء المتجر والنشاط اليومي.",
+    "total_revenue": "إجمالي الإيرادات",
+    "orders": "الطلبات",
+    "products": "المنتجات",
+    "customers": "العملاء",
+    "latest_orders": "أحدث الطلبات",
+    "order": "الطلب",
+    "customer": "العميل",
+    "status": "الحالة",
+    "total": "الإجمالي"
+  },
+  "products": {
+    "title": "المنتجات",
+    "subtitle": "إنشاء وإدارة الكتالوج.",
+    "name": "الاسم",
+    "description": "الوصف",
+    "price": "السعر",
+    "stock": "المخزون",
+    "category": "التصنيف",
+    "actions": "إجراءات",
+    "new_product": "منتج جديد",
+    "edit_product": "تعديل المنتج"
+  },
+  "orders": {
+    "title": "الطلبات",
+    "subtitle": "تتبع حالة التنفيذ والدفع.",
+    "update_status": "تحديث"
+  },
+  "users": {
+    "title": "المستخدمون",
+    "subtitle": "إدارة صلاحيات العملاء.",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "role": "الدور"
+  },
+  "errors": {
+    "auth": {
+      "invalid_credentials": "بيانات الدخول غير صحيحة",
+      "unauthorized": "غير مصرح",
+      "user_not_found": "المستخدم غير موجود",
+      "user_exists": "المستخدم مسجل مسبقاً"
+    },
+    "common": {
+      "not_found": "غير موجود",
+      "forbidden": "ممنوع",
+      "validation_error": "خطأ في التحقق",
+      "internal_error": "خطأ داخلي في الخادم",
+      "db_unavailable": "قاعدة البيانات غير متاحة.",
+      "db_error_fallback": "خطأ في قاعدة البيانات. حاول لاحقاً."
+    },
+    "product": { "not_found": "المنتج غير موجود" },
+    "category": { "not_found": "التصنيف غير موجود" },
+    "order": { "not_found": "الطلب غير موجود" }
+  }
+}

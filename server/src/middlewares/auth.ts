@@ -15,27 +15,27 @@ declare module "express-serve-static-core" {
 }
 
 export const authenticate = (req: Request, _res: Response, next: NextFunction) => {
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
-    throw new ApiError(401, "Missing authorization header");
-  }
-
-  const token = header.split(" ")[1];
   try {
+    const header = req.headers.authorization;
+    if (!header?.startsWith("Bearer ")) {
+      return next(new ApiError(401, "Missing authorization header", { code: "errors.auth.unauthorized" }));
+    }
+
+    const token = header.split(" ")[1];
     const payload = jwt.verify(token, env.jwtSecret) as AuthPayload;
     req.auth = payload;
     next();
   } catch {
-    throw new ApiError(401, "Invalid token");
+    next(new ApiError(401, "Invalid token", { code: "errors.auth.unauthorized" }));
   }
 };
 
 export const requireRole = (roles: Array<AuthPayload["role"]>) => (req: Request, _res: Response, next: NextFunction) => {
   if (!req.auth) {
-    throw new ApiError(401, "Unauthorized");
+    return next(new ApiError(401, "Unauthorized", { code: "errors.auth.unauthorized" }));
   }
   if (!roles.includes(req.auth.role)) {
-    throw new ApiError(403, "Forbidden");
+    return next(new ApiError(403, "Forbidden", { code: "errors.common.forbidden" }));
   }
   next();
 };

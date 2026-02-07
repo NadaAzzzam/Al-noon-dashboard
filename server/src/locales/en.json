@@ -1,0 +1,33 @@
+{
+  "errors": {
+    "auth": {
+      "invalid_credentials": "Invalid credentials",
+      "unauthorized": "Unauthorized",
+      "user_not_found": "User not found",
+      "user_exists": "User already exists"
+    },
+    "common": {
+      "not_found": "Not found",
+      "forbidden": "Forbidden",
+      "validation_error": "Validation error",
+      "internal_error": "Internal server error",
+      "db_unavailable": "Database not available (dev mode).",
+      "db_register_hint": "Register when MongoDB is connected.",
+      "db_error_fallback": "Database error. Try again or use admin@localhost / admin123."
+    },
+    "product": {
+      "not_found": "Product not found"
+    },
+    "category": {
+      "not_found": "Category not found"
+    },
+    "order": {
+      "not_found": "Order not found"
+    }
+  },
+  "validation": {
+    "required": "Required",
+    "invalid_email": "Invalid email",
+    "min_length": "Must be at least {{min}} characters"
+  }
+}

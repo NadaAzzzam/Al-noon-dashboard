@@ -1,0 +1,87 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "update": "Update",
+    "back": "Back",
+    "error": "Error",
+    "network_error": "Cannot reach server."
+  },
+  "nav": {
+    "overview": "Overview",
+    "products": "Products",
+    "orders": "Orders",
+    "users": "Users",
+    "logout": "Log out"
+  },
+  "auth": {
+    "login_title": "Admin Login",
+    "login_subtitle": "Welcome back to Al-noon Admin.",
+    "email": "Email",
+    "password": "Password",
+    "sign_in": "Sign in",
+    "signing_in": "Signing in...",
+    "invalid_credentials": "Invalid email or password.",
+    "login_failed": "Login failed"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Monitor store performance and daily activity.",
+    "total_revenue": "Total Revenue",
+    "orders": "Orders",
+    "products": "Products",
+    "customers": "Customers",
+    "latest_orders": "Latest Orders",
+    "order": "Order",
+    "customer": "Customer",
+    "status": "Status",
+    "total": "Total"
+  },
+  "products": {
+    "title": "Products",
+    "subtitle": "Create and manage your catalog.",
+    "name": "Name",
+    "description": "Description",
+    "price": "Price",
+    "stock": "Stock",
+    "category": "Category",
+    "actions": "Actions",
+    "new_product": "New product",
+    "edit_product": "Edit product"
+  },
+  "orders": {
+    "title": "Orders",
+    "subtitle": "Track fulfillment and payment status.",
+    "update_status": "Update"
+  },
+  "users": {
+    "title": "Users",
+    "subtitle": "Manage customer access and roles.",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role"
+  },
+  "errors": {
+    "auth": {
+      "invalid_credentials": "Invalid credentials",
+      "unauthorized": "Unauthorized",
+      "user_not_found": "User not found",
+      "user_exists": "User already exists"
+    },
+    "common": {
+      "not_found": "Not found",
+      "forbidden": "Forbidden",
+      "validation_error": "Validation error",
+      "internal_error": "Internal server error",
+      "db_unavailable": "Database not available.",
+      "db_error_fallback": "Database error. Try again later."
+    },
+    "product": { "not_found": "Product not found" },
+    "category": { "not_found": "Category not found" },
+    "order": { "not_found": "Order not found" }
+  }
+}

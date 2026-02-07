@@ -1,0 +1,33 @@
+{
+  "errors": {
+    "auth": {
+      "invalid_credentials": "بيانات الدخول غير صحيحة",
+      "unauthorized": "غير مصرح",
+      "user_not_found": "المستخدم غير موجود",
+      "user_exists": "المستخدم مسجل مسبقاً"
+    },
+    "common": {
+      "not_found": "غير موجود",
+      "forbidden": "ممنوع",
+      "validation_error": "خطأ في التحقق",
+      "internal_error": "خطأ داخلي في الخادم",
+      "db_unavailable": "قاعدة البيانات غير متاحة (وضع التطوير).",
+      "db_register_hint": "سجّل عند الاتصال بـ MongoDB.",
+      "db_error_fallback": "خطأ في قاعدة البيانات. حاول مرة أخرى أو استخدم admin@localhost / admin123."
+    },
+    "product": {
+      "not_found": "المنتج غير موجود"
+    },
+    "category": {
+      "not_found": "التصنيف غير موجود"
+    },
+    "order": {
+      "not_found": "الطلب غير موجود"
+    }
+  },
+  "validation": {
+    "required": "مطلوب",
+    "invalid_email": "بريد إلكتروني غير صالح",
+    "min_length": "يجب أن يكون {{min}} أحرف على الأقل"
+  }
+}

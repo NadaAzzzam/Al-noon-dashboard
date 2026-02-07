@@ -1,9 +1,10 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { api } from "../services/api";
 
 const Layout = () => {
   const navigate = useNavigate();
-  const handleLogout = () => {
-    localStorage.removeItem("al_noon_token");
+  const handleLogout = async () => {
+    await api.logout();
     navigate("/login");
   };
 
@@ -18,11 +19,20 @@ const Layout = () => {
           <NavLink className="nav-link" to="/products">
             Products
           </NavLink>
+          <NavLink className="nav-link" to="/categories">
+            Categories
+          </NavLink>
+          <NavLink className="nav-link" to="/inventory">
+            Inventory
+          </NavLink>
           <NavLink className="nav-link" to="/orders">
             Orders
           </NavLink>
-          <NavLink className="nav-link" to="/users">
-            Users
+          <NavLink className="nav-link" to="/customers">
+            Customers
+          </NavLink>
+          <NavLink className="nav-link" to="/settings">
+            Settings
           </NavLink>
         </nav>
         <button className="button secondary" onClick={handleLogout} style={{ marginTop: 24 }}>
