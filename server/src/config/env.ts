@@ -2,11 +2,15 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Default to 8080 so cloud platforms (Render, Railway, etc.) can reach the app when they expect 0.0.0.0:8080.
+// Default to 8080 so cloud platforms (Fly, Render, Railway, etc.) can reach the app.
 // For local dev, set PORT=4000 in server/.env.
 const defaultPort = 8080;
+const rawPort = process.env.PORT ? Number(process.env.PORT) : defaultPort;
+// On Fly.io, internal_port in fly.toml is 8080; use it so the app works even if PORT=4000 was set in secrets.
+const port =
+  process.env.FLY_APP_NAME && rawPort === 4000 ? 8080 : rawPort;
 export const env = {
-  port: process.env.PORT ? Number(process.env.PORT) : defaultPort,
+  port,
   mongoUri: process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/al-noon-node",
   jwtSecret: process.env.JWT_SECRET ?? "change-me",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "1d",
