@@ -49,6 +49,10 @@ export const updateSettingsSchema = z.object({
     homeCollectionsDisplayLimit: z.number().int().min(0).optional(),
     ourCollectionSectionImages: z.array(z.string()).optional(),
     ourCollectionSectionVideos: z.array(z.string()).optional(),
+    featuredProductsEnabled: z.boolean().optional(),
+    featuredProductsLimit: z.number().int().min(1).max(24).optional(),
+    feedbackSectionEnabled: z.boolean().optional(),
+    feedbackDisplayLimit: z.number().int().min(0).max(50).optional(),
     contentPages: z.array(z.object({
       slug: z.string(),
       titleEn: z.string(),

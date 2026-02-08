@@ -97,6 +97,9 @@ const Layout = () => {
           <NavLink className="nav-link" to="/contact">
             {t("nav.contact")}
           </NavLink>
+          <NavLink className="nav-link" to="/feedback">
+            {t("nav.feedback")}
+          </NavLink>
           <NavLink className="nav-link" to="/settings">
             {t("nav.settings")}
           </NavLink>

@@ -13,6 +13,7 @@ import ProductFormPage from "./pages/ProductFormPage";
 import ProductsPage from "./pages/ProductsPage";
 import SettingsLayout from "./components/SettingsLayout";
 import ContactSubmissionsPage from "./pages/ContactSubmissionsPage";
+import FeedbackPage from "./pages/FeedbackPage";
 import ContentPagesPage from "./pages/ContentPagesPage";
 import HomePageSettingsPage from "./pages/HomePageSettingsPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -52,6 +53,7 @@ const App = () => (
       <Route path="users" element={<UsersPage />} />
       <Route path="subscribers" element={<SubscribersPage />} />
       <Route path="contact" element={<ContactSubmissionsPage />} />
+      <Route path="feedback" element={<FeedbackPage />} />
       <Route path="settings" element={<SettingsLayout />}>
         <Route index element={<SettingsPage />} />
         <Route path="home" element={<HomePageSettingsPage />} />

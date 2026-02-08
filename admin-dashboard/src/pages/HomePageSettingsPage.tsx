@@ -52,18 +52,27 @@ type HomePageForm = {
   newArrivalsSectionVideos: string[];
   featuredProductsEnabled: boolean;
   featuredProductsLimit: number;
+  feedbackSectionEnabled: boolean;
+  feedbackDisplayLimit: number;
   homeCollectionsDisplayLimit: number;
   ourCollectionSectionImages: string[];
   ourCollectionSectionVideos: string[];
   homeCollections: CollectionCardForm[];
 };
 
-const getMediaUrl = (path: string) => (path ? getUploadsBaseUrl() + path : "");
+/** Full URL for hero/section media. Supports relative paths (uploads) and absolute URLs (e.g. seeder). */
+const getMediaUrl = (path: string) =>
+  path ? (path.startsWith("http") ? path : getUploadsBaseUrl() + path) : "";
 
 const HomePageSettingsPage = () => {
   const { t } = useTranslation();
   const [form, setForm] = useState<HomePageForm>({
-    announcementBar: { textEn: "", textAr: "", enabled: false, backgroundColor: "#0f172a" },
+    announcementBar: {
+      textEn: "",
+      textAr: "",
+      enabled: false,
+      backgroundColor: "#0f172a",
+    },
     hero: {
       images: [],
       videos: [],
@@ -92,6 +101,8 @@ const HomePageSettingsPage = () => {
     newArrivalsSectionVideos: [],
     featuredProductsEnabled: false,
     featuredProductsLimit: 8,
+    feedbackSectionEnabled: false,
+    feedbackDisplayLimit: 6,
     homeCollectionsDisplayLimit: 0,
     ourCollectionSectionImages: [],
     ourCollectionSectionVideos: [],
@@ -101,7 +112,9 @@ const HomePageSettingsPage = () => {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
-  const [uploadingCollectionIndex, setUploadingCollectionIndex] = useState<number | null>(null);
+  const [uploadingCollectionIndex, setUploadingCollectionIndex] = useState<
+    number | null
+  >(null);
 
   // Refs for file inputs
   const heroImageRef = useRef<HTMLInputElement>(null);
@@ -134,8 +147,27 @@ const HomePageSettingsPage = () => {
             };
           }
         ).hero;
-        const ab = (d as { announcementBar?: { text?: { en?: string; ar?: string }; enabled?: boolean; backgroundColor?: string } }).announcementBar;
-        const pb = (d as { promoBanner?: { enabled?: boolean; image?: string; title?: { en?: string; ar?: string }; subtitle?: { en?: string; ar?: string }; ctaLabel?: { en?: string; ar?: string }; ctaUrl?: string } }).promoBanner;
+        const ab = (
+          d as {
+            announcementBar?: {
+              text?: { en?: string; ar?: string };
+              enabled?: boolean;
+              backgroundColor?: string;
+            };
+          }
+        ).announcementBar;
+        const pb = (
+          d as {
+            promoBanner?: {
+              enabled?: boolean;
+              image?: string;
+              title?: { en?: string; ar?: string };
+              subtitle?: { en?: string; ar?: string };
+              ctaLabel?: { en?: string; ar?: string };
+              ctaUrl?: string;
+            };
+          }
+        ).promoBanner;
         const collections = (d.homeCollections ?? []).map(
           (
             c: {
@@ -183,14 +215,47 @@ const HomePageSettingsPage = () => {
             ctaLabelAr: pb?.ctaLabel?.ar ?? "",
             ctaUrl: pb?.ctaUrl ?? "",
           },
-          newArrivalsLimit: Math.max(1, Math.min(24, (d as { newArrivalsLimit?: number }).newArrivalsLimit ?? 8)),
-          newArrivalsSectionImages: (d as { newArrivalsSectionImages?: string[] }).newArrivalsSectionImages ?? [],
-          newArrivalsSectionVideos: (d as { newArrivalsSectionVideos?: string[] }).newArrivalsSectionVideos ?? [],
-          featuredProductsEnabled: (d as { featuredProductsEnabled?: boolean }).featuredProductsEnabled ?? false,
-          featuredProductsLimit: Math.max(1, Math.min(24, (d as { featuredProductsLimit?: number }).featuredProductsLimit ?? 8)),
-          homeCollectionsDisplayLimit: Math.max(0, (d as { homeCollectionsDisplayLimit?: number }).homeCollectionsDisplayLimit ?? 0),
-          ourCollectionSectionImages: (d as { ourCollectionSectionImages?: string[] }).ourCollectionSectionImages ?? [],
-          ourCollectionSectionVideos: (d as { ourCollectionSectionVideos?: string[] }).ourCollectionSectionVideos ?? [],
+          newArrivalsLimit: Math.max(
+            1,
+            Math.min(
+              24,
+              (d as { newArrivalsLimit?: number }).newArrivalsLimit ?? 8,
+            ),
+          ),
+          newArrivalsSectionImages:
+            (d as { newArrivalsSectionImages?: string[] })
+              .newArrivalsSectionImages ?? [],
+          newArrivalsSectionVideos:
+            (d as { newArrivalsSectionVideos?: string[] })
+              .newArrivalsSectionVideos ?? [],
+          featuredProductsEnabled:
+            (d as { featuredProductsEnabled?: boolean })
+              .featuredProductsEnabled ?? false,
+          featuredProductsLimit: Math.max(
+            1,
+            Math.min(
+              24,
+              (d as { featuredProductsLimit?: number }).featuredProductsLimit ??
+                8,
+            ),
+          ),
+          feedbackSectionEnabled:
+            (d as { feedbackSectionEnabled?: boolean }).feedbackSectionEnabled ?? false,
+          feedbackDisplayLimit: Math.max(
+            0,
+            Math.min(50, (d as { feedbackDisplayLimit?: number }).feedbackDisplayLimit ?? 6),
+          ),
+          homeCollectionsDisplayLimit: Math.max(
+            0,
+            (d as { homeCollectionsDisplayLimit?: number })
+              .homeCollectionsDisplayLimit ?? 0,
+          ),
+          ourCollectionSectionImages:
+            (d as { ourCollectionSectionImages?: string[] })
+              .ourCollectionSectionImages ?? [],
+          ourCollectionSectionVideos:
+            (d as { ourCollectionSectionVideos?: string[] })
+              .ourCollectionSectionVideos ?? [],
           homeCollections: collections,
         });
       })
@@ -214,7 +279,11 @@ const HomePageSettingsPage = () => {
       const path = await uploadFn(file);
       onSuccess(path);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("settings.logo_upload_failed"));
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : t("settings.logo_upload_failed"),
+      );
     } finally {
       setUploadingKey(key, false);
     }
@@ -236,7 +305,11 @@ const HomePageSettingsPage = () => {
       const path = await uploadFn(file);
       onSuccess(path);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("settings.logo_upload_failed"));
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : t("settings.logo_upload_failed"),
+      );
     } finally {
       setUploadingKey(key, false);
     }
@@ -273,9 +346,15 @@ const HomePageSettingsPage = () => {
 
   // Hero media
   const addHeroImage = (path: string) =>
-    setForm((f) => ({ ...f, hero: { ...f.hero, images: [...f.hero.images, path] } }));
+    setForm((f) => ({
+      ...f,
+      hero: { ...f.hero, images: [...f.hero.images, path] },
+    }));
   const addHeroVideo = (path: string) =>
-    setForm((f) => ({ ...f, hero: { ...f.hero, videos: [...f.hero.videos, path] } }));
+    setForm((f) => ({
+      ...f,
+      hero: { ...f.hero, videos: [...f.hero.videos, path] },
+    }));
 
   // Section media
   const addToArray = (field: keyof HomePageForm, path: string) =>
@@ -292,11 +371,23 @@ const HomePageSettingsPage = () => {
         hero: { ...f.hero, [type]: f.hero[type].filter((_, i) => i !== index) },
       }));
     } else if (section === "newArrivals") {
-      const key = type === "images" ? "newArrivalsSectionImages" : "newArrivalsSectionVideos";
-      setForm((f) => ({ ...f, [key]: (f[key] as string[]).filter((_, i) => i !== index) }));
+      const key =
+        type === "images"
+          ? "newArrivalsSectionImages"
+          : "newArrivalsSectionVideos";
+      setForm((f) => ({
+        ...f,
+        [key]: (f[key] as string[]).filter((_, i) => i !== index),
+      }));
     } else {
-      const key = type === "images" ? "ourCollectionSectionImages" : "ourCollectionSectionVideos";
-      setForm((f) => ({ ...f, [key]: (f[key] as string[]).filter((_, i) => i !== index) }));
+      const key =
+        type === "images"
+          ? "ourCollectionSectionImages"
+          : "ourCollectionSectionVideos";
+      setForm((f) => ({
+        ...f,
+        [key]: (f[key] as string[]).filter((_, i) => i !== index),
+      }));
     }
   };
 
@@ -305,7 +396,9 @@ const HomePageSettingsPage = () => {
     setUploadingCollectionIndex(index);
     collectionImageRef.current?.click();
   };
-  const handleCollectionImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCollectionImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     const idx = uploadingCollectionIndex;
     e.target.value = "";
@@ -320,25 +413,48 @@ const HomePageSettingsPage = () => {
       const imagePath = await api.uploadCollectionImage(file);
       setForm((f) => ({
         ...f,
-        homeCollections: f.homeCollections.map((c, i) => (i === idx ? { ...c, image: imagePath } : c)),
+        homeCollections: f.homeCollections.map((c, i) =>
+          i === idx ? { ...c, image: imagePath } : c,
+        ),
       }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("settings.logo_upload_failed"));
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : t("settings.logo_upload_failed"),
+      );
     }
   };
   const addCollection = () => {
     setForm((f) => ({
       ...f,
-      homeCollections: [...f.homeCollections, { titleEn: "", titleAr: "", image: "", url: "", order: f.homeCollections.length }],
+      homeCollections: [
+        ...f.homeCollections,
+        {
+          titleEn: "",
+          titleAr: "",
+          image: "",
+          url: "",
+          order: f.homeCollections.length,
+        },
+      ],
     }));
   };
   const removeCollection = (index: number) => {
-    setForm((f) => ({ ...f, homeCollections: f.homeCollections.filter((_, i) => i !== index) }));
-  };
-  const updateCollection = (index: number, patch: Partial<CollectionCardForm>) => {
     setForm((f) => ({
       ...f,
-      homeCollections: f.homeCollections.map((c, i) => (i === index ? { ...c, ...patch } : c)),
+      homeCollections: f.homeCollections.filter((_, i) => i !== index),
+    }));
+  };
+  const updateCollection = (
+    index: number,
+    patch: Partial<CollectionCardForm>,
+  ) => {
+    setForm((f) => ({
+      ...f,
+      homeCollections: f.homeCollections.map((c, i) =>
+        i === index ? { ...c, ...patch } : c,
+      ),
     }));
   };
 
@@ -382,6 +498,8 @@ const HomePageSettingsPage = () => {
         newArrivalsSectionVideos: form.newArrivalsSectionVideos,
         featuredProductsEnabled: form.featuredProductsEnabled,
         featuredProductsLimit: form.featuredProductsLimit,
+        feedbackSectionEnabled: form.feedbackSectionEnabled,
+        feedbackDisplayLimit: form.feedbackDisplayLimit,
         homeCollectionsDisplayLimit: form.homeCollectionsDisplayLimit,
         ourCollectionSectionImages: form.ourCollectionSectionImages,
         ourCollectionSectionVideos: form.ourCollectionSectionVideos,
@@ -395,7 +513,9 @@ const HomePageSettingsPage = () => {
       });
       setSaved(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("settings.failed_save"));
+      setError(
+        err instanceof ApiError ? err.message : t("settings.failed_save"),
+      );
     }
   };
 
@@ -411,18 +531,33 @@ const HomePageSettingsPage = () => {
     <div
       className={`product-form-upload-zone ${dragOverZone === zoneKey ? "drag-over" : ""} ${isUploading(zoneKey) ? "uploading" : ""}`}
       onClick={() => inputRef.current?.click()}
-      onDragOver={(e) => { e.preventDefault(); setDragOverZone(zoneKey); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOverZone(zoneKey);
+      }}
       onDragLeave={() => setDragOverZone(null)}
       onDrop={onDrop}
       role="button"
       tabIndex={0}
     >
-      <input ref={inputRef as React.RefObject<HTMLInputElement>} type="file" accept={accept} onChange={onChange} disabled={isUploading(zoneKey)} />
+      <input
+        ref={inputRef as React.RefObject<HTMLInputElement>}
+        type="file"
+        accept={accept}
+        onChange={onChange}
+        disabled={isUploading(zoneKey)}
+      />
       <p className="product-form-upload-text">
-        {isUploading(zoneKey) ? t("common.loading") : type === "image" ? t("settings.upload_image") : t("settings.upload_video")}
+        {isUploading(zoneKey)
+          ? t("common.loading")
+          : type === "image"
+            ? t("settings.upload_image")
+            : t("settings.upload_video")}
       </p>
       <p className="product-form-upload-hint">
-        {type === "image" ? t("settings.upload_image_hint") : t("settings.upload_video_hint")}
+        {type === "image"
+          ? t("settings.upload_image_hint")
+          : t("settings.upload_video_hint")}
       </p>
     </div>
   );
@@ -441,7 +576,10 @@ const HomePageSettingsPage = () => {
     return (
       <div className="home-media-grid">
         {items.map((item) => (
-          <div key={`${item.type}-${item.path}`} className="home-media-grid-item">
+          <div
+            key={`${item.type}-${item.path}`}
+            className="home-media-grid-item"
+          >
             {item.type === "image" ? (
               <img src={getMediaUrl(item.path)} alt="" />
             ) : (
@@ -450,7 +588,13 @@ const HomePageSettingsPage = () => {
             <button
               type="button"
               className="product-form-image-remove"
-              onClick={() => removeMedia(section, item.type === "image" ? "images" : "videos", item.idx)}
+              onClick={() =>
+                removeMedia(
+                  section,
+                  item.type === "image" ? "images" : "videos",
+                  item.idx,
+                )
+              }
               title={t("common.remove")}
             >
               &times;
@@ -483,14 +627,26 @@ const HomePageSettingsPage = () => {
       <form onSubmit={handleSubmit} className="home-page-settings-form">
         {/* ——— Announcement Bar ——— */}
         <section className="home-section-card card">
-          <h2 className="home-section-card-title">{t("settings.section_announcement_bar")}</h2>
-          <p className="settings-hint home-section-hint">{t("settings.announcement_bar_hint")}</p>
+          <h2 className="home-section-card-title">
+            {t("settings.section_announcement_bar")}
+          </h2>
+          <p className="settings-hint home-section-hint">
+            {t("settings.announcement_bar_hint")}
+          </p>
           <div className="home-section-body">
             <label className="checkbox-label home-section-toggle">
               <input
                 type="checkbox"
                 checked={form.announcementBar.enabled}
-                onChange={(e) => setForm((f) => ({ ...f, announcementBar: { ...f.announcementBar, enabled: e.target.checked } }))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    announcementBar: {
+                      ...f.announcementBar,
+                      enabled: e.target.checked,
+                    },
+                  }))
+                }
               />
               <span>{t("settings.announcement_enabled")}</span>
             </label>
@@ -502,7 +658,15 @@ const HomePageSettingsPage = () => {
                   <input
                     type="text"
                     value={form.announcementBar.textEn}
-                    onChange={(e) => setForm((f) => ({ ...f, announcementBar: { ...f.announcementBar, textEn: e.target.value } }))}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        announcementBar: {
+                          ...f.announcementBar,
+                          textEn: e.target.value,
+                        },
+                      }))
+                    }
                     placeholder="Free shipping on orders over 500 EGP!"
                   />
                 </div>
@@ -514,7 +678,15 @@ const HomePageSettingsPage = () => {
                   <input
                     type="text"
                     value={form.announcementBar.textAr}
-                    onChange={(e) => setForm((f) => ({ ...f, announcementBar: { ...f.announcementBar, textAr: e.target.value } }))}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        announcementBar: {
+                          ...f.announcementBar,
+                          textAr: e.target.value,
+                        },
+                      }))
+                    }
                     placeholder="شحن مجاني للطلبات فوق ٥٠٠ جنيه!"
                   />
                 </div>
@@ -526,13 +698,34 @@ const HomePageSettingsPage = () => {
                 <input
                   type="color"
                   value={form.announcementBar.backgroundColor}
-                  onChange={(e) => setForm((f) => ({ ...f, announcementBar: { ...f.announcementBar, backgroundColor: e.target.value } }))}
-                  style={{ width: 40, height: 36, padding: 2, cursor: "pointer" }}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      announcementBar: {
+                        ...f.announcementBar,
+                        backgroundColor: e.target.value,
+                      },
+                    }))
+                  }
+                  style={{
+                    width: 40,
+                    height: 36,
+                    padding: 2,
+                    cursor: "pointer",
+                  }}
                 />
                 <input
                   type="text"
                   value={form.announcementBar.backgroundColor}
-                  onChange={(e) => setForm((f) => ({ ...f, announcementBar: { ...f.announcementBar, backgroundColor: e.target.value } }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      announcementBar: {
+                        ...f.announcementBar,
+                        backgroundColor: e.target.value,
+                      },
+                    }))
+                  }
                   placeholder="#0f172a"
                   style={{ width: 100 }}
                 />
@@ -543,19 +736,27 @@ const HomePageSettingsPage = () => {
 
         {/* ——— Hero ——— */}
         <section className="home-section-card card">
-          <h2 className="home-section-card-title">{t("settings.section_hero")}</h2>
-          <p className="settings-hint home-section-hint">{t("settings.hero_hint")}</p>
+          <h2 className="home-section-card-title">
+            {t("settings.section_hero")}
+          </h2>
+          <p className="settings-hint home-section-hint">
+            {t("settings.hero_hint")}
+          </p>
           <div className="home-section-body">
             <label className="checkbox-label home-section-toggle">
               <input
                 type="checkbox"
                 checked={form.heroEnabled}
-                onChange={(e) => setForm({ ...form, heroEnabled: e.target.checked })}
+                onChange={(e) =>
+                  setForm({ ...form, heroEnabled: e.target.checked })
+                }
               />
               <span>{t("settings.hero_enabled")}</span>
             </label>
 
-            <label className="home-section-media-label">{t("settings.hero_images_videos")}</label>
+            <label className="home-section-media-label">
+              {t("settings.hero_images_videos")}
+            </label>
 
             {/* Image upload zone */}
             {renderUploadZone(
@@ -563,8 +764,22 @@ const HomePageSettingsPage = () => {
               "image",
               heroImageRef,
               "image/png,image/jpeg,image/jpg,image/gif,image/webp",
-              (e) => handleFileChange(e, "image", api.uploadHeroImage, "heroImage", addHeroImage),
-              (e) => handleDrop(e, "image", api.uploadHeroImage, "heroImage", addHeroImage),
+              (e) =>
+                handleFileChange(
+                  e,
+                  "image",
+                  api.uploadHeroImage,
+                  "heroImage",
+                  addHeroImage,
+                ),
+              (e) =>
+                handleDrop(
+                  e,
+                  "image",
+                  api.uploadHeroImage,
+                  "heroImage",
+                  addHeroImage,
+                ),
             )}
             {renderMediaGrid(form.hero.images, [], "hero")}
 
@@ -574,8 +789,22 @@ const HomePageSettingsPage = () => {
               "video",
               heroVideoRef,
               "video/mp4,video/webm,video/quicktime,video/ogg",
-              (e) => handleFileChange(e, "video", api.uploadHeroVideo, "heroVideo", addHeroVideo),
-              (e) => handleDrop(e, "video", api.uploadHeroVideo, "heroVideo", addHeroVideo),
+              (e) =>
+                handleFileChange(
+                  e,
+                  "video",
+                  api.uploadHeroVideo,
+                  "heroVideo",
+                  addHeroVideo,
+                ),
+              (e) =>
+                handleDrop(
+                  e,
+                  "video",
+                  api.uploadHeroVideo,
+                  "heroVideo",
+                  addHeroVideo,
+                ),
             )}
             {renderMediaGrid([], form.hero.videos, "hero")}
 
@@ -584,50 +813,132 @@ const HomePageSettingsPage = () => {
                 <h4 className="home-col-label">English</h4>
                 <div className="form-group">
                   <label>{t("settings.hero_title_en")}</label>
-                  <input type="text" value={form.hero.titleEn} onChange={(e) => setForm((f) => ({ ...f, hero: { ...f.hero, titleEn: e.target.value } }))} placeholder={t("settings.hero_title_en")} />
+                  <input
+                    type="text"
+                    value={form.hero.titleEn}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        hero: { ...f.hero, titleEn: e.target.value },
+                      }))
+                    }
+                    placeholder={t("settings.hero_title_en")}
+                  />
                 </div>
                 <div className="form-group">
                   <label>{t("settings.hero_subtitle_en")}</label>
-                  <input type="text" value={form.hero.subtitleEn} onChange={(e) => setForm((f) => ({ ...f, hero: { ...f.hero, subtitleEn: e.target.value } }))} placeholder={t("settings.hero_subtitle_en")} />
+                  <input
+                    type="text"
+                    value={form.hero.subtitleEn}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        hero: { ...f.hero, subtitleEn: e.target.value },
+                      }))
+                    }
+                    placeholder={t("settings.hero_subtitle_en")}
+                  />
                 </div>
                 <div className="form-group">
                   <label>{t("settings.hero_cta_label_en")}</label>
-                  <input type="text" value={form.hero.ctaLabelEn} onChange={(e) => setForm((f) => ({ ...f, hero: { ...f.hero, ctaLabelEn: e.target.value } }))} placeholder={t("settings.hero_cta_label_en")} />
+                  <input
+                    type="text"
+                    value={form.hero.ctaLabelEn}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        hero: { ...f.hero, ctaLabelEn: e.target.value },
+                      }))
+                    }
+                    placeholder={t("settings.hero_cta_label_en")}
+                  />
                 </div>
               </div>
               <div className="home-col">
                 <h4 className="home-col-label">العربية</h4>
                 <div className="form-group">
                   <label>{t("settings.hero_title_ar")}</label>
-                  <input type="text" value={form.hero.titleAr} onChange={(e) => setForm((f) => ({ ...f, hero: { ...f.hero, titleAr: e.target.value } }))} placeholder={t("settings.hero_title_ar")} />
+                  <input
+                    type="text"
+                    value={form.hero.titleAr}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        hero: { ...f.hero, titleAr: e.target.value },
+                      }))
+                    }
+                    placeholder={t("settings.hero_title_ar")}
+                  />
                 </div>
                 <div className="form-group">
                   <label>{t("settings.hero_subtitle_ar")}</label>
-                  <input type="text" value={form.hero.subtitleAr} onChange={(e) => setForm((f) => ({ ...f, hero: { ...f.hero, subtitleAr: e.target.value } }))} placeholder={t("settings.hero_subtitle_ar")} />
+                  <input
+                    type="text"
+                    value={form.hero.subtitleAr}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        hero: { ...f.hero, subtitleAr: e.target.value },
+                      }))
+                    }
+                    placeholder={t("settings.hero_subtitle_ar")}
+                  />
                 </div>
                 <div className="form-group">
                   <label>{t("settings.hero_cta_label_ar")}</label>
-                  <input type="text" value={form.hero.ctaLabelAr} onChange={(e) => setForm((f) => ({ ...f, hero: { ...f.hero, ctaLabelAr: e.target.value } }))} placeholder={t("settings.hero_cta_label_ar")} />
+                  <input
+                    type="text"
+                    value={form.hero.ctaLabelAr}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        hero: { ...f.hero, ctaLabelAr: e.target.value },
+                      }))
+                    }
+                    placeholder={t("settings.hero_cta_label_ar")}
+                  />
                 </div>
               </div>
             </div>
             <div className="form-group">
               <label>{t("settings.hero_cta_url")}</label>
-              <input type="text" value={form.hero.ctaUrl} onChange={(e) => setForm((f) => ({ ...f, hero: { ...f.hero, ctaUrl: e.target.value } }))} placeholder="/shop or https://..." />
+              <input
+                type="text"
+                value={form.hero.ctaUrl}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    hero: { ...f.hero, ctaUrl: e.target.value },
+                  }))
+                }
+                placeholder="/shop or https://..."
+              />
             </div>
           </div>
         </section>
 
         {/* ——— Promotional Banner ——— */}
         <section className="home-section-card card">
-          <h2 className="home-section-card-title">{t("settings.section_promo_banner")}</h2>
-          <p className="settings-hint home-section-hint">{t("settings.promo_banner_hint")}</p>
+          <h2 className="home-section-card-title">
+            {t("settings.section_promo_banner")}
+          </h2>
+          <p className="settings-hint home-section-hint">
+            {t("settings.promo_banner_hint")}
+          </p>
           <div className="home-section-body">
             <label className="checkbox-label home-section-toggle">
               <input
                 type="checkbox"
                 checked={form.promoBanner.enabled}
-                onChange={(e) => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, enabled: e.target.checked } }))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    promoBanner: {
+                      ...f.promoBanner,
+                      enabled: e.target.checked,
+                    },
+                  }))
+                }
               />
               <span>{t("settings.promo_enabled")}</span>
             </label>
@@ -638,12 +949,30 @@ const HomePageSettingsPage = () => {
               "image",
               promoImageRef,
               "image/png,image/jpeg,image/jpg,image/gif,image/webp",
-              (e) => handleFileChange(e, "image", api.uploadPromoImage, "promoImage", (path) =>
-                setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, image: path } }))
-              ),
-              (e) => handleDrop(e, "image", api.uploadPromoImage, "promoImage", (path) =>
-                setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, image: path } }))
-              ),
+              (e) =>
+                handleFileChange(
+                  e,
+                  "image",
+                  api.uploadPromoImage,
+                  "promoImage",
+                  (path) =>
+                    setForm((f) => ({
+                      ...f,
+                      promoBanner: { ...f.promoBanner, image: path },
+                    })),
+                ),
+              (e) =>
+                handleDrop(
+                  e,
+                  "image",
+                  api.uploadPromoImage,
+                  "promoImage",
+                  (path) =>
+                    setForm((f) => ({
+                      ...f,
+                      promoBanner: { ...f.promoBanner, image: path },
+                    })),
+                ),
             )}
             {form.promoBanner.image && (
               <div className="home-media-grid">
@@ -652,7 +981,12 @@ const HomePageSettingsPage = () => {
                   <button
                     type="button"
                     className="product-form-image-remove"
-                    onClick={() => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, image: "" } }))}
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        promoBanner: { ...f.promoBanner, image: "" },
+                      }))
+                    }
                     title={t("common.remove")}
                   >
                     &times;
@@ -666,54 +1000,162 @@ const HomePageSettingsPage = () => {
                 <h4 className="home-col-label">English</h4>
                 <div className="form-group">
                   <label>{t("settings.promo_title_en")}</label>
-                  <input type="text" value={form.promoBanner.titleEn} onChange={(e) => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, titleEn: e.target.value } }))} placeholder="Summer Sale - Up to 50% Off" />
+                  <input
+                    type="text"
+                    value={form.promoBanner.titleEn}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        promoBanner: {
+                          ...f.promoBanner,
+                          titleEn: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Summer Sale - Up to 50% Off"
+                  />
                 </div>
                 <div className="form-group">
                   <label>{t("settings.promo_subtitle_en")}</label>
-                  <input type="text" value={form.promoBanner.subtitleEn} onChange={(e) => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, subtitleEn: e.target.value } }))} placeholder="Limited time offer" />
+                  <input
+                    type="text"
+                    value={form.promoBanner.subtitleEn}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        promoBanner: {
+                          ...f.promoBanner,
+                          subtitleEn: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Limited time offer"
+                  />
                 </div>
                 <div className="form-group">
                   <label>{t("settings.promo_cta_label_en")}</label>
-                  <input type="text" value={form.promoBanner.ctaLabelEn} onChange={(e) => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, ctaLabelEn: e.target.value } }))} placeholder="Shop Now" />
+                  <input
+                    type="text"
+                    value={form.promoBanner.ctaLabelEn}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        promoBanner: {
+                          ...f.promoBanner,
+                          ctaLabelEn: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="Shop Now"
+                  />
                 </div>
               </div>
               <div className="home-col">
                 <h4 className="home-col-label">العربية</h4>
                 <div className="form-group">
                   <label>{t("settings.promo_title_ar")}</label>
-                  <input type="text" value={form.promoBanner.titleAr} onChange={(e) => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, titleAr: e.target.value } }))} placeholder="تخفيضات الصيف - خصم حتى ٥٠٪" />
+                  <input
+                    type="text"
+                    value={form.promoBanner.titleAr}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        promoBanner: {
+                          ...f.promoBanner,
+                          titleAr: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="تخفيضات الصيف - خصم حتى ٥٠٪"
+                  />
                 </div>
                 <div className="form-group">
                   <label>{t("settings.promo_subtitle_ar")}</label>
-                  <input type="text" value={form.promoBanner.subtitleAr} onChange={(e) => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, subtitleAr: e.target.value } }))} placeholder="عرض محدود" />
+                  <input
+                    type="text"
+                    value={form.promoBanner.subtitleAr}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        promoBanner: {
+                          ...f.promoBanner,
+                          subtitleAr: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="عرض محدود"
+                  />
                 </div>
                 <div className="form-group">
                   <label>{t("settings.promo_cta_label_ar")}</label>
-                  <input type="text" value={form.promoBanner.ctaLabelAr} onChange={(e) => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, ctaLabelAr: e.target.value } }))} placeholder="تسوق الآن" />
+                  <input
+                    type="text"
+                    value={form.promoBanner.ctaLabelAr}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        promoBanner: {
+                          ...f.promoBanner,
+                          ctaLabelAr: e.target.value,
+                        },
+                      }))
+                    }
+                    placeholder="تسوق الآن"
+                  />
                 </div>
               </div>
             </div>
             <div className="form-group">
               <label>{t("settings.promo_cta_url")}</label>
-              <input type="text" value={form.promoBanner.ctaUrl} onChange={(e) => setForm((f) => ({ ...f, promoBanner: { ...f.promoBanner, ctaUrl: e.target.value } }))} placeholder="/sale or https://..." />
+              <input
+                type="text"
+                value={form.promoBanner.ctaUrl}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    promoBanner: { ...f.promoBanner, ctaUrl: e.target.value },
+                  }))
+                }
+                placeholder="/sale or https://..."
+              />
             </div>
           </div>
         </section>
 
         {/* ——— New Arrivals ——— */}
         <section className="home-section-card card">
-          <h2 className="home-section-card-title">{t("settings.section_new_arrivals")}</h2>
-          <p className="settings-hint home-section-hint">{t("settings.new_arrivals_hint")}</p>
+          <h2 className="home-section-card-title">
+            {t("settings.section_new_arrivals")}
+          </h2>
+          <p className="settings-hint home-section-hint">
+            {t("settings.new_arrivals_hint")}
+          </p>
           <div className="home-section-body">
-            <label className="home-section-media-label">{t("settings.section_media")}</label>
+            <label className="home-section-media-label">
+              {t("settings.section_media")}
+            </label>
 
             {renderUploadZone(
               "newArrivalsImage",
               "image",
               newArrivalsImageRef,
               "image/png,image/jpeg,image/jpg,image/gif,image/webp",
-              (e) => handleFileChange(e, "image", api.uploadSectionImage, "newArrivalsImage", (p) => addToArray("newArrivalsSectionImages", p)),
-              (e) => handleDrop(e, "image", api.uploadSectionImage, "newArrivalsImage", (p) => addToArray("newArrivalsSectionImages", p)),
+              (e) =>
+                handleFileChange(
+                  e,
+                  "image",
+                  api.uploadSectionImage,
+                  "newArrivalsImage",
+                  (p) => addToArray("newArrivalsSectionImages", p),
+                ),
+              (e) =>
+                handleDrop(
+                  e,
+                  "image",
+                  api.uploadSectionImage,
+                  "newArrivalsImage",
+                  (p) => addToArray("newArrivalsSectionImages", p),
+                ),
             )}
             {renderMediaGrid(form.newArrivalsSectionImages, [], "newArrivals")}
 
@@ -722,96 +1164,248 @@ const HomePageSettingsPage = () => {
               "video",
               newArrivalsVideoRef,
               "video/mp4,video/webm,video/quicktime,video/ogg",
-              (e) => handleFileChange(e, "video", api.uploadSectionVideo, "newArrivalsVideo", (p) => addToArray("newArrivalsSectionVideos", p)),
-              (e) => handleDrop(e, "video", api.uploadSectionVideo, "newArrivalsVideo", (p) => addToArray("newArrivalsSectionVideos", p)),
+              (e) =>
+                handleFileChange(
+                  e,
+                  "video",
+                  api.uploadSectionVideo,
+                  "newArrivalsVideo",
+                  (p) => addToArray("newArrivalsSectionVideos", p),
+                ),
+              (e) =>
+                handleDrop(
+                  e,
+                  "video",
+                  api.uploadSectionVideo,
+                  "newArrivalsVideo",
+                  (p) => addToArray("newArrivalsSectionVideos", p),
+                ),
             )}
             {renderMediaGrid([], form.newArrivalsSectionVideos, "newArrivals")}
 
             <div className="form-group form-group-narrow">
-              <label htmlFor="home-new-arrivals-limit">{t("settings.new_arrivals_limit")}</label>
+              <label htmlFor="home-new-arrivals-limit">
+                {t("settings.new_arrivals_limit")}
+              </label>
               <input
                 id="home-new-arrivals-limit"
                 type="number"
                 min={1}
                 max={24}
                 value={form.newArrivalsLimit}
-                onChange={(e) => setForm({ ...form, newArrivalsLimit: Math.max(1, Math.min(24, Number(e.target.value) || 1)) })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    newArrivalsLimit: Math.max(
+                      1,
+                      Math.min(24, Number(e.target.value) || 1),
+                    ),
+                  })
+                }
               />
-              <p className="settings-hint">{t("settings.new_arrivals_limit_hint")}</p>
+              <p className="settings-hint">
+                {t("settings.new_arrivals_limit_hint")}
+              </p>
             </div>
           </div>
         </section>
 
         {/* ——— Featured / Trending Products ——— */}
         <section className="home-section-card card">
-          <h2 className="home-section-card-title">{t("settings.section_featured_products")}</h2>
-          <p className="settings-hint home-section-hint">{t("settings.featured_products_hint")}</p>
+          <h2 className="home-section-card-title">
+            {t("settings.section_featured_products")}
+          </h2>
+          <p className="settings-hint home-section-hint">
+            {t("settings.featured_products_hint")}
+          </p>
           <div className="home-section-body">
             <label className="checkbox-label home-section-toggle">
               <input
                 type="checkbox"
                 checked={form.featuredProductsEnabled}
-                onChange={(e) => setForm({ ...form, featuredProductsEnabled: e.target.checked })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    featuredProductsEnabled: e.target.checked,
+                  })
+                }
               />
               <span>{t("settings.featured_products_enabled")}</span>
             </label>
             <div className="form-group form-group-narrow">
-              <label htmlFor="home-featured-limit">{t("settings.featured_products_limit")}</label>
+              <label htmlFor="home-featured-limit">
+                {t("settings.featured_products_limit")}
+              </label>
               <input
                 id="home-featured-limit"
                 type="number"
                 min={1}
                 max={24}
                 value={form.featuredProductsLimit}
-                onChange={(e) => setForm({ ...form, featuredProductsLimit: Math.max(1, Math.min(24, Number(e.target.value) || 1)) })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    featuredProductsLimit: Math.max(
+                      1,
+                      Math.min(24, Number(e.target.value) || 1),
+                    ),
+                  })
+                }
               />
+            </div>
+          </div>
+        </section>
+
+        {/* ——— Customer feedback / Testimonials ——— */}
+        <section className="home-section-card card">
+          <h2 className="home-section-card-title">
+            {t("settings.section_feedback")}
+          </h2>
+          <p className="settings-hint home-section-hint">
+            {t("settings.feedback_section_hint")}
+          </p>
+          <div className="home-section-body">
+            <label className="checkbox-label home-section-toggle">
+              <input
+                type="checkbox"
+                checked={form.feedbackSectionEnabled}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    feedbackSectionEnabled: e.target.checked,
+                  })
+                }
+              />
+              <span>{t("settings.feedback_section_enabled")}</span>
+            </label>
+            <div className="form-group form-group-narrow">
+              <label htmlFor="home-feedback-limit">
+                {t("settings.feedback_display_limit")}
+              </label>
+              <input
+                id="home-feedback-limit"
+                type="number"
+                min={0}
+                max={50}
+                value={form.feedbackDisplayLimit}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    feedbackDisplayLimit: Math.max(
+                      0,
+                      Math.min(50, Number(e.target.value) || 0),
+                    ),
+                  })
+                }
+              />
+              <p className="settings-hint">
+                {t("settings.feedback_display_limit_hint")}
+              </p>
             </div>
           </div>
         </section>
 
         {/* ——— Our Collection ——— */}
         <section className="home-section-card card">
-          <h2 className="home-section-card-title">{t("settings.section_our_collection")}</h2>
-          <p className="settings-hint home-section-hint">{t("settings.our_collection_hint")}</p>
+          <h2 className="home-section-card-title">
+            {t("settings.section_our_collection")}
+          </h2>
+          <p className="settings-hint home-section-hint">
+            {t("settings.our_collection_hint")}
+          </p>
           <div className="home-section-body">
-            <label className="home-section-media-label">{t("settings.section_media")}</label>
+            <label className="home-section-media-label">
+              {t("settings.section_media")}
+            </label>
 
             {renderUploadZone(
               "ourCollectionImage",
               "image",
               ourCollectionImageRef,
               "image/png,image/jpeg,image/jpg,image/gif,image/webp",
-              (e) => handleFileChange(e, "image", api.uploadSectionImage, "ourCollectionImage", (p) => addToArray("ourCollectionSectionImages", p)),
-              (e) => handleDrop(e, "image", api.uploadSectionImage, "ourCollectionImage", (p) => addToArray("ourCollectionSectionImages", p)),
+              (e) =>
+                handleFileChange(
+                  e,
+                  "image",
+                  api.uploadSectionImage,
+                  "ourCollectionImage",
+                  (p) => addToArray("ourCollectionSectionImages", p),
+                ),
+              (e) =>
+                handleDrop(
+                  e,
+                  "image",
+                  api.uploadSectionImage,
+                  "ourCollectionImage",
+                  (p) => addToArray("ourCollectionSectionImages", p),
+                ),
             )}
-            {renderMediaGrid(form.ourCollectionSectionImages, [], "ourCollection")}
+            {renderMediaGrid(
+              form.ourCollectionSectionImages,
+              [],
+              "ourCollection",
+            )}
 
             {renderUploadZone(
               "ourCollectionVideo",
               "video",
               ourCollectionVideoRef,
               "video/mp4,video/webm,video/quicktime,video/ogg",
-              (e) => handleFileChange(e, "video", api.uploadSectionVideo, "ourCollectionVideo", (p) => addToArray("ourCollectionSectionVideos", p)),
-              (e) => handleDrop(e, "video", api.uploadSectionVideo, "ourCollectionVideo", (p) => addToArray("ourCollectionSectionVideos", p)),
+              (e) =>
+                handleFileChange(
+                  e,
+                  "video",
+                  api.uploadSectionVideo,
+                  "ourCollectionVideo",
+                  (p) => addToArray("ourCollectionSectionVideos", p),
+                ),
+              (e) =>
+                handleDrop(
+                  e,
+                  "video",
+                  api.uploadSectionVideo,
+                  "ourCollectionVideo",
+                  (p) => addToArray("ourCollectionSectionVideos", p),
+                ),
             )}
-            {renderMediaGrid([], form.ourCollectionSectionVideos, "ourCollection")}
+            {renderMediaGrid(
+              [],
+              form.ourCollectionSectionVideos,
+              "ourCollection",
+            )}
 
             <div className="form-group form-group-narrow">
-              <label htmlFor="home-collections-limit">{t("settings.our_collection_display_limit")}</label>
+              <label htmlFor="home-collections-limit">
+                {t("settings.our_collection_display_limit")}
+              </label>
               <input
                 id="home-collections-limit"
                 type="number"
                 min={0}
                 value={form.homeCollectionsDisplayLimit}
-                onChange={(e) => setForm({ ...form, homeCollectionsDisplayLimit: Math.max(0, Number(e.target.value) || 0) })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    homeCollectionsDisplayLimit: Math.max(
+                      0,
+                      Number(e.target.value) || 0,
+                    ),
+                  })
+                }
               />
-              <p className="settings-hint">{t("settings.our_collection_limit_hint")}</p>
+              <p className="settings-hint">
+                {t("settings.our_collection_limit_hint")}
+              </p>
             </div>
 
             <div className="home-collections-block">
               <div className="home-collections-header">
                 <h4>{t("settings.home_collections")}</h4>
-                <button type="button" className="button secondary" onClick={addCollection}>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={addCollection}
+                >
                   {t("settings.add_collection")}
                 </button>
               </div>
@@ -823,7 +1417,9 @@ const HomePageSettingsPage = () => {
                 style={{ display: "none" }}
               />
               {form.homeCollections.length === 0 ? (
-                <p className="settings-hint">{t("settings.home_collections_hint")}</p>
+                <p className="settings-hint">
+                  {t("settings.home_collections_hint")}
+                </p>
               ) : (
                 <ul className="home-collections-list">
                   {form.homeCollections.map((col, idx) => (
@@ -831,13 +1427,25 @@ const HomePageSettingsPage = () => {
                       <div className="home-collection-item-image">
                         {col.image ? (
                           <>
-                            <img src={getMediaUrl(col.image)} alt="" className="home-image-preview" />
-                            <button type="button" className="button secondary small" onClick={() => triggerCollectionImageUpload(idx)}>
+                            <img
+                              src={getMediaUrl(col.image)}
+                              alt=""
+                              className="home-image-preview"
+                            />
+                            <button
+                              type="button"
+                              className="button secondary small"
+                              onClick={() => triggerCollectionImageUpload(idx)}
+                            >
                               {t("settings.upload_image")}
                             </button>
                           </>
                         ) : (
-                          <button type="button" className="button secondary" onClick={() => triggerCollectionImageUpload(idx)}>
+                          <button
+                            type="button"
+                            className="button secondary"
+                            onClick={() => triggerCollectionImageUpload(idx)}
+                          >
                             {t("settings.upload_image")}
                           </button>
                         )}
@@ -845,17 +1453,42 @@ const HomePageSettingsPage = () => {
                       <div className="home-collection-item-fields">
                         <div className="form-group">
                           <label>{t("settings.collection_title_en")}</label>
-                          <input type="text" value={col.titleEn} onChange={(e) => updateCollection(idx, { titleEn: e.target.value })} placeholder={t("settings.collection_title_en")} />
+                          <input
+                            type="text"
+                            value={col.titleEn}
+                            onChange={(e) =>
+                              updateCollection(idx, { titleEn: e.target.value })
+                            }
+                            placeholder={t("settings.collection_title_en")}
+                          />
                         </div>
                         <div className="form-group">
                           <label>{t("settings.collection_title_ar")}</label>
-                          <input type="text" value={col.titleAr} onChange={(e) => updateCollection(idx, { titleAr: e.target.value })} placeholder={t("settings.collection_title_ar")} />
+                          <input
+                            type="text"
+                            value={col.titleAr}
+                            onChange={(e) =>
+                              updateCollection(idx, { titleAr: e.target.value })
+                            }
+                            placeholder={t("settings.collection_title_ar")}
+                          />
                         </div>
                         <div className="form-group">
                           <label>{t("settings.collection_link")}</label>
-                          <input type="text" value={col.url} onChange={(e) => updateCollection(idx, { url: e.target.value })} placeholder="/category/summer" />
+                          <input
+                            type="text"
+                            value={col.url}
+                            onChange={(e) =>
+                              updateCollection(idx, { url: e.target.value })
+                            }
+                            placeholder="/category/summer"
+                          />
                         </div>
-                        <button type="button" className="button danger secondary" onClick={() => removeCollection(idx)}>
+                        <button
+                          type="button"
+                          className="button danger secondary"
+                          onClick={() => removeCollection(idx)}
+                        >
                           {t("common.delete")}
                         </button>
                       </div>

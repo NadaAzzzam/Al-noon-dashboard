@@ -132,3 +132,36 @@ export const getStats = asyncHandler(async (req, res) => {
     revenueLastMonth: revenueLastMonthAgg[0]?.total ?? 0
   });
 });
+
+/** GET /dashboard/top-selling – top selling products (for products page). */
+export const getTopSelling = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) {
+    res.json({ topSelling: [] });
+    return;
+  }
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 15));
+  const topSelling = await Order.aggregate([
+    { $match: { status: { $in: ["CONFIRMED", "SHIPPED", "DELIVERED"] } } },
+    { $unwind: "$items" },
+    {
+      $group: {
+        _id: "$items.product",
+        totalQty: { $sum: "$items.quantity" }
+      }
+    },
+    { $sort: { totalQty: -1 } },
+    { $limit: limit },
+    { $lookup: { from: "products", localField: "_id", foreignField: "_id", as: "product" } },
+    { $unwind: "$product" },
+    {
+      $project: {
+        productId: "$_id",
+        name: "$product.name",
+        image: { $arrayElemAt: ["$product.images", 0] },
+        totalQty: 1,
+        _id: 0
+      }
+    }
+  ]);
+  res.json({ topSelling });
+});

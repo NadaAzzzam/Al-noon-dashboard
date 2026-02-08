@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
+import {
   api,
   ApiError,
   DashboardStats,
@@ -66,20 +76,31 @@ const DashboardPage = () => {
 
   const ordersPerDay = stats.ordersPerDay ?? [];
   const chartSlice = ordersPerDay.slice(-14);
-  const maxCount = chartSlice.length
-    ? Math.max(...chartSlice.map((x) => x.count))
-    : 1;
   const maxRevenue = chartSlice.length
     ? Math.max(...chartSlice.map((x) => x.revenue ?? 0))
     : 1;
+  // Chart data for Orders per day (last 30): Recharts expects { date, count } with optional display label
+  const ordersChartData = ordersPerDay.map((d) => ({
+    date: d._id,
+    count: d.count,
+    shortDate: d._id.length >= 10 ? d._id.slice(5, 10) : d._id, // MM-DD for axis
+  }));
 
   // Revenue comparison
-  const revenueChange = stats.revenueLastMonth > 0
-    ? ((stats.revenueThisMonth - stats.revenueLastMonth) / stats.revenueLastMonth) * 100
-    : stats.revenueThisMonth > 0 ? 100 : 0;
+  const revenueChange =
+    stats.revenueLastMonth > 0
+      ? ((stats.revenueThisMonth - stats.revenueLastMonth) /
+          stats.revenueLastMonth) *
+        100
+      : stats.revenueThisMonth > 0
+        ? 100
+        : 0;
 
   // Order status breakdown
-  const totalStatusOrders = (stats.orderStatusBreakdown ?? []).reduce((sum, s) => sum + s.count, 0);
+  const totalStatusOrders = (stats.orderStatusBreakdown ?? []).reduce(
+    (sum, s) => sum + s.count,
+    0,
+  );
 
   return (
     <div>
@@ -106,7 +127,9 @@ const DashboardPage = () => {
         </div>
         <div className="card">
           <h3>{t("dashboard.avg_order_value")}</h3>
-          <p className="card-value">{formatPriceEGP(stats.averageOrderValue ?? 0)}</p>
+          <p className="card-value">
+            {formatPriceEGP(stats.averageOrderValue ?? 0)}
+          </p>
         </div>
       </div>
 
@@ -116,7 +139,9 @@ const DashboardPage = () => {
           <h3>{t("dashboard.pending_orders")}</h3>
           <p className="card-value">
             {stats.pendingOrdersCount > 0 ? (
-              <Link to="/orders" className="notif-badge low">{stats.pendingOrdersCount}</Link>
+              <Link to="/orders" className="notif-badge low">
+                {stats.pendingOrdersCount}
+              </Link>
             ) : (
               stats.pendingOrdersCount
             )}
@@ -125,19 +150,23 @@ const DashboardPage = () => {
         <div className="card">
           <h3>{t("dashboard.total_customers")}</h3>
           <p className="card-value">
-            <Link to="/customers" style={{ color: "inherit" }}>{stats.totalCustomers}</Link>
+            <Link to="/customers" style={{ color: "inherit" }}>
+              {stats.totalCustomers}
+            </Link>
           </p>
         </div>
         <div className="card">
           <h3>{t("dashboard.total_products")}</h3>
           <p className="card-value">
-            <Link to="/products" style={{ color: "inherit" }}>{stats.totalProducts}</Link>
+            <Link to="/products" style={{ color: "inherit" }}>
+              {stats.totalProducts}
+            </Link>
           </p>
         </div>
         <div className="card">
           <h3>{t("dashboard.low_stock")}</h3>
           <p className="card-value">
-            {(stats.lowStockCount + stats.outOfStockCount) > 0 ? (
+            {stats.lowStockCount + stats.outOfStockCount > 0 ? (
               <Link to="/inventory" className="notif-badge low">
                 {stats.lowStockCount + stats.outOfStockCount}
               </Link>
@@ -154,17 +183,28 @@ const DashboardPage = () => {
           <h3>{t("dashboard.revenue_comparison")}</h3>
           <div className="dashboard-revenue-comparison">
             <div className="dashboard-revenue-stat">
-              <p className="settings-hint" style={{ margin: "0 0 4px" }}>{t("dashboard.revenue_this_month")}</p>
-              <p className="card-value" style={{ margin: 0 }}>{formatPriceEGP(stats.revenueThisMonth ?? 0)}</p>
+              <p className="settings-hint" style={{ margin: "0 0 4px" }}>
+                {t("dashboard.revenue_this_month")}
+              </p>
+              <p className="card-value" style={{ margin: 0 }}>
+                {formatPriceEGP(stats.revenueThisMonth ?? 0)}
+              </p>
             </div>
             <div className="dashboard-revenue-stat">
-              <p className="settings-hint" style={{ margin: "0 0 4px" }}>{t("dashboard.revenue_last_month")}</p>
-              <p className="card-value" style={{ margin: 0 }}>{formatPriceEGP(stats.revenueLastMonth ?? 0)}</p>
+              <p className="settings-hint" style={{ margin: "0 0 4px" }}>
+                {t("dashboard.revenue_last_month")}
+              </p>
+              <p className="card-value" style={{ margin: 0 }}>
+                {formatPriceEGP(stats.revenueLastMonth ?? 0)}
+              </p>
             </div>
           </div>
           {(stats.revenueThisMonth > 0 || stats.revenueLastMonth > 0) && (
-            <p className={`dashboard-revenue-change ${revenueChange >= 0 ? "positive" : "negative"}`}>
-              {revenueChange >= 0 ? "+" : ""}{revenueChange.toFixed(1)}% {t("dashboard.revenue_change")}
+            <p
+              className={`dashboard-revenue-change ${revenueChange >= 0 ? "positive" : "negative"}`}
+            >
+              {revenueChange >= 0 ? "+" : ""}
+              {revenueChange.toFixed(1)}% {t("dashboard.revenue_change")}
             </p>
           )}
         </div>
@@ -189,9 +229,18 @@ const DashboardPage = () => {
               <div className="dashboard-status-legend">
                 {(stats.orderStatusBreakdown ?? []).map((s) => (
                   <div key={s.status} className="dashboard-status-legend-item">
-                    <span className="dashboard-status-dot" style={{ backgroundColor: STATUS_COLORS[s.status] ?? "#94a3b8" }} />
-                    <span>{t(`orders.${s.status.toLowerCase()}`, s.status)}</span>
-                    <span className="badge" style={{ marginInlineStart: 4 }}>{s.count}</span>
+                    <span
+                      className="dashboard-status-dot"
+                      style={{
+                        backgroundColor: STATUS_COLORS[s.status] ?? "#94a3b8",
+                      }}
+                    />
+                    <span>
+                      {t(`orders.${s.status.toLowerCase()}`, s.status)}
+                    </span>
+                    <span className="badge" style={{ marginInlineStart: 4 }}>
+                      {s.count}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -202,51 +251,91 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Mini trend: vertical bar strip (last 14 days) */}
-      {chartSlice.length > 0 && (
-        <div className="card dashboard-trend-card">
-          <h3>{t("dashboard.orders_per_day")}</h3>
-          <div className="dashboard-vertical-chart" aria-hidden>
-            {chartSlice.map((d) => (
-              <div
-                key={d._id}
-                className="dashboard-vertical-bar-wrap"
-                title={`${d._id}: ${d.count}`}
-              >
-                <div
-                  className="dashboard-vertical-bar"
-                  style={{
-                    height: `${Math.min(100, (d.count / maxCount) * 100)}%`,
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-          <p className="dashboard-trend-legend">
-            {chartSlice[0]?._id} → {chartSlice[chartSlice.length - 1]?._id}
-          </p>
-        </div>
-      )}
-
+      {/* Orders per day (last 30) – Recharts */}
       <div className="dashboard-charts-row">
-        <div className="card card-chart">
+        <div className="card card-chart dashboard-orders-chart">
           <h3>{t("dashboard.orders_per_day")}</h3>
-          <div className="chart-bars">
-            {chartSlice.map((d) => (
-              <div key={d._id} className="chart-bar-row">
-                <span className="chart-label">{d._id}</span>
-                <div className="chart-bar-wrap">
-                  <div
-                    className="chart-bar"
-                    style={{
-                      width: `${Math.min(100, (d.count / maxCount) * 100)}%`,
-                    }}
+          {ordersChartData.length > 0 ? (
+            <div className="dashboard-recharts-wrap">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart
+                  data={ordersChartData}
+                  margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient
+                      id="ordersBarGradient"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                      <stop
+                        offset="100%"
+                        stopColor="#4f46e5"
+                        stopOpacity={0.85}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e2e8f0"
+                    vertical={false}
                   />
-                </div>
-                <span className="chart-value">{d.count}</span>
-              </div>
-            ))}
-          </div>
+                  <XAxis
+                    dataKey="shortDate"
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={{ stroke: "#e2e8f0" }}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    dataKey="count"
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                    width={28}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 8,
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                    labelStyle={{ color: "#0f172a", fontWeight: 600 }}
+                    formatter={(value: number | undefined) => [
+                      value ?? 0,
+                      t("dashboard.orders_tooltip"),
+                    ]}
+                    labelFormatter={(_, payload) =>
+                      payload[0]?.payload?.date ?? ""
+                    }
+                  />
+                  <Bar
+                    dataKey="count"
+                    radius={[4, 4, 0, 0]}
+                    fill="url(#ordersBarGradient)"
+                    maxBarSize={32}
+                  >
+                    {ordersChartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          entry.count > 0
+                            ? "url(#ordersBarGradient)"
+                            : "#f1f5f9"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p>{t("dashboard.no_data")}</p>
+          )}
         </div>
         <div className="card card-chart">
           <h3>{t("dashboard.revenue_per_day")}</h3>
@@ -313,31 +402,57 @@ const DashboardPage = () => {
           <ul className="dashboard-attention-list">
             {stats.pendingOrdersCount > 0 && (
               <li className="dashboard-attention-item">
-                <span>{t("dashboard.pending_need_confirmation", { count: stats.pendingOrdersCount })}</span>
+                <span>
+                  {t("dashboard.pending_need_confirmation", {
+                    count: stats.pendingOrdersCount,
+                  })}
+                </span>
                 <Link to="/orders">{t("common.view")}</Link>
               </li>
             )}
             {stats.lowStockCount > 0 && (
               <li className="dashboard-attention-item">
-                <span>{t("dashboard.products_low_stock", { count: stats.lowStockCount })}</span>
+                <span>
+                  {t("dashboard.products_low_stock", {
+                    count: stats.lowStockCount,
+                  })}
+                </span>
                 <Link to="/inventory">{t("common.view")}</Link>
               </li>
             )}
             {stats.outOfStockCount > 0 && (
               <li className="dashboard-attention-item">
-                <span>{t("dashboard.products_out_of_stock", { count: stats.outOfStockCount })}</span>
+                <span>
+                  {t("dashboard.products_out_of_stock", {
+                    count: stats.outOfStockCount,
+                  })}
+                </span>
                 <Link to="/inventory">{t("common.view")}</Link>
               </li>
             )}
-            {stats.pendingOrdersCount === 0 && stats.lowStockCount === 0 && stats.outOfStockCount === 0 && (
-              <li className="dashboard-attention-item">
-                <span style={{ color: "#64748b" }}>{t("dashboard.all_good")}</span>
-              </li>
-            )}
+            {stats.pendingOrdersCount === 0 &&
+              stats.lowStockCount === 0 &&
+              stats.outOfStockCount === 0 && (
+                <li className="dashboard-attention-item">
+                  <span style={{ color: "#64748b" }}>
+                    {t("dashboard.all_good")}
+                  </span>
+                </li>
+              )}
           </ul>
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #f1f5f9" }}>
-            <p className="analytics-tracking-desc">{t("analytics.tracking_desc")}</p>
-            <Link to="/settings" className="button secondary">{t("analytics.configure_ga")}</Link>
+          <div
+            style={{
+              marginTop: 16,
+              paddingTop: 12,
+              borderTop: "1px solid #f1f5f9",
+            }}
+          >
+            <p className="analytics-tracking-desc">
+              {t("analytics.tracking_desc")}
+            </p>
+            <Link to="/settings" className="button secondary">
+              {t("analytics.configure_ga")}
+            </Link>
           </div>
         </div>
       </div>

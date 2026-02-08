@@ -461,6 +461,15 @@ select:focus {
   color: #64748b;
 }
 
+.dashboard-recharts-wrap {
+  margin-top: 12px;
+  min-height: 280px;
+}
+.dashboard-orders-chart .recharts-cartesian-grid-horizontal line,
+.dashboard-orders-chart .recharts-cartesian-grid-vertical line {
+  stroke: #e2e8f0;
+}
+
 .chart-value {
   min-width: 32px;
   width: auto;

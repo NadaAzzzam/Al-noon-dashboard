@@ -206,6 +206,8 @@ export type SettingsPayload = Partial<{
   promoBanner?: { enabled: boolean; image: string; titleEn: string; titleAr: string; subtitleEn: string; subtitleAr: string; ctaLabelEn: string; ctaLabelAr: string; ctaUrl: string };
   featuredProductsEnabled?: boolean;
   featuredProductsLimit?: number;
+  feedbackSectionEnabled?: boolean;
+  feedbackDisplayLimit?: number;
   contentPages: { slug: string; titleEn: string; titleAr: string; contentEn: string; contentAr: string }[];
 }>;
 
@@ -236,6 +238,19 @@ export type ContactSubmission = {
   phone?: string;
   comment: string;
   createdAt: string;
+};
+
+export type ProductFeedback = {
+  _id: string;
+  product: { _id: string; name: LocalizedString } | string;
+  customerName: string;
+  message: string;
+  rating: number;
+  image?: string;
+  approved: boolean;
+  order: number;
+  createdAt: string;
+  updatedAt?: string;
 };
 
 /** Thrown for any non-2xx API response. */
@@ -414,6 +429,10 @@ export const api = {
   getDashboardStats: (days?: number) =>
     request(`/dashboard/stats${days != null ? `?days=${days}` : ""}`),
 
+  /** GET /dashboard/top-selling – top selling products for products page. */
+  getTopSellingProducts: (limit?: number) =>
+    request(`/dashboard/top-selling${limit != null ? `?limit=${limit}` : ""}`),
+
   getSettings: () => request("/settings"),
   updateSettings: (payload: SettingsPayload) =>
     request("/settings", { method: "PUT", body: JSON.stringify(payload) }),
@@ -431,6 +450,45 @@ export const api = {
     const q = sp.toString();
     return request(`/contact${q ? `?${q}` : ""}`);
   },
+
+  listFeedback: (params?: { page?: number; limit?: number; approved?: "true" | "false"; product?: string }) => {
+    const sp = new URLSearchParams();
+    if (params?.page != null) sp.set("page", String(params.page));
+    if (params?.limit != null) sp.set("limit", String(params.limit));
+    if (params?.approved) sp.set("approved", params.approved);
+    if (params?.product) sp.set("product", params.product);
+    const q = sp.toString();
+    return request(`/feedback${q ? `?${q}` : ""}`);
+  },
+  getFeedback: (id: string) => request(`/feedback/${id}`),
+  createFeedback: (payload: { product: string; customerName: string; message: string; rating: number; image?: string; approved?: boolean; order?: number }) =>
+    request("/feedback", { method: "POST", body: JSON.stringify(payload) }),
+  updateFeedback: (id: string, payload: Partial<{ product: string; customerName: string; message: string; rating: number; image?: string; approved?: boolean; order?: number }>) =>
+    request(`/feedback/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteFeedback: (id: string) => request(`/feedback/${id}`, { method: "DELETE" }),
+  setFeedbackApproved: (id: string, approved: boolean) =>
+    request(`/feedback/${id}/approve`, { method: "PATCH", body: JSON.stringify({ approved }) }),
+  /** Upload feedback/screenshot image. Returns image path for use in create/update. */
+  uploadFeedbackImage: async (file: File): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("image", file);
+    const response = await fetch(`${API_BASE}/feedback/upload-image`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { image: string };
+    return data.image ?? "";
+  },
+
   /** Upload logo image file. Returns the logo path (e.g. /uploads/logos/logo-123.png). */
   uploadLogo: async (file: File): Promise<string> => {
     const token = getToken();

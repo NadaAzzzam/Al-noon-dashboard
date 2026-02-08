@@ -36,6 +36,8 @@ const defaults = {
   promoBanner: { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" },
   featuredProductsEnabled: false,
   featuredProductsLimit: 8,
+  feedbackSectionEnabled: false,
+  feedbackDisplayLimit: 6,
   contentPages: [] as { slug: string; title: { en: string; ar: string }; content: { en: string; ar: string } }[]
 };
 
@@ -188,6 +190,10 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.featuredProductsEnabled !== undefined) toSet.featuredProductsEnabled = Boolean(updates.featuredProductsEnabled);
   if (updates.featuredProductsLimit !== undefined) {
     toSet.featuredProductsLimit = Math.max(1, Math.min(24, Math.floor(Number(updates.featuredProductsLimit))));
+  }
+  if (updates.feedbackSectionEnabled !== undefined) toSet.feedbackSectionEnabled = Boolean(updates.feedbackSectionEnabled);
+  if (updates.feedbackDisplayLimit !== undefined) {
+    toSet.feedbackDisplayLimit = Math.max(0, Math.min(50, Math.floor(Number(updates.feedbackDisplayLimit))));
   }
   if (updates.contentPages !== undefined && Array.isArray(updates.contentPages)) {
     const allowedSlugs = ["privacy", "return-policy", "shipping-policy", "about", "contact"];

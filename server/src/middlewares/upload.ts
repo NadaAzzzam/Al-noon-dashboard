@@ -15,6 +15,7 @@ const heroVideosDir = path.resolve(__dirname, "../../uploads/hero/videos");
 const sectionsDir = path.resolve(__dirname, "../../uploads/sections");
 const sectionVideosDir = path.resolve(__dirname, "../../uploads/sections/videos");
 const promoDir = path.resolve(__dirname, "../../uploads/promo");
+const feedbackDir = path.resolve(__dirname, "../../uploads/feedback");
 
 const logoStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, logosDir),
@@ -206,4 +207,24 @@ export const uploadPromoImage = multer({
 /** Public path for uploaded promo banner image. */
 export function promoImagePath(filename: string): string {
   return `/uploads/promo/${filename}`;
+}
+
+const feedbackImageStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, feedbackDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || ".png";
+    const safeExt = [".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(ext.toLowerCase()) ? ext : ".png";
+    cb(null, `feedback-${Date.now()}-${Math.random().toString(36).slice(2, 9)}${safeExt}`);
+  }
+});
+
+export const uploadFeedbackImage = multer({
+  storage: feedbackImageStorage,
+  fileFilter: imageFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }
+}).single("image");
+
+/** Public path for uploaded feedback/screenshot image. */
+export function feedbackImagePath(filename: string): string {
+  return `/uploads/feedback/${filename}`;
 }

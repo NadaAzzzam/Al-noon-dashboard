@@ -1,6 +1,7 @@
 import { Settings } from "../models/Settings.js";
 import { Subscriber } from "../models/Subscriber.js";
 import { ContactSubmission } from "../models/ContactSubmission.js";
+import { ProductFeedback } from "../models/ProductFeedback.js";
 import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -28,7 +29,10 @@ const storeDefaults = {
   newArrivalsSectionVideos: [] as string[],
   homeCollectionsDisplayLimit: 0,
   ourCollectionSectionImages: [] as string[],
-  ourCollectionSectionVideos: [] as string[]
+  ourCollectionSectionVideos: [] as string[],
+  feedbackSectionEnabled: false,
+  feedbackDisplayLimit: 6,
+  feedbacks: [] as { _id: string; product: { name: { en: string; ar: string } }; customerName: string; message: string; rating: number; image?: string }[]
 };
 
 function normalizeHero(hero: { image?: string; images?: string[]; videos?: string[] } | null | undefined) {
@@ -63,6 +67,30 @@ export const getStore = asyncHandler(async (_req, res) => {
     ? (s as { ourCollectionSectionVideos: string[] }).ourCollectionSectionVideos
     : storeDefaults.ourCollectionSectionVideos;
 
+  const feedbackSectionEnabled = (s as { feedbackSectionEnabled?: boolean })?.feedbackSectionEnabled ?? storeDefaults.feedbackSectionEnabled;
+  const feedbackDisplayLimit = (s as { feedbackDisplayLimit?: number })?.feedbackDisplayLimit ?? storeDefaults.feedbackDisplayLimit;
+  let feedbacks = storeDefaults.feedbacks;
+  if (feedbackSectionEnabled && isDbConnected()) {
+    const limit = feedbackDisplayLimit > 0 ? feedbackDisplayLimit : 50;
+    const list = await ProductFeedback.find({ approved: true })
+      .sort({ order: 1, createdAt: -1 })
+      .limit(limit)
+      .populate("product", "name")
+      .lean();
+    feedbacks = list.map((f: unknown) => {
+      const item = f as { _id: unknown; product: unknown; customerName: string; message: string; rating: number; image?: string };
+      const prod = item.product as { name?: { en: string; ar: string } } | null | undefined;
+      return {
+        _id: String(item._id),
+        product: prod?.name ? { name: prod.name } : { name: { en: "", ar: "" } },
+        customerName: item.customerName,
+        message: item.message,
+        rating: item.rating,
+        image: item.image || undefined
+      };
+    });
+  }
+
   res.json({
     store: {
       storeName: s?.storeName ?? storeDefaults.storeName,
@@ -78,7 +106,10 @@ export const getStore = asyncHandler(async (_req, res) => {
       newArrivalsSectionVideos: newArrivalsVideos,
       homeCollectionsDisplayLimit: displayLimit,
       ourCollectionSectionImages: ourCollectionImages,
-      ourCollectionSectionVideos: ourCollectionVideos
+      ourCollectionSectionVideos: ourCollectionVideos,
+      feedbackSectionEnabled,
+      feedbackDisplayLimit,
+      feedbacks
     }
   });
 });

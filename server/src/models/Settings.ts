@@ -57,6 +57,10 @@ export interface SettingsDocument {
   featuredProductsEnabled: boolean;
   /** Number of featured/trending products to show on home page. */
   featuredProductsLimit: number;
+  /** Whether to show product feedback/testimonials section on storefront home. */
+  feedbackSectionEnabled: boolean;
+  /** Number of feedback items to show on home page (0 = show all approved). */
+  feedbackDisplayLimit: number;
   /** Rich-text content for footer pages: Privacy, Return Policy, Shipping, About, Contact. */
   contentPages: { slug: string; title: LocalizedString; content: LocalizedString }[];
   updatedAt: Date;
@@ -118,6 +122,8 @@ const settingsSchema = new Schema<SettingsDocument>(
     },
     featuredProductsEnabled: { type: Boolean, default: false },
     featuredProductsLimit: { type: Number, default: 8 },
+    feedbackSectionEnabled: { type: Boolean, default: false },
+    feedbackDisplayLimit: { type: Number, default: 6 },
     contentPages: {
       type: [{
         slug: String,

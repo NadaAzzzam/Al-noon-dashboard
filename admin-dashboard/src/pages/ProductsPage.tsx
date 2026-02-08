@@ -12,11 +12,19 @@ import {
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
 
+type TopSellingItem = {
+  productId: string;
+  name: { en: string; ar: string };
+  image?: string;
+  totalQty: number;
+};
+
 const ProductsPage = () => {
   const { t } = useTranslation();
   const localized = useLocalized();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [topSelling, setTopSelling] = useState<TopSellingItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -56,11 +64,23 @@ const ProductsPage = () => {
     } catch (_) {}
   };
 
+  const loadTopSelling = async () => {
+    try {
+      const res = (await api.getTopSellingProducts(15)) as {
+        topSelling: TopSellingItem[];
+      };
+      setTopSelling(res.topSelling ?? []);
+    } catch (_) {}
+  };
+
   useEffect(() => {
     loadProducts();
   }, [page, search, statusFilter, categoryFilter, newArrivalFilter]);
   useEffect(() => {
     loadCategories();
+  }, []);
+  useEffect(() => {
+    loadTopSelling();
   }, []);
 
   const setStatus = async (id: string, status: "ACTIVE" | "INACTIVE") => {
@@ -106,6 +126,40 @@ const ProductsPage = () => {
           {t("products.new_product")}
         </Link>
       </div>
+
+      {topSelling.length > 0 && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3>{t("dashboard.best_selling")}</h3>
+          <ul className="list list-with-images">
+            {topSelling.map((b, i) => (
+              <li key={b.productId ?? i}>
+                {b.image ? (
+                  <img
+                    src={getProductImageUrl(b.image)}
+                    alt=""
+                    className="dashboard-product-img"
+                  />
+                ) : (
+                  <span
+                    className="dashboard-product-img-placeholder"
+                    aria-hidden
+                  />
+                )}
+                <Link
+                  to={`/products/${b.productId}/edit`}
+                  className="list-item-label"
+                >
+                  {localized(b.name)}
+                </Link>
+                <span className="badge">
+                  {b.totalQty} {t("dashboard.sold")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="card">
         <div className="filters">
           <input
