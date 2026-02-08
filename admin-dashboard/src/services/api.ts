@@ -466,6 +466,8 @@ export const api = {
   getSettings: () => request("/settings"),
   updateSettings: (payload: SettingsPayload) =>
     request("/settings", { method: "PUT", body: JSON.stringify(payload) }),
+  /** Send a test order notification email to the configured admin/notification address. */
+  sendTestOrderEmail: () => request("/settings/test-order-email", { method: "POST" }),
   listSubscribers: (params?: { page?: number; limit?: number }) => {
     const sp = new URLSearchParams();
     if (params?.page != null) sp.set("page", String(params.page));

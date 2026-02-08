@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getSettings, updateSettings, uploadLogo, uploadCollectionImage, uploadHeroImage, uploadSectionImage, uploadHeroVideo, uploadSectionVideo, uploadPromoImage } from "../controllers/settingsController.js";
+import { getSettings, updateSettings, sendTestOrderEmail, uploadLogo, uploadCollectionImage, uploadHeroImage, uploadSectionImage, uploadHeroVideo, uploadSectionVideo, uploadPromoImage } from "../controllers/settingsController.js";
 import { authenticate, requireRole } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import { updateSettingsSchema } from "../validators/settings.js";
@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate, requireRole(["ADMIN"]));
 router.get("/", getSettings);
 router.put("/", validate(updateSettingsSchema), updateSettings);
+router.post("/test-order-email", sendTestOrderEmail);
 router.post("/logo", multerUploadLogo, uploadLogo);
 router.post("/collection-image", multerUploadCollectionImage, uploadCollectionImage);
 router.post("/hero-image", multerUploadHeroImage, uploadHeroImage);

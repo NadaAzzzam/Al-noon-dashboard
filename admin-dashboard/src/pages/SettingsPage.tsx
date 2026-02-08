@@ -41,6 +41,8 @@ const SettingsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
+  const [testEmailMessage, setTestEmailMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -480,6 +482,39 @@ const SettingsPage = () => {
                 <p className="settings-hint">
                   {t("settings.order_notification_email_hint")}
                 </p>
+                <button
+                  type="button"
+                  className="button"
+                  style={{ marginTop: 8 }}
+                  disabled={testEmailLoading}
+                  onClick={async () => {
+                    setTestEmailMessage(null);
+                    setError(null);
+                    setTestEmailLoading(true);
+                    try {
+                      await api.sendTestOrderEmail();
+                      setTestEmailMessage({ type: "success", text: t("settings.test_order_email_sent") });
+                    } catch (err) {
+                      const msg = err instanceof ApiError ? err.message : t("settings.test_order_email_failed");
+                      setTestEmailMessage({ type: "error", text: msg });
+                    } finally {
+                      setTestEmailLoading(false);
+                    }
+                  }}
+                >
+                  {testEmailLoading ? "..." : t("settings.test_order_email_button")}
+                </button>
+                {testEmailMessage && (
+                  <p
+                    className="settings-hint"
+                    style={{
+                      marginTop: 8,
+                      color: testEmailMessage.type === "success" ? "var(--color-success, green)" : "var(--color-error, #c00)"
+                    }}
+                  >
+                    {testEmailMessage.text}
+                  </p>
+                )}
               </div>
             </div>
           </section>

@@ -19,17 +19,19 @@ const start = async () => {
   const app = createApp();
   const host = "0.0.0.0";
   const port = env.port;
+
+  try {
+    await connectDatabase();
+    console.log("MongoDB connected.");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Database connection failed:", msg);
+    console.warn("Running without MongoDB. Data will be empty. Login with:", env.adminEmail, "/", env.adminPassword);
+  }
+
   app.listen(port, host, () => {
     console.log(`Server listening on http://${host}:${port}`);
   });
-  // Connect DB in background so slow/unreachable DB does not block health checks
-  try {
-    await connectDatabase();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn("Database connection failed:", msg);
-    console.warn("Running without MongoDB. Login with:", env.adminEmail, "/", env.adminPassword);
-  }
 };
 
 start().catch((error: unknown) => {

@@ -63,6 +63,10 @@
     },
     "page": {
       "not_found": "Page not found"
+    },
+    "settings": {
+      "no_notification_email": "No notification email configured. Set notification email in settings or ADMIN_EMAIL in server config.",
+      "email_send_failed": "Email could not be sent. Check SMTP settings (SMTP_HOST, SMTP_USER, SMTP_PASS) in server .env."
     }
   },
   "success": {
@@ -94,7 +98,8 @@
       "updated": "Settings updated successfully",
       "logo_uploaded": "Logo uploaded successfully",
       "image_uploaded": "Image uploaded successfully",
-      "video_uploaded": "Video uploaded successfully"
+      "video_uploaded": "Video uploaded successfully",
+      "test_email_sent": "Test order notification email sent"
     },
     "city": {
       "created": "City created successfully",

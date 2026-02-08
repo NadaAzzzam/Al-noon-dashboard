@@ -15,19 +15,22 @@ function getTransporter(): nodemailer.Transporter | null {
   return transporter;
 }
 
+export type SendMailResult = { ok: true } | { ok: false; error: string };
+
 /**
  * Send an email. No-op if SMTP is not configured (no error thrown).
- * Returns true if sent, false if skipped or failed (errors are logged).
+ * Returns { ok: true } if sent, { ok: false, error } if skipped or failed (errors are logged).
  */
-export async function sendMail(to: string, subject: string, html: string): Promise<boolean> {
+export async function sendMail(to: string, subject: string, html: string): Promise<SendMailResult> {
   const trans = getTransporter();
-  if (!trans) return false;
+  if (!trans) return { ok: false, error: "SMTP not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS in .env)" };
   const from = env.smtpFrom || env.smtpUser || "noreply@localhost";
   try {
     await trans.sendMail({ from, to, subject, html });
-    return true;
+    return { ok: true };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error("[email] send failed:", err);
-    return false;
+    return { ok: false, error: msg };
   }
 }

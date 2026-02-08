@@ -63,6 +63,10 @@
     },
     "page": {
       "not_found": "الصفحة غير موجودة"
+    },
+    "settings": {
+      "no_notification_email": "لم يتم تعيين بريد للإشعارات. عيّن بريد الإشعارات في الإعدادات أو ADMIN_EMAIL في إعدادات السيرفر.",
+      "email_send_failed": "تعذر إرسال البريد. تحقق من إعدادات SMTP (SMTP_HOST, SMTP_USER, SMTP_PASS) في ملف .env."
     }
   },
   "success": {
@@ -94,7 +98,8 @@
       "updated": "تم تحديث الإعدادات بنجاح",
       "logo_uploaded": "تم رفع الشعار بنجاح",
       "image_uploaded": "تم رفع الصورة بنجاح",
-      "video_uploaded": "تم رفع الفيديو بنجاح"
+      "video_uploaded": "تم رفع الفيديو بنجاح",
+      "test_email_sent": "تم إرسال بريد إشعار الطلب التجريبي"
     },
     "city": {
       "created": "تم إنشاء المدينة بنجاح",

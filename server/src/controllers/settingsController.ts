@@ -1,10 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
 import { Settings } from "../models/Settings.js";
 import { isDbConnected } from "../config/db.js";
+import { env } from "../config/env.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { logoPath, collectionImagePath, heroImagePath, heroVideoPath, sectionImagePath, sectionVideoPath, promoImagePath } from "../middlewares/upload.js";
 import { sendResponse } from "../utils/response.js";
+import { sendMail } from "../utils/email.js";
 
 const heroDefault = {
   images: [] as string[],
@@ -229,6 +231,35 @@ export const updateSettings = asyncHandler(async (req, res) => {
     { new: true, upsert: true }
   ).lean();
   sendResponse(res, req.locale, { message: "success.settings.updated", data: { settings } });
+});
+
+/** Send a test "New order" email to the configured notification address (or admin). */
+export const sendTestOrderEmail = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  const settings = await Settings.findOne().lean();
+  const orderNotificationEmail = (settings as { orderNotificationEmail?: string } | null)?.orderNotificationEmail?.trim();
+  const to = (orderNotificationEmail || env.adminEmail || "").toLowerCase();
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    throw new ApiError(400, "No notification email configured. Set notification email in settings or ADMIN_EMAIL in server config.", { code: "errors.settings.no_notification_email" });
+  }
+  const subject = "Test: New order notification (Al-noon)";
+  const html = `
+    <h2>Test order notification</h2>
+    <p>This is a test email. When a customer places an order, you will receive a similar email with real order details.</p>
+    <p><strong>Order ID:</strong> TEST-ORDER-002</p>
+    <p><strong>Customer:</strong> Nura & Tooz Feki (nura.tooz@example.com)</p>
+    <p><strong>Payment:</strong> COD</p>
+    <p><strong>Shipping:</strong> 123 Test St, Cairo</p>
+    <p><strong>Total:</strong> 750 EGP</p>
+    <h3>Items</h3>
+    <ul><li>Sample Product A × 1 = 400 EGP</li><li>Sample Product B × 1 = 350 EGP</li></ul>
+    <p><em>If you received this, order notifications are working.</em></p>
+  `;
+  const result = await sendMail(to, subject, html);
+  if (!result.ok) {
+    throw new ApiError(503, result.error || "Email could not be sent.", { code: "errors.settings.email_send_failed" });
+  }
+  sendResponse(res, req.locale, { message: "success.settings.test_email_sent", data: { to } });
 });
 
 export const uploadLogo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
