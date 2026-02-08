@@ -41,6 +41,7 @@ export const confirmPayment = asyncHandler(async (req, res) => {
   } else {
     payment.approvedAt = undefined;
     payment.approvedBy = undefined;
+    payment.instaPayProofUrl = undefined; // Reject = clear proof so customer can re-upload
   }
   await payment.save();
   if (approved) {

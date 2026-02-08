@@ -249,7 +249,8 @@ async function seed() {
       { user: customerIds[1], items: [{ product: products[9]._id, quantity: 3, price: 120 }, { product: products[10]._id, quantity: 2, price: 95 }], total: 585, deliveryFee: 35, status: "CONFIRMED" as const, paymentMethod: "INSTAPAY" as const, shippingAddress: "45 Giza Ave, Giza", createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000) },
       { user: customerIds[0], items: [{ product: products[2]._id, quantity: 1, price: 1450 }], total: 1485, deliveryFee: 35, status: "SHIPPED" as const, paymentMethod: "COD" as const, shippingAddress: "123 Main St, Cairo", createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) },
       { user: customerIds[2], items: [{ product: products[6]._id, quantity: 1, price: 2000 }, { product: products[19]._id, quantity: 1, price: 1760 }], total: 3810, deliveryFee: 50, status: "PENDING" as const, paymentMethod: "INSTAPAY" as const, shippingAddress: "78 Alexandria Rd, Alexandria", createdAt: new Date(now.getTime() - 0.5 * 24 * 60 * 60 * 1000) },
-      { user: customerIds[1], items: [{ product: products[14]._id, quantity: 2, price: 180 }], total: 395, deliveryFee: 35, status: "DELIVERED" as const, paymentMethod: "COD" as const, shippingAddress: "45 Giza Ave, Giza", createdAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000) }
+      { user: customerIds[1], items: [{ product: products[14]._id, quantity: 2, price: 180 }], total: 395, deliveryFee: 35, status: "DELIVERED" as const, paymentMethod: "COD" as const, shippingAddress: "45 Giza Ave, Giza", createdAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000) },
+      { user: customerIds[2], items: [{ product: products[7]._id, quantity: 1, price: 850 }, { product: products[11]._id, quantity: 2, price: 110 }], total: 1105, deliveryFee: 45, status: "PENDING" as const, paymentMethod: "INSTAPAY" as const, shippingAddress: "12 Mansoura St, Mansoura", createdAt: new Date(now.getTime() - 0.25 * 24 * 60 * 60 * 1000) }
     ];
     insertedOrders = await Order.insertMany(ordersData);
     console.log(`Created ${insertedOrders.length} orders.`);
@@ -260,18 +261,21 @@ async function seed() {
   if (insertedOrders.length > 0) {
     const paymentsData = insertedOrders.map((order, index) => {
       const method = order.paymentMethod ?? "COD";
-      // INSTAPAY: first one PAID (confirmed), second UNPAID (pending proof). COD stays UNPAID or PAID for delivered.
+      // INSTAPAY: index 1 PAID (confirmed); others UNPAID. COD: PAID when DELIVERED/SHIPPED.
       const isInstaPay = method === "INSTAPAY";
       const status = isInstaPay
         ? (index === 1 ? "PAID" : "UNPAID")
         : (order.status === "DELIVERED" || order.status === "SHIPPED" ? "PAID" : "UNPAID");
+      // New InstaPay unpaid order (index 5): seed a demo proof image for testing.
+      const isInstaUnpaidWithProof = isInstaPay && status === "UNPAID" && index === 5;
       return {
         order: order._id,
         method,
         status: status as "UNPAID" | "PAID",
         ...(isInstaPay && status === "PAID" && index === 1
           ? { approvedAt: new Date(), approvedBy: admin!._id }
-          : {})
+          : {}),
+        ...(isInstaUnpaidWithProof ? { instaPayProofUrl: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=600&q=80" } : {})
       };
     });
     await Payment.insertMany(paymentsData);

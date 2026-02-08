@@ -10,6 +10,19 @@ import {
   getProductImageUrl,
   getUploadsBaseUrl,
 } from "../services/api";
+
+/** Full URL for payment proof (relative path or absolute URL). */
+function getProofFullUrl(path: string): string {
+  if (!path) return "";
+  return path.startsWith("http") ? path : getUploadsBaseUrl() + (path.startsWith("/") ? path : `/${path}`);
+}
+
+/** True if the proof URL is an image (supports query strings, e.g. ?w=600). */
+function isProofImageUrl(url: string): boolean {
+  if (!url) return false;
+  const pathname = url.split("?")[0];
+  return /\.(png|jpe?g|gif|webp)$/i.test(pathname);
+}
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
 import { daysSinceOrder, isLongWait } from "../utils/orderUtils";
@@ -232,60 +245,86 @@ const OrderDetailPage = () => {
           <span className="badge">{payment?.status ?? "UNPAID"}</span>
         </p>
         {isInstaPay && (
-          <>
-            {payment?.instaPayProofUrl ? (
-              <p>
-                <strong>{t("order_detail.proof")}:</strong>{" "}
-                <a
-                  href={payment.instaPayProofUrl.startsWith("http") ? payment.instaPayProofUrl : getUploadsBaseUrl() + payment.instaPayProofUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {t("order_detail.view_proof")}
-                </a>
-              </p>
-            ) : (
-              <form
-                onSubmit={attachProof}
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  alignItems: "center",
-                  marginTop: 8,
-                  flexWrap: "wrap",
-                }}
+          <div className="form-group" style={{ marginTop: 8 }}>
+            <label htmlFor="order-payment-proof" style={{ display: "block", marginBottom: 4 }}>
+              <strong>{t("order_detail.proof")}</strong>
+            </label>
+            <form
+              onSubmit={attachProof}
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                type="file"
+                id="order-payment-proof"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf"
+                onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                style={{ flex: "1 1 200px", minWidth: 0 }}
+              />
+              <button
+                className="button"
+                type="submit"
+                disabled={!proofFile}
               >
-                <input
-                  type="file"
-                  id="order-payment-proof"
-                  accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf"
-                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-                  style={{ flex: "1 1 200px", minWidth: 0 }}
-                />
-                <button
-                  className="button"
-                  type="submit"
-                  disabled={!proofFile}
-                >
-                  {t("order_detail.attach_proof")}
-                </button>
-              </form>
+                {t("order_detail.attach_proof")}
+              </button>
+            </form>
+            {payment?.instaPayProofUrl && (
+              <>
+                <p style={{ marginTop: 8, marginBottom: 4 }}>
+                  <a
+                    href={getProofFullUrl(payment.instaPayProofUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("order_detail.view_proof")}
+                  </a>
+                </p>
+                {isProofImageUrl(payment.instaPayProofUrl) && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      display: "flex",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <img
+                      src={getProofFullUrl(payment.instaPayProofUrl)}
+                      alt={t("order_detail.proof")}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                      style={{
+                        maxHeight: 280,
+                        maxWidth: 360,
+                        objectFit: "contain",
+                        border: "1px solid var(--color-border, #e0e0e0)",
+                        borderRadius: 8,
+                      }}
+                    />
+                  </div>
+                )}
+                {payment?.status === "UNPAID" && (
+                  <div style={{ marginTop: 12 }}>
+                    <button className="button" onClick={() => confirmPayment(true)}>
+                      {t("order_detail.approve_payment")}
+                    </button>
+                    <button
+                      className="button secondary"
+                      style={{ marginLeft: 8 }}
+                      onClick={() => confirmPayment(false)}
+                    >
+                      {t("order_detail.reject")}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-            {payment?.status === "UNPAID" && payment?.instaPayProofUrl && (
-              <div style={{ marginTop: 12 }}>
-                <button className="button" onClick={() => confirmPayment(true)}>
-                  {t("order_detail.approve_payment")}
-                </button>
-                <button
-                  className="button secondary"
-                  style={{ marginLeft: 8 }}
-                  onClick={() => confirmPayment(false)}
-                >
-                  {t("order_detail.reject")}
-                </button>
-              </div>
-            )}
-          </>
+          </div>
         )}
       </div>
       <div className="card">
