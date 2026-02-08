@@ -17,10 +17,12 @@ const InventoryPage = () => {
   const load = async () => {
     setError(null);
     try {
-      const [lowRes, outRes] = await Promise.all([
-        api.getLowStock() as { products: Product[]; threshold: number },
-        api.getOutOfStock() as { products: Product[] }
+      const results = await Promise.all([
+        api.getLowStock(),
+        api.getOutOfStock()
       ]);
+      const lowRes = results[0] as { products: Product[]; threshold: number };
+      const outRes = results[1] as { products: Product[] };
       setLowStock(lowRes.products ?? []);
       setOutOfStock(outRes.products ?? []);
       setThreshold(lowRes.threshold ?? 5);
@@ -41,7 +43,11 @@ const InventoryPage = () => {
     setError(null);
     try {
       await api.updateProductStock(productId, value);
-      setStockValue((prev) => ({ ...prev, [productId]: undefined }));
+      setStockValue((prev) => {
+        const next = { ...prev };
+        delete next[productId];
+        return next;
+      });
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("inventory.failed_update"));
