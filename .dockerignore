@@ -1,0 +1,12 @@
+node_modules
+.env
+.env.local
+.git
+.cursor
+*.log
+server/dist
+admin-dashboard/dist
+admin-dashboard/node_modules
+server/node_modules
+server/uploads
+.DS_Store

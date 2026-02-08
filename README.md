@@ -16,7 +16,7 @@ Al-noon-node/
 
 ## Deploying (Backend + Frontend)
 
-The app is set up so **one service** serves both the API and the admin UI. Recommended: **Render.com** (free tier).
+The app is set up so **one service** serves both the API and the admin UI.
 
 ### 1. Push your repo to GitHub
 
@@ -24,21 +24,61 @@ Ensure the project is in a GitHub (or GitLab) repository.
 
 ### 2. MongoDB for production
 
-Create a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster and get a connection string (e.g. `mongodb+srv://user:pass@cluster.mongodb.net/al-noon-node`). You will use it as `MONGO_URI` in the next step.
+Create a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster and get a connection string (e.g. `mongodb+srv://user:pass@cluster.mongodb.net/al-noon-node`). You will use it as `MONGO_URI` when deploying.
 
-### 3. Deploy on Render (one-click)
+---
+
+### Option A: Deploy on Fly.io (free, no credit card)
+
+Fly.io offers a **free tier** without requiring a credit card.
+
+1. **Install Fly CLI:** [https://fly.io/docs/hands-on/install-flyctl/](https://fly.io/docs/hands-on/install-flyctl/)  
+   (Windows: `powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"`)
+
+2. **Sign up and log in:**
+   ```bash
+   fly auth signup
+   ```
+   or `fly auth login` if you already have an account.
+
+3. **From the project root, launch the app** (first time only):
+   ```bash
+   cd d:\Work\Nada\Al-noon-dashboard
+   fly launch --no-deploy
+   ```
+   When asked for an app name, use `al-noon-dashboard` or leave default. Choose a region. Do **not** add a Postgres or Redis database (you use MongoDB Atlas).
+
+4. **Set secrets** (your MongoDB URI and a random JWT secret):
+   ```bash
+   fly secrets set MONGO_URI="mongodb+srv://USER:PASS@cluster0.xxxxx.mongodb.net/al-noon-node?appName=Cluster0"
+   fly secrets set JWT_SECRET="your-long-random-string"
+   ```
+   Use your real Atlas URI and a long random string for `JWT_SECRET` (e.g. `openssl rand -hex 32`).
+
+5. **Deploy:**
+   ```bash
+   fly deploy
+   ```
+
+6. **Open the app:** Fly will print the URL, e.g. `https://al-noon-dashboard.fly.dev`. Log in with your admin user (run `npm run seed:admin` in `server/` against the same DB if you haven’t already).
+
+**Note:** On the free tier the app may sleep when idle; the first request after that can take a few seconds.
+
+---
+
+### Option B: Deploy on Render
 
 1. Go to [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
-2. Connect your GitHub/GitLab repo and select the repo that contains this project.
-3. Render will read `render.yaml` and create a **Web Service** named `al-noon-dashboard`.
-4. In the service **Environment** tab, set:
-   - **MONGO_URI** – your MongoDB Atlas connection string (required for production).
-   - **CLIENT_URL** – optional; if not set, Render’s URL is used automatically.
-5. Deploy. The build runs `npm run build` (builds admin UI then server), then `npm start` (runs the server). The app will be at `https://<your-service>.onrender.com`.
+2. Connect your GitHub/GitLab repo and select this project.
+3. Render reads `render.yaml` and creates a **Web Service**.
+4. In the service **Environment** tab, set **MONGO_URI** (and optionally **CLIENT_URL**).
+5. Deploy. The app will be at `https://<your-service>.onrender.com`.
 
-**Note:** On the free tier, the service may spin down after inactivity; the first request after that can be slow.
+**Note:** Render’s free tier may require a credit card in some regions. Use **Fly.io** (Option A) for a fully free option.
 
-### 4. After first deploy: create admin user
+---
+
+### After first deploy: create admin user
 
 From your machine (with the same `MONGO_URI` or from a one-off script), run the admin seed so you can log in:
 
