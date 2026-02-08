@@ -100,6 +100,8 @@ const getBreadcrumb = (pathname: string): string => {
     "/reports": "nav.reports",
     "/settings/home": "settings.tab_home_page",
     "/settings/content-pages": "settings.tab_content_pages",
+    "/settings/ai": "settings.tab_ai_assistant",
+    "/ai-chats": "nav.ai_chats",
   };
   if (map[pathname]) return map[pathname];
   if (pathname.startsWith("/products/") && pathname.includes("/edit")) return "products.edit_product";
@@ -219,6 +221,9 @@ const Layout = () => {
           </NavLink>
           <NavLink className="nav-link" to="/feedback">
             <IconFeedback /> {t("nav.feedback")}
+          </NavLink>
+          <NavLink className="nav-link" to="/ai-chats">
+            <IconContact /> {t("nav.ai_chats")}
           </NavLink>
           <NavLink className="nav-link" to="/cities">
             <IconCities /> {t("nav.cities")}

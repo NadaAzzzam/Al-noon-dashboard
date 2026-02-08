@@ -43,7 +43,18 @@ const defaults = {
   feedbackDisplayLimit: 6,
   contentPages: [] as { slug: string; title: { en: string; ar: string }; content: { en: string; ar: string } }[],
   orderNotificationsEnabled: false,
-  orderNotificationEmail: ""
+  orderNotificationEmail: "",
+  aiAssistant: {
+    enabled: false,
+    geminiApiKey: "",
+    greeting: { en: "Hi! How can I help you today?", ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟" },
+    systemPrompt: "",
+    suggestedQuestions: [
+      { en: "What are your shipping options?", ar: "ما خيارات الشحن لديكم؟" },
+      { en: "How can I return an item?", ar: "كيف أستطيع إرجاع منتج؟" },
+      { en: "Show me new arrivals", ar: "أرني الوصول الجديد" }
+    ]
+  }
 };
 
 function normalizeSettings(raw: Record<string, unknown> | null): Record<string, unknown> {
@@ -63,6 +74,9 @@ function normalizeSettings(raw: Record<string, unknown> | null): Record<string, 
     s.ourCollectionSectionImages = (s.ourCollectionSectionImage && String(s.ourCollectionSectionImage)) ? [String(s.ourCollectionSectionImage)] : [];
   }
   if (!Array.isArray(s.ourCollectionSectionVideos)) s.ourCollectionSectionVideos = [];
+  if (s && typeof s === "object" && !s.aiAssistant) {
+    (s as Record<string, unknown>).aiAssistant = defaults.aiAssistant;
+  }
   return s;
 }
 
@@ -224,6 +238,24 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.orderNotificationEmail !== undefined) {
     const v = String(updates.orderNotificationEmail ?? "").trim().toLowerCase();
     toSet.orderNotificationEmail = v || "";
+  }
+  if (updates.aiAssistant !== undefined && typeof updates.aiAssistant === "object") {
+    const ai = updates.aiAssistant;
+    toSet.aiAssistant = {
+      enabled: Boolean(ai.enabled),
+      geminiApiKey: String(ai.geminiApiKey ?? "").trim(),
+      greeting: {
+        en: String(ai.greetingEn ?? ai.greeting?.en ?? "").trim(),
+        ar: String(ai.greetingAr ?? ai.greeting?.ar ?? "").trim()
+      },
+      systemPrompt: String(ai.systemPrompt ?? "").trim(),
+      suggestedQuestions: Array.isArray(ai.suggestedQuestions)
+        ? ai.suggestedQuestions.map((q: { en?: string; ar?: string }) => ({
+            en: String(q.en ?? "").trim(),
+            ar: String(q.ar ?? "").trim()
+          })).filter((q: { en: string; ar: string }) => q.en || q.ar)
+        : []
+    };
   }
   const settings = await Settings.findOneAndUpdate(
     {},

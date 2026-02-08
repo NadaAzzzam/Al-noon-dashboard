@@ -59,6 +59,16 @@ export const updateSettingsSchema = z.object({
       titleAr: z.string(),
       contentEn: z.string(),
       contentAr: z.string()
-    })).optional()
+    })).optional(),
+    orderNotificationsEnabled: z.boolean().optional(),
+    orderNotificationEmail: z.string().optional(),
+    aiAssistant: z.object({
+      enabled: z.boolean().optional(),
+      geminiApiKey: z.string().optional(),
+      greetingEn: z.string().optional(),
+      greetingAr: z.string().optional(),
+      systemPrompt: z.string().optional(),
+      suggestedQuestions: z.array(z.object({ en: z.string(), ar: z.string() })).optional()
+    }).optional()
   })
 });

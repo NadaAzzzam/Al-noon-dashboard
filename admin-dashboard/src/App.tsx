@@ -17,6 +17,8 @@ import FeedbackPage from "./pages/FeedbackPage";
 import ContentPagesPage from "./pages/ContentPagesPage";
 import HomePageSettingsPage from "./pages/HomePageSettingsPage";
 import SettingsPage from "./pages/SettingsPage";
+import AiSettingsPage from "./pages/AiSettingsPage";
+import AiChatHistoryPage from "./pages/AiChatHistoryPage";
 import SubscribersPage from "./pages/SubscribersPage";
 import ReportsPage from "./pages/ReportsPage";
 import UsersPage from "./pages/UsersPage";
@@ -56,10 +58,13 @@ const App = () => (
       <Route path="subscribers" element={<SubscribersPage />} />
       <Route path="contact" element={<ContactSubmissionsPage />} />
       <Route path="feedback" element={<FeedbackPage />} />
+      <Route path="ai-chats" element={<AiChatHistoryPage />} />
+      <Route path="ai-chats/:id" element={<AiChatHistoryPage />} />
       <Route path="settings" element={<SettingsLayout />}>
         <Route index element={<SettingsPage />} />
         <Route path="home" element={<HomePageSettingsPage />} />
         <Route path="content-pages" element={<ContentPagesPage />} />
+        <Route path="ai" element={<AiSettingsPage />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />

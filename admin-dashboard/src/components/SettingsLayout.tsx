@@ -15,6 +15,9 @@ const SettingsLayout = () => {
         <NavLink className="settings-subnav-link" to="/settings/content-pages">
           {t("settings.tab_content_pages")}
         </NavLink>
+        <NavLink className="settings-subnav-link" to="/settings/ai">
+          {t("settings.tab_ai_assistant")}
+        </NavLink>
       </nav>
       <Outlet />
     </div>

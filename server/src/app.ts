@@ -22,6 +22,7 @@ import cityRoutes from "./routes/cityRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import reportsRoutes from "./routes/reportsRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { initLocales, localeMiddleware } from "./middlewares/locale.js";
@@ -95,6 +96,7 @@ export const createApp = () => {
   app.use("/api/contact", contactRoutes);
   app.use("/api/feedback", feedbackRoutes);
   app.use("/api/reports", reportsRoutes);
+  app.use("/api/ai", aiRoutes);
 
   const clientBuildPath = path.resolve(__dirname, "../../admin-dashboard/dist");
   app.use(express.static(clientBuildPath));

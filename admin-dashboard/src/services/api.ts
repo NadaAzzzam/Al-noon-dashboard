@@ -175,6 +175,13 @@ export type Settings = {
   contentPages?: ContentPage[];
   orderNotificationsEnabled?: boolean;
   orderNotificationEmail?: string;
+  aiAssistant?: {
+    enabled: boolean;
+    geminiApiKey: string;
+    greeting: LocalizedString;
+    systemPrompt: string;
+    suggestedQuestions: LocalizedString[];
+  };
 };
 
 export type ContentPage = {
@@ -224,6 +231,14 @@ export type SettingsPayload = Partial<{
   contentPages: { slug: string; titleEn: string; titleAr: string; contentEn: string; contentAr: string }[];
   orderNotificationsEnabled?: boolean;
   orderNotificationEmail?: string;
+  aiAssistant?: {
+    enabled?: boolean;
+    geminiApiKey?: string;
+    greetingEn?: string;
+    greetingAr?: string;
+    systemPrompt?: string;
+    suggestedQuestions?: { en: string; ar: string }[];
+  };
 }>;
 
 /** Public store config for e-commerce (store name, logo, footer, newsletter, homepage collections). */
@@ -529,6 +544,18 @@ export const api = {
     request("/settings", { method: "PUT", body: JSON.stringify(payload) }),
   /** Send a test order notification email to the configured admin/notification address. */
   sendTestOrderEmail: () => request("/settings/test-order-email", { method: "POST" }),
+
+  /** AI chat sessions (admin). */
+  listAiSessions: (params?: { page?: number; limit?: number }) => {
+    const sp = new URLSearchParams();
+    if (params?.page != null) sp.set("page", String(params.page));
+    if (params?.limit != null) sp.set("limit", String(params.limit));
+    const q = sp.toString();
+    return request(`/ai/sessions${q ? `?${q}` : ""}`);
+  },
+  getAiSession: (id: string) => request(`/ai/sessions/${id}`),
+  deleteAiSession: (id: string) => request(`/ai/sessions/${id}`, { method: "DELETE" }),
+
   listSubscribers: (params?: { page?: number; limit?: number }) => {
     const sp = new URLSearchParams();
     if (params?.page != null) sp.set("page", String(params.page));

@@ -67,6 +67,14 @@ export interface SettingsDocument {
   orderNotificationsEnabled?: boolean;
   /** Email address to receive new order notifications (defaults to admin email if not set). */
   orderNotificationEmail?: string;
+  /** AI shopping assistant (chatbot) configuration. */
+  aiAssistant?: {
+    enabled: boolean;
+    geminiApiKey: string;
+    greeting: LocalizedString;
+    systemPrompt: string;
+    suggestedQuestions: LocalizedString[];
+  };
   updatedAt: Date;
 }
 
@@ -137,7 +145,21 @@ const settingsSchema = new Schema<SettingsDocument>(
       default: []
     },
     orderNotificationsEnabled: { type: Boolean, default: false },
-    orderNotificationEmail: { type: String, default: "" }
+    orderNotificationEmail: { type: String, default: "" },
+    aiAssistant: {
+      enabled: { type: Boolean, default: false },
+      geminiApiKey: { type: String, default: "" },
+      greeting: { type: localizedSchema, default: () => ({ en: "Hi! How can I help you today?", ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟" }) },
+      systemPrompt: { type: String, default: "" },
+      suggestedQuestions: {
+        type: [localizedSchema],
+        default: () => [
+          { en: "What are your shipping options?", ar: "ما خيارات الشحن لديكم؟" },
+          { en: "How can I return an item?", ar: "كيف أستطيع إرجاع منتج؟" },
+          { en: "Show me new arrivals", ar: "أرني الوصول الجديد" }
+        ]
+      }
+    }
   },
   { timestamps: true }
 );

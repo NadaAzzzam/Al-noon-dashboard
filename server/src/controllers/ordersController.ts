@@ -129,8 +129,9 @@ export const createOrder = asyncHandler(async (req, res) => {
       .populate("items.product", "name");
     if (!populated) return;
     const user = populated.user as { name?: string; email?: string } | null;
-    const items = (populated.items || []).map((item: { product?: { name?: string }; quantity: number; price: number }) => {
-      const name = item.product && typeof item.product === "object" && "name" in item.product ? String((item.product as { name?: string }).name) : "—";
+    const items = (populated.items || []).map((item) => {
+      const product = item.product as unknown as { name?: string } | undefined;
+      const name = product && typeof product === "object" && "name" in product ? String(product.name) : "—";
       return `${name} × ${item.quantity} = ${item.quantity * item.price}`;
     });
     const subject = `New order #${order._id}`;

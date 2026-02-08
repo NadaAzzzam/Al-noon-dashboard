@@ -64,6 +64,14 @@
     "page": {
       "not_found": "Page not found"
     },
+    "ai": {
+      "disabled": "AI assistant is disabled",
+      "not_configured": "AI assistant is not configured. Add your Gemini API key in Settings > AI Assistant.",
+      "invalid_api_key": "Invalid Gemini API key. Check Settings > AI Assistant.",
+      "rate_limit": "Too many requests. Please try again in a minute.",
+      "unavailable": "AI is temporarily unavailable. Please try again.",
+      "session_not_found": "Chat session not found"
+    },
     "settings": {
       "no_notification_email": "No notification email configured. Set notification email in settings or ADMIN_EMAIL in server config.",
       "email_send_failed": "Email could not be sent. Check SMTP settings (SMTP_HOST, SMTP_USER, SMTP_PASS) in server .env."
@@ -128,6 +136,9 @@
     },
     "inventory": {
       "stock_updated": "Stock updated successfully"
+    },
+    "ai": {
+      "session_deleted": "Chat session deleted"
     },
     "common": {
       "fetched": "Data retrieved successfully"
