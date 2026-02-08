@@ -153,6 +153,12 @@ const Layout = () => {
   };
 
   const breadcrumbKey = getBreadcrumb(location.pathname);
+  const orderIdFromPath = location.pathname.startsWith("/orders/")
+    ? location.pathname.replace(/^\/orders\//, "").split("/")[0]?.slice(-8) ?? ""
+    : "";
+  const breadcrumbOptions = breadcrumbKey === "order_detail.order_id" && orderIdFromPath
+    ? { id: orderIdFromPath }
+    : undefined;
   const userInitials = user ? user.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) : "";
 
   return (
@@ -229,7 +235,7 @@ const Layout = () => {
                   {location.pathname !== "/" && (
                     <>
                       <span className="topbar-breadcrumb-sep">/</span>
-                      <span className="topbar-breadcrumb-current">{t(breadcrumbKey)}</span>
+                      <span className="topbar-breadcrumb-current">{t(breadcrumbKey, breadcrumbOptions)}</span>
                     </>
                   )}
                 </div>

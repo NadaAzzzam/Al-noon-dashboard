@@ -339,7 +339,7 @@ const ProductFormPage = () => {
   return (
     <div className="product-form-page">
       <Link to="/products" className="product-form-back">
-        ← {t("products.back_products")}
+        {t("products.back_products")}
       </Link>
       <h1 className="product-form-title">
         {isEdit ? t("products.edit_product") : t("products.new_product")}
