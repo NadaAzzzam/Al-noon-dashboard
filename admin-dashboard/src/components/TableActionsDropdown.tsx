@@ -11,10 +11,12 @@ type Props = {
   ariaLabel?: string;
 };
 
-const SettingsIcon = () => (
+/** Vertical three-dots (kebab) icon for row actions */
+const MoreVerticalIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <circle cx="12" cy="12" r="3" />
-    <path d="M12 1v4m0 14v4M4.22 4.22l2.83 2.83m9.9 9.9l2.83 2.83M1 12h4m14 0h4M4.22 19.78l2.83-2.83m9.9-9.9l2.83-2.83" />
+    <circle cx="12" cy="6" r="1.5" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+    <circle cx="12" cy="18" r="1.5" fill="currentColor" />
   </svg>
 );
 
@@ -46,7 +48,7 @@ export const TableActionsDropdown = ({ actions, ariaLabel = "Actions" }: Props) 
         aria-label={ariaLabel}
         title={ariaLabel}
       >
-        <SettingsIcon />
+        <MoreVerticalIcon />
       </button>
       {open && (
         <ul className="table-actions-menu" role="menu">
