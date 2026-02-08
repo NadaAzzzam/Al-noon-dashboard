@@ -52,7 +52,17 @@ if (!fs.existsSync(uploadsFeedbackDir)) fs.mkdirSync(uploadsFeedbackDir, { recur
 export const createApp = () => {
   const app = express();
 
-  app.use(helmet({ crossOriginResourcePolicy: false }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          "img-src": ["'self'", "data:", "https://images.unsplash.com"],
+        },
+      },
+    })
+  );
   app.use(cors({ origin: env.clientUrl, credentials: true }));
   app.use(cookieParser());
   app.use(express.json());
