@@ -35,6 +35,7 @@ const uploadsHeroDir = path.join(uploadsDir, "hero");
 const uploadsHeroVideosDir = path.join(uploadsDir, "hero", "videos");
 const uploadsSectionsDir = path.join(uploadsDir, "sections");
 const uploadsSectionVideosDir = path.join(uploadsDir, "sections", "videos");
+const uploadsPromoDir = path.join(uploadsDir, "promo");
 if (!fs.existsSync(uploadsLogosDir)) fs.mkdirSync(uploadsLogosDir, { recursive: true });
 if (!fs.existsSync(uploadsProductsDir)) fs.mkdirSync(uploadsProductsDir, { recursive: true });
 if (!fs.existsSync(uploadsProductVideosDir)) fs.mkdirSync(uploadsProductVideosDir, { recursive: true });
@@ -43,6 +44,7 @@ if (!fs.existsSync(uploadsHeroDir)) fs.mkdirSync(uploadsHeroDir, { recursive: tr
 if (!fs.existsSync(uploadsHeroVideosDir)) fs.mkdirSync(uploadsHeroVideosDir, { recursive: true });
 if (!fs.existsSync(uploadsSectionsDir)) fs.mkdirSync(uploadsSectionsDir, { recursive: true });
 if (!fs.existsSync(uploadsSectionVideosDir)) fs.mkdirSync(uploadsSectionVideosDir, { recursive: true });
+if (!fs.existsSync(uploadsPromoDir)) fs.mkdirSync(uploadsPromoDir, { recursive: true });
 
 export const createApp = () => {
   const app = express();

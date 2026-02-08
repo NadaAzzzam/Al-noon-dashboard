@@ -3,7 +3,7 @@ import { Settings } from "../models/Settings.js";
 import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { logoPath, collectionImagePath, heroImagePath, heroVideoPath, sectionImagePath, sectionVideoPath } from "../middlewares/upload.js";
+import { logoPath, collectionImagePath, heroImagePath, heroVideoPath, sectionImagePath, sectionVideoPath, promoImagePath } from "../middlewares/upload.js";
 
 const heroDefault = {
   images: [] as string[],
@@ -32,6 +32,10 @@ const defaults = {
   homeCollectionsDisplayLimit: 0,
   ourCollectionSectionImages: [] as string[],
   ourCollectionSectionVideos: [] as string[],
+  announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: "#0f172a" },
+  promoBanner: { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" },
+  featuredProductsEnabled: false,
+  featuredProductsLimit: 8,
   contentPages: [] as { slug: string; title: { en: string; ar: string }; content: { en: string; ar: string } }[]
 };
 
@@ -162,6 +166,29 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.ourCollectionSectionVideos !== undefined && Array.isArray(updates.ourCollectionSectionVideos)) {
     toSet.ourCollectionSectionVideos = updates.ourCollectionSectionVideos.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
   }
+  if (updates.announcementBar !== undefined && typeof updates.announcementBar === "object") {
+    const ab = updates.announcementBar;
+    toSet.announcementBar = {
+      text: { en: String(ab.textEn ?? "").trim(), ar: String(ab.textAr ?? "").trim() },
+      enabled: Boolean(ab.enabled),
+      backgroundColor: String(ab.backgroundColor ?? "#0f172a").trim()
+    };
+  }
+  if (updates.promoBanner !== undefined && typeof updates.promoBanner === "object") {
+    const pb = updates.promoBanner;
+    toSet.promoBanner = {
+      enabled: Boolean(pb.enabled),
+      image: String(pb.image ?? "").trim(),
+      title: { en: String(pb.titleEn ?? "").trim(), ar: String(pb.titleAr ?? "").trim() },
+      subtitle: { en: String(pb.subtitleEn ?? "").trim(), ar: String(pb.subtitleAr ?? "").trim() },
+      ctaLabel: { en: String(pb.ctaLabelEn ?? "").trim(), ar: String(pb.ctaLabelAr ?? "").trim() },
+      ctaUrl: String(pb.ctaUrl ?? "").trim()
+    };
+  }
+  if (updates.featuredProductsEnabled !== undefined) toSet.featuredProductsEnabled = Boolean(updates.featuredProductsEnabled);
+  if (updates.featuredProductsLimit !== undefined) {
+    toSet.featuredProductsLimit = Math.max(1, Math.min(24, Math.floor(Number(updates.featuredProductsLimit))));
+  }
   if (updates.contentPages !== undefined && Array.isArray(updates.contentPages)) {
     const allowedSlugs = ["privacy", "return-policy", "shipping-policy", "about", "contact"];
     toSet.contentPages = updates.contentPages
@@ -238,4 +265,12 @@ export const uploadSectionVideo = asyncHandler(async (req: Request, res: Respons
   if (!file) throw new ApiError(400, "No video file uploaded. Please select a video (MP4, WebM, MOV, OGG).");
   const pathUrl = sectionVideoPath(file.filename);
   res.json({ video: pathUrl });
+});
+
+/** Upload promotional banner image. Returns { image: "/uploads/promo/..." }. */
+export const uploadPromoImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+  const file = req.file;
+  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  const pathUrl = promoImagePath(file.filename);
+  res.json({ image: pathUrl });
 });

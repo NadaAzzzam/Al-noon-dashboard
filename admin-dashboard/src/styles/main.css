@@ -1503,3 +1503,135 @@ select:focus {
   margin-bottom: 8px;
   display: block;
 }
+
+/* ===== Upload zone drag-over state ===== */
+.product-form-upload-zone.drag-over {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.06);
+}
+.product-form-upload-zone.uploading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ===== Home page media grid (uploaded previews) ===== */
+.home-media-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+.home-media-grid-item {
+  position: relative;
+  flex-shrink: 0;
+}
+.home-media-grid-item img,
+.home-media-grid-item video {
+  width: 160px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  display: block;
+  background: #f8fafc;
+}
+
+/* ===== Dashboard: Revenue comparison ===== */
+.dashboard-revenue-comparison {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  margin: 12px 0;
+}
+.dashboard-revenue-stat {
+  flex: 1;
+}
+.dashboard-revenue-change {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 4px 0 0;
+}
+.dashboard-revenue-change.positive {
+  color: #059669;
+}
+.dashboard-revenue-change.negative {
+  color: #dc2626;
+}
+
+/* ===== Dashboard: Order status breakdown bar ===== */
+.dashboard-status-bar {
+  display: flex;
+  height: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+.dashboard-status-segment {
+  height: 100%;
+  transition: width 0.3s;
+}
+.dashboard-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.dashboard-status-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dashboard-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ===== Dashboard: Attention needed ===== */
+.dashboard-attention-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.dashboard-attention-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 14px;
+}
+.dashboard-attention-item:last-child {
+  border-bottom: none;
+}
+.dashboard-attention-item a {
+  color: #2563eb;
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-inline-start: 12px;
+}
+
+/* ===== Order status badge colors ===== */
+.badge-pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+.badge-confirmed {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.badge-shipped {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+.badge-delivered {
+  background: #dcfce7;
+  color: #166534;
+}
+.badge-cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}

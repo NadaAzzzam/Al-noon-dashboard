@@ -115,6 +115,14 @@ export type DashboardStats = {
   lowStockCount: number;
   bestSelling: { productId: string; name: LocalizedString; image?: string; totalQty: number }[];
   ordersPerDay: { _id: string; count: number; revenue: number }[];
+  totalCustomers: number;
+  totalProducts: number;
+  averageOrderValue: number;
+  pendingOrdersCount: number;
+  outOfStockCount: number;
+  orderStatusBreakdown: { status: string; count: number }[];
+  revenueThisMonth: number;
+  revenueLastMonth: number;
 };
 
 export type City = {
@@ -149,6 +157,10 @@ export type Settings = {
   homeCollectionsDisplayLimit?: number;
   ourCollectionSectionImages?: string[];
   ourCollectionSectionVideos?: string[];
+  announcementBar?: { text: LocalizedString; enabled: boolean; backgroundColor: string };
+  promoBanner?: { enabled: boolean; image: string; title: LocalizedString; subtitle: LocalizedString; ctaLabel: LocalizedString; ctaUrl: string };
+  featuredProductsEnabled?: boolean;
+  featuredProductsLimit?: number;
   contentPages?: ContentPage[];
 };
 
@@ -190,6 +202,10 @@ export type SettingsPayload = Partial<{
   homeCollectionsDisplayLimit: number;
   ourCollectionSectionImages?: string[];
   ourCollectionSectionVideos?: string[];
+  announcementBar?: { textEn: string; textAr: string; enabled: boolean; backgroundColor: string };
+  promoBanner?: { enabled: boolean; image: string; titleEn: string; titleAr: string; subtitleEn: string; subtitleAr: string; ctaLabelEn: string; ctaLabelAr: string; ctaUrl: string };
+  featuredProductsEnabled?: boolean;
+  featuredProductsLimit?: number;
   contentPages: { slug: string; titleEn: string; titleAr: string; contentEn: string; contentAr: string }[];
 }>;
 
@@ -534,5 +550,25 @@ export const api = {
     }
     const data = (await response.json()) as { video: string };
     return data.video;
+  },
+  /** Upload promotional banner image. Returns image path. */
+  uploadPromoImage: async (file: File): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("image", file);
+    const response = await fetch(`${API_BASE}/settings/promo-image`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { image: string };
+    return data.image;
   }
 };

@@ -12,6 +12,25 @@ import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
 
+const STATUS_COLORS: Record<string, string> = {
+  PENDING: "#f59e0b",
+  CONFIRMED: "#3b82f6",
+  SHIPPED: "#6366f1",
+  DELIVERED: "#22c55e",
+  CANCELLED: "#ef4444",
+};
+
+const statusBadgeClass = (status: string) => {
+  const map: Record<string, string> = {
+    PENDING: "badge badge-pending",
+    CONFIRMED: "badge badge-confirmed",
+    SHIPPED: "badge badge-shipped",
+    DELIVERED: "badge badge-delivered",
+    CANCELLED: "badge badge-cancelled",
+  };
+  return map[status] ?? "badge";
+};
+
 const DashboardPage = () => {
   const { t } = useTranslation();
   const localized = useLocalized();
@@ -54,6 +73,14 @@ const DashboardPage = () => {
     ? Math.max(...chartSlice.map((x) => x.revenue ?? 0))
     : 1;
 
+  // Revenue comparison
+  const revenueChange = stats.revenueLastMonth > 0
+    ? ((stats.revenueThisMonth - stats.revenueLastMonth) / stats.revenueLastMonth) * 100
+    : stats.revenueThisMonth > 0 ? 100 : 0;
+
+  // Order status breakdown
+  const totalStatusOrders = (stats.orderStatusBreakdown ?? []).reduce((sum, s) => sum + s.count, 0);
+
   return (
     <div>
       <div className="header">
@@ -62,6 +89,8 @@ const DashboardPage = () => {
           <p>{t("dashboard.subtitle")}</p>
         </div>
       </div>
+
+      {/* Row 1: Key metrics */}
       <div className="card-grid">
         <div className="card">
           <h3>{t("dashboard.total_orders")}</h3>
@@ -76,16 +105,100 @@ const DashboardPage = () => {
           <p className="card-value">{formatPriceEGP(stats.revenue ?? 0)}</p>
         </div>
         <div className="card">
-          <h3>{t("dashboard.low_stock")}</h3>
+          <h3>{t("dashboard.avg_order_value")}</h3>
+          <p className="card-value">{formatPriceEGP(stats.averageOrderValue ?? 0)}</p>
+        </div>
+      </div>
+
+      {/* Row 2: Secondary metrics */}
+      <div className="card-grid">
+        <div className="card">
+          <h3>{t("dashboard.pending_orders")}</h3>
           <p className="card-value">
-            {stats.lowStockCount > 0 ? (
-              <Link to="/inventory" className="notif-badge low">
-                {stats.lowStockCount}
-              </Link>
+            {stats.pendingOrdersCount > 0 ? (
+              <Link to="/orders" className="notif-badge low">{stats.pendingOrdersCount}</Link>
             ) : (
-              stats.lowStockCount
+              stats.pendingOrdersCount
             )}
           </p>
+        </div>
+        <div className="card">
+          <h3>{t("dashboard.total_customers")}</h3>
+          <p className="card-value">
+            <Link to="/customers" style={{ color: "inherit" }}>{stats.totalCustomers}</Link>
+          </p>
+        </div>
+        <div className="card">
+          <h3>{t("dashboard.total_products")}</h3>
+          <p className="card-value">
+            <Link to="/products" style={{ color: "inherit" }}>{stats.totalProducts}</Link>
+          </p>
+        </div>
+        <div className="card">
+          <h3>{t("dashboard.low_stock")}</h3>
+          <p className="card-value">
+            {(stats.lowStockCount + stats.outOfStockCount) > 0 ? (
+              <Link to="/inventory" className="notif-badge low">
+                {stats.lowStockCount + stats.outOfStockCount}
+              </Link>
+            ) : (
+              0
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* Row 3: Revenue Comparison + Order Status Breakdown */}
+      <div className="dashboard-charts-row" style={{ marginBottom: 24 }}>
+        <div className="card">
+          <h3>{t("dashboard.revenue_comparison")}</h3>
+          <div className="dashboard-revenue-comparison">
+            <div className="dashboard-revenue-stat">
+              <p className="settings-hint" style={{ margin: "0 0 4px" }}>{t("dashboard.revenue_this_month")}</p>
+              <p className="card-value" style={{ margin: 0 }}>{formatPriceEGP(stats.revenueThisMonth ?? 0)}</p>
+            </div>
+            <div className="dashboard-revenue-stat">
+              <p className="settings-hint" style={{ margin: "0 0 4px" }}>{t("dashboard.revenue_last_month")}</p>
+              <p className="card-value" style={{ margin: 0 }}>{formatPriceEGP(stats.revenueLastMonth ?? 0)}</p>
+            </div>
+          </div>
+          {(stats.revenueThisMonth > 0 || stats.revenueLastMonth > 0) && (
+            <p className={`dashboard-revenue-change ${revenueChange >= 0 ? "positive" : "negative"}`}>
+              {revenueChange >= 0 ? "+" : ""}{revenueChange.toFixed(1)}% {t("dashboard.revenue_change")}
+            </p>
+          )}
+        </div>
+
+        <div className="card">
+          <h3>{t("dashboard.order_status_breakdown")}</h3>
+          {totalStatusOrders > 0 ? (
+            <>
+              <div className="dashboard-status-bar">
+                {(stats.orderStatusBreakdown ?? []).map((s) => (
+                  <div
+                    key={s.status}
+                    className="dashboard-status-segment"
+                    style={{
+                      width: `${(s.count / totalStatusOrders) * 100}%`,
+                      backgroundColor: STATUS_COLORS[s.status] ?? "#94a3b8",
+                    }}
+                    title={`${s.status}: ${s.count}`}
+                  />
+                ))}
+              </div>
+              <div className="dashboard-status-legend">
+                {(stats.orderStatusBreakdown ?? []).map((s) => (
+                  <div key={s.status} className="dashboard-status-legend-item">
+                    <span className="dashboard-status-dot" style={{ backgroundColor: STATUS_COLORS[s.status] ?? "#94a3b8" }} />
+                    <span>{t(`orders.${s.status.toLowerCase()}`, s.status)}</span>
+                    <span className="badge" style={{ marginInlineStart: 4 }}>{s.count}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p>{t("dashboard.no_data")}</p>
+          )}
         </div>
       </div>
 
@@ -193,17 +306,43 @@ const DashboardPage = () => {
             <Link to="/products">{t("analytics.view_all_products")}</Link>
           </p>
         </div>
+
+        {/* Attention Needed */}
         <div className="card">
-          <h3>{t("analytics.tracking")}</h3>
-          <p className="analytics-tracking-desc">
-            {t("analytics.tracking_desc")}
-          </p>
-          <Link to="/settings" className="button secondary">
-            {t("analytics.configure_ga")}
-          </Link>
+          <h3>{t("dashboard.attention_needed")}</h3>
+          <ul className="dashboard-attention-list">
+            {stats.pendingOrdersCount > 0 && (
+              <li className="dashboard-attention-item">
+                <span>{t("dashboard.pending_need_confirmation", { count: stats.pendingOrdersCount })}</span>
+                <Link to="/orders">{t("common.view")}</Link>
+              </li>
+            )}
+            {stats.lowStockCount > 0 && (
+              <li className="dashboard-attention-item">
+                <span>{t("dashboard.products_low_stock", { count: stats.lowStockCount })}</span>
+                <Link to="/inventory">{t("common.view")}</Link>
+              </li>
+            )}
+            {stats.outOfStockCount > 0 && (
+              <li className="dashboard-attention-item">
+                <span>{t("dashboard.products_out_of_stock", { count: stats.outOfStockCount })}</span>
+                <Link to="/inventory">{t("common.view")}</Link>
+              </li>
+            )}
+            {stats.pendingOrdersCount === 0 && stats.lowStockCount === 0 && stats.outOfStockCount === 0 && (
+              <li className="dashboard-attention-item">
+                <span style={{ color: "#64748b" }}>{t("dashboard.all_good")}</span>
+              </li>
+            )}
+          </ul>
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #f1f5f9" }}>
+            <p className="analytics-tracking-desc">{t("analytics.tracking_desc")}</p>
+            <Link to="/settings" className="button secondary">{t("analytics.configure_ga")}</Link>
+          </div>
         </div>
       </div>
-      <div className="card">
+
+      <div className="card" style={{ marginTop: 24 }}>
         <h3>{t("dashboard.recent_orders")}</h3>
         <table className="table">
           <thead>
@@ -221,7 +360,9 @@ const DashboardPage = () => {
                 <td>{order._id.slice(-8)}</td>
                 <td>{order.user?.name ?? "—"}</td>
                 <td>
-                  <span className="badge">{order.status}</span>
+                  <span className={statusBadgeClass(order.status)}>
+                    {t(`orders.${order.status.toLowerCase()}`, order.status)}
+                  </span>
                 </td>
                 <td>{formatPriceEGP(order.total)}</td>
                 <td>

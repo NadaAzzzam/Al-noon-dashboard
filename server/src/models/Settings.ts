@@ -42,6 +42,21 @@ export interface SettingsDocument {
   /** Section media for "Our Collection" block on home page. */
   ourCollectionSectionImages: string[];
   ourCollectionSectionVideos: string[];
+  /** Announcement bar text shown at top of storefront. */
+  announcementBar: { text: LocalizedString; enabled: boolean; backgroundColor: string };
+  /** Promotional banner for sales / seasonal campaigns. */
+  promoBanner: {
+    enabled: boolean;
+    image: string;
+    title: LocalizedString;
+    subtitle: LocalizedString;
+    ctaLabel: LocalizedString;
+    ctaUrl: string;
+  };
+  /** Whether to show featured/trending products section on storefront home. */
+  featuredProductsEnabled: boolean;
+  /** Number of featured/trending products to show on home page. */
+  featuredProductsLimit: number;
   /** Rich-text content for footer pages: Privacy, Return Policy, Shipping, About, Contact. */
   contentPages: { slug: string; title: LocalizedString; content: LocalizedString }[];
   updatedAt: Date;
@@ -88,6 +103,21 @@ const settingsSchema = new Schema<SettingsDocument>(
     homeCollectionsDisplayLimit: { type: Number, default: 0 },
     ourCollectionSectionImages: { type: [String], default: [] },
     ourCollectionSectionVideos: { type: [String], default: [] },
+    announcementBar: {
+      text: { type: localizedSchema, default: () => ({ en: "", ar: "" }) },
+      enabled: { type: Boolean, default: false },
+      backgroundColor: { type: String, default: "#0f172a" }
+    },
+    promoBanner: {
+      enabled: { type: Boolean, default: false },
+      image: { type: String, default: "" },
+      title: { type: localizedSchema, default: () => ({ en: "", ar: "" }) },
+      subtitle: { type: localizedSchema, default: () => ({ en: "", ar: "" }) },
+      ctaLabel: { type: localizedSchema, default: () => ({ en: "", ar: "" }) },
+      ctaUrl: { type: String, default: "" }
+    },
+    featuredProductsEnabled: { type: Boolean, default: false },
+    featuredProductsLimit: { type: Number, default: 8 },
     contentPages: {
       type: [{
         slug: String,

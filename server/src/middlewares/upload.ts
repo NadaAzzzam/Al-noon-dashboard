@@ -14,6 +14,7 @@ const heroDir = path.resolve(__dirname, "../../uploads/hero");
 const heroVideosDir = path.resolve(__dirname, "../../uploads/hero/videos");
 const sectionsDir = path.resolve(__dirname, "../../uploads/sections");
 const sectionVideosDir = path.resolve(__dirname, "../../uploads/sections/videos");
+const promoDir = path.resolve(__dirname, "../../uploads/promo");
 
 const logoStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, logosDir),
@@ -185,4 +186,24 @@ export function sectionImagePath(filename: string): string {
 /** Public path for uploaded section video. */
 export function sectionVideoPath(filename: string): string {
   return `/uploads/sections/videos/${filename}`;
+}
+
+const promoImageStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, promoDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || ".png";
+    const safeExt = [".png", ".jpg", ".jpeg", ".gif", ".webp"].includes(ext.toLowerCase()) ? ext : ".png";
+    cb(null, `promo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}${safeExt}`);
+  }
+});
+
+export const uploadPromoImage = multer({
+  storage: promoImageStorage,
+  fileFilter: imageFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }
+}).single("image");
+
+/** Public path for uploaded promo banner image. */
+export function promoImagePath(filename: string): string {
+  return `/uploads/promo/${filename}`;
 }
