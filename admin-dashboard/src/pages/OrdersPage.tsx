@@ -76,6 +76,7 @@ const OrdersPage = () => {
           <thead>
             <tr>
               <th>{t("dashboard.order")}</th>
+              <th>{t("orders.date")}</th>
               <th>{t("dashboard.customer")}</th>
               <th>{t("dashboard.status")}</th>
               <th>{t("orders.payment")}</th>
@@ -88,6 +89,7 @@ const OrdersPage = () => {
             {orders.map((order) => (
               <tr key={order._id}>
                 <td>{order._id.slice(-8)}</td>
+                <td>{order.createdAt ? new Date(order.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : "—"}</td>
                 <td>{order.user?.name ?? "—"}</td>
                 <td><span className="badge">{order.status}</span></td>
                 <td>{(order.payment as { method?: string; status?: string })?.method ?? "—"} / {(order.payment as { status?: string })?.status ?? "—"}</td>

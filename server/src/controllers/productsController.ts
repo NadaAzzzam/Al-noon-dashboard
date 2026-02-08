@@ -1,5 +1,8 @@
 import type { Request } from "express";
+import mongoose from "mongoose";
 import { Product } from "../models/Product.js";
+import { Order } from "../models/Order.js";
+import { ProductFeedback } from "../models/ProductFeedback.js";
 import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -20,6 +23,7 @@ export const listProducts = asyncHandler(async (req, res) => {
   const minPrice = req.query.minPrice != null ? Number(req.query.minPrice) : undefined;
   const maxPrice = req.query.maxPrice != null ? Number(req.query.maxPrice) : undefined;
   const sort = (req.query.sort as string) || "newest";
+  const minRating = req.query.minRating != null ? Number(req.query.minRating) : undefined;
 
   const filter: Record<string, unknown> = { deletedAt: null };
   if (status === "ACTIVE" || status === "INACTIVE") filter.status = status;
@@ -56,9 +60,25 @@ export const listProducts = asyncHandler(async (req, res) => {
     ];
   }
 
+  // Filter by minimum average rating (from approved feedback)
+  if (minRating != null && !Number.isNaN(minRating) && minRating >= 1 && minRating <= 5) {
+    const ratingAgg = await ProductFeedback.aggregate<{ _id: mongoose.Types.ObjectId }>([
+      { $match: { approved: true } },
+      { $group: { _id: "$product", avgRating: { $avg: "$rating" } } },
+      { $match: { avgRating: { $gte: minRating } } },
+      { $project: { _id: 1 } }
+    ]);
+    const ratedProductIds = ratingAgg.map((r) => r._id);
+    filter._id = { $in: ratedProductIds };
+    if (ratedProductIds.length === 0) {
+      return res.json({ products: [], total: 0, page, limit, totalPages: 0 });
+    }
+  }
+
   const total = await Product.countDocuments(filter);
 
   const useEffectivePriceSort = sort === "priceAsc" || sort === "priceDesc";
+  const useSalesSort = sort === "highestSelling" || sort === "lowSelling";
   let products: unknown[];
 
   if (useEffectivePriceSort) {
@@ -82,6 +102,44 @@ export const listProducts = asyncHandler(async (req, res) => {
       },
       { $project: { categoryDoc: 0, effectivePrice: 0 } }
     ]);
+  } else if (useSalesSort) {
+    const soldSort = sort === "highestSelling" ? -1 : 1;
+    products = await Product.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: "orders",
+          let: { pid: "$_id" },
+          pipeline: [
+            { $match: { status: { $in: ["CONFIRMED", "SHIPPED", "DELIVERED"] } } },
+            { $unwind: "$items" },
+            { $match: { $expr: { $eq: ["$items.product", "$$pid"] } } },
+            { $group: { _id: null, totalQty: { $sum: "$items.quantity" } } }
+          ],
+          as: "soldResult"
+        }
+      },
+      {
+        $addFields: {
+          soldQty: { $ifNull: [{ $arrayElemAt: ["$soldResult.totalQty", 0] }, 0] }
+        }
+      },
+      { $sort: { soldQty: soldSort as 1 | -1, createdAt: -1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+      { $lookup: { from: "categories", localField: "category", foreignField: "_id", as: "categoryDoc" } },
+      { $unwind: { path: "$categoryDoc", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          category: {
+            _id: "$categoryDoc._id",
+            name: "$categoryDoc.name",
+            status: "$categoryDoc.status"
+          }
+        }
+      },
+      { $project: { categoryDoc: 0, soldResult: 0 } }
+    ]);
   } else {
     const sortOption: Record<string, 1 | -1> =
       sort === "nameAsc" ? { "name.en": 1 } :
@@ -94,6 +152,45 @@ export const listProducts = asyncHandler(async (req, res) => {
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
+  }
+
+  // Attach sold quantity (from CONFIRMED/SHIPPED/DELIVERED orders) for each product
+  const productIds = (products as { _id: unknown }[]).map((p) => p._id);
+  if (productIds.length > 0) {
+    const soldAgg = await Order.aggregate([
+      { $match: { status: { $in: ["CONFIRMED", "SHIPPED", "DELIVERED"] } } },
+      { $unwind: "$items" },
+      { $match: { "items.product": { $in: productIds.map((id) => (typeof id === "string" ? new mongoose.Types.ObjectId(id) : id)) } } },
+      { $group: { _id: "$items.product", totalQty: { $sum: "$items.quantity" } } }
+    ]);
+    const soldMap: Record<string, number> = {};
+    for (const row of soldAgg) {
+      soldMap[String(row._id)] = row.totalQty;
+    }
+    products = (products as Record<string, unknown>[]).map((p) => ({
+      ...p,
+      soldQty: soldMap[String((p as { _id: unknown })._id)] ?? 0
+    }));
+  }
+
+  // Attach average rating and rating count (from approved feedback) for each product
+  if (productIds.length > 0) {
+    const ratingAgg = await ProductFeedback.aggregate<{ _id: mongoose.Types.ObjectId; avgRating: number; count: number }>([
+      { $match: { product: { $in: productIds.map((id) => (typeof id === "string" ? new mongoose.Types.ObjectId(id) : id)) }, approved: true } },
+      { $group: { _id: "$product", avgRating: { $avg: "$rating" }, count: { $sum: 1 } } }
+    ]);
+    const ratingMap: Record<string, { avgRating: number; ratingCount: number }> = {};
+    for (const row of ratingAgg) {
+      ratingMap[String(row._id)] = { avgRating: Math.round(row.avgRating * 10) / 10, ratingCount: row.count };
+    }
+    products = (products as Record<string, unknown>[]).map((p) => {
+      const r = ratingMap[String((p as { _id: unknown })._id)];
+      return {
+        ...p,
+        averageRating: r?.avgRating,
+        ratingCount: r?.ratingCount ?? 0
+      };
+    });
   }
 
   res.json({

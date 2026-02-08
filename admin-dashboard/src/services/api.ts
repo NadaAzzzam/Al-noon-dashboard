@@ -52,6 +52,12 @@ export type Product = {
   /** Optional styling tip for storefront. */
   stylingTip?: LocalizedString;
   category?: { name: LocalizedString; status?: string } | string;
+  /** Total quantity sold (CONFIRMED/SHIPPED/DELIVERED orders). Set by list products API. */
+  soldQty?: number;
+  /** Average rating (1–5) from approved feedback. Set by list products API. */
+  averageRating?: number;
+  /** Number of users who rated this product (approved feedback). Set by list products API. */
+  ratingCount?: number;
 };
 
 /** Payload for create/update product (API accepts nameEn, nameAr, etc.) */
@@ -324,7 +330,7 @@ export const api = {
   getCustomer: (id: string) => request(`/users/${id}`),
   getCustomerOrders: (id: string) => request(`/users/${id}/orders`),
 
-  listProducts: (params?: { page?: number; limit?: number; search?: string; status?: string; category?: string; newArrival?: boolean }) => {
+  listProducts: (params?: { page?: number; limit?: number; search?: string; status?: string; category?: string; newArrival?: boolean; sort?: string; minRating?: number }) => {
     const sp = new URLSearchParams();
     if (params?.page != null) sp.set("page", String(params.page));
     if (params?.limit != null) sp.set("limit", String(params.limit));
@@ -332,6 +338,8 @@ export const api = {
     if (params?.status) sp.set("status", params.status);
     if (params?.newArrival === true) sp.set("newArrival", "true");
     if (params?.category) sp.set("category", params.category);
+    if (params?.sort) sp.set("sort", params.sort);
+    if (params?.minRating != null) sp.set("minRating", String(params.minRating));
     const q = sp.toString();
     return request(`/products${q ? `?${q}` : ""}`);
   },

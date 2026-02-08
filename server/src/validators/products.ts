@@ -50,8 +50,10 @@ export const productQuerySchema = z.object({
     minPrice: z.coerce.number().min(0).optional(),
     /** E-commerce: max price (EGP) */
     maxPrice: z.coerce.number().min(0).optional(),
-    /** E-commerce: newest | priceAsc | priceDesc | nameAsc | nameDesc | bestSelling */
-    sort: z.enum(["newest", "priceAsc", "priceDesc", "nameAsc", "nameDesc", "bestSelling"]).optional()
+    /** E-commerce: newest | priceAsc | priceDesc | nameAsc | nameDesc | bestSelling | highestSelling | lowSelling */
+    sort: z.enum(["newest", "priceAsc", "priceDesc", "nameAsc", "nameDesc", "bestSelling", "highestSelling", "lowSelling"]).optional(),
+    /** Admin: only products with average rating (approved feedback) >= this value (1–5) */
+    minRating: z.coerce.number().min(1).max(5).optional()
   })
 });
 

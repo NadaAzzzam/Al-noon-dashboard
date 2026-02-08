@@ -93,6 +93,9 @@ const OrderDetailPage = () => {
       <div className="card">
         <h3>{t("order_detail.order_id", { id: order._id.slice(-8) })}</h3>
         <p><strong>{t("order_detail.customer")}:</strong> {order.user?.name} – {order.user?.email}</p>
+        {order.createdAt && (
+          <p><strong>{t("order_detail.date")}:</strong> {new Date(order.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>
+        )}
         {order.shippingAddress && <p><strong>{t("order_detail.address")}:</strong> {order.shippingAddress}</p>}
         <p><strong>{t("order_detail.status")}:</strong>{" "}
           <select

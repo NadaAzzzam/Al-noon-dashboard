@@ -12,25 +12,19 @@ import {
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
 
-type TopSellingItem = {
-  productId: string;
-  name: { en: string; ar: string };
-  image?: string;
-  totalQty: number;
-};
-
 const ProductsPage = () => {
   const { t } = useTranslation();
   const localized = useLocalized();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [topSelling, setTopSelling] = useState<TopSellingItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [newArrivalFilter, setNewArrivalFilter] = useState(false);
+  const [salesFilter, setSalesFilter] = useState<string>("");
+  const [ratingFilter, setRatingFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
   const loadProducts = async () => {
@@ -43,6 +37,8 @@ const ProductsPage = () => {
         status: statusFilter || undefined,
         category: categoryFilter || undefined,
         newArrival: newArrivalFilter || undefined,
+        sort: salesFilter || undefined,
+        minRating: ratingFilter ? Number(ratingFilter) : undefined,
       })) as { products: Product[]; total: number };
       setProducts(res.products ?? []);
       setTotal(res.total ?? 0);
@@ -64,23 +60,11 @@ const ProductsPage = () => {
     } catch (_) {}
   };
 
-  const loadTopSelling = async () => {
-    try {
-      const res = (await api.getTopSellingProducts(15)) as {
-        topSelling: TopSellingItem[];
-      };
-      setTopSelling(res.topSelling ?? []);
-    } catch (_) {}
-  };
-
   useEffect(() => {
     loadProducts();
-  }, [page, search, statusFilter, categoryFilter, newArrivalFilter]);
+  }, [page, search, statusFilter, categoryFilter, newArrivalFilter, salesFilter, ratingFilter]);
   useEffect(() => {
     loadCategories();
-  }, []);
-  useEffect(() => {
-    loadTopSelling();
   }, []);
 
   const setStatus = async (id: string, status: "ACTIVE" | "INACTIVE") => {
@@ -127,39 +111,6 @@ const ProductsPage = () => {
         </Link>
       </div>
 
-      {topSelling.length > 0 && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h3>{t("dashboard.best_selling")}</h3>
-          <ul className="list list-with-images">
-            {topSelling.map((b, i) => (
-              <li key={b.productId ?? i}>
-                {b.image ? (
-                  <img
-                    src={getProductImageUrl(b.image)}
-                    alt=""
-                    className="dashboard-product-img"
-                  />
-                ) : (
-                  <span
-                    className="dashboard-product-img-placeholder"
-                    aria-hidden
-                  />
-                )}
-                <Link
-                  to={`/products/${b.productId}/edit`}
-                  className="list-item-label"
-                >
-                  {localized(b.name)}
-                </Link>
-                <span className="badge">
-                  {b.totalQty} {t("dashboard.sold")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <div className="card">
         <div className="filters">
           <input
@@ -195,6 +146,25 @@ const ProductsPage = () => {
             />
             <span>{t("products.new_arrivals_only")}</span>
           </label>
+          <select
+            value={salesFilter}
+            onChange={(e) => setSalesFilter(e.target.value)}
+            title={t("products.filter_by_sales")}
+          >
+            <option value="">{t("products.all_sales")}</option>
+            <option value="highestSelling">{t("products.highest_selling")}</option>
+            <option value="lowSelling">{t("products.low_sale")}</option>
+          </select>
+          <select
+            value={ratingFilter}
+            onChange={(e) => setRatingFilter(e.target.value)}
+            title={t("products.filter_by_rating")}
+          >
+            <option value="">{t("products.rating_any")}</option>
+            <option value="4">{t("products.rating_4_stars")}</option>
+            <option value="3">{t("products.rating_3_stars")}</option>
+            <option value="2">{t("products.rating_2_stars")}</option>
+          </select>
         </div>
         <table className="table">
           <thead>
@@ -205,6 +175,8 @@ const ProductsPage = () => {
               <th>{t("products.price")}</th>
               <th>Discount</th>
               <th>{t("products.stock")}</th>
+              <th>{t("products.best_selling")}</th>
+              <th>{t("products.rating")}</th>
               <th>{t("common.actions")}</th>
             </tr>
           </thead>
@@ -246,6 +218,16 @@ const ProductsPage = () => {
                     : "—"}
                 </td>
                 <td>{product.stock}</td>
+                <td>{product.soldQty ?? 0}</td>
+                <td>
+                  {product.ratingCount != null && product.ratingCount > 0 ? (
+                    <span title={t("products.rated_by_count", { count: product.ratingCount })}>
+                      {product.averageRating != null ? product.averageRating.toFixed(1) : "—"} ★ ({product.ratingCount})
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td>
                   <TableActionsDropdown
                     ariaLabel={t("common.actions")}
