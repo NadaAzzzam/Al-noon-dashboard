@@ -108,7 +108,13 @@
     "view_all_products": "View all products →",
     "tracking": "Tracking & insights",
     "tracking_desc": "Add your Google Analytics 4 Measurement ID in Settings to track admin dashboard visits. Use the same ID on your storefront to track customers and behavior.",
-    "configure_ga": "Configure in Settings"
+    "configure_ga": "Configure in Settings",
+    "ga4_reports_title": "Google Analytics 4 reports",
+    "ga4_reports_intro": "Ecommerce and traffic insights from GA4. Use these reports once your storefront sends events (view_item, add_to_cart, purchase).",
+    "ga4_report_monetization": "Monetization — revenue, transactions, top items",
+    "ga4_report_events": "Engagement → Events — view_item, add_to_cart, begin_checkout, purchase",
+    "ga4_report_explore": "Explore — build custom funnels and segments",
+    "open_ga4": "Open Google Analytics"
   },
   "products": {
     "title": "Products",

@@ -87,6 +87,12 @@ const IconCheckCircle = () => (
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
   </svg>
 );
+const IconChartBar = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>
+  </svg>
+);
+const GA4_REPORT_URL = "https://analytics.google.com/analytics/web/";
 
 /* Loading skeleton */
 const DashboardSkeleton = () => (
@@ -587,6 +593,36 @@ const DashboardPage = () => {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* GA4 ecommerce reports overview */}
+      <div className="card ga4-reports-card" style={{ marginTop: 24 }}>
+        <div className="card-header">
+          <h3>{t("analytics.ga4_reports_title")}</h3>
+          <a
+            href={GA4_REPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="button small primary"
+          >
+            {t("analytics.open_ga4")}
+          </a>
+        </div>
+        <p className="ga4-reports-intro">{t("analytics.ga4_reports_intro")}</p>
+        <ul className="ga4-reports-list">
+          <li>
+            <span className="ga4-reports-icon"><IconChartBar /></span>
+            {t("analytics.ga4_report_monetization")}
+          </li>
+          <li>
+            <span className="ga4-reports-icon"><IconChartBar /></span>
+            {t("analytics.ga4_report_events")}
+          </li>
+          <li>
+            <span className="ga4-reports-icon"><IconChartBar /></span>
+            {t("analytics.ga4_report_explore")}
+          </li>
+        </ul>
       </div>
 
       <div className="card" style={{ marginTop: 24 }}>
