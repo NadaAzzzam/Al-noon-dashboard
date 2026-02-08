@@ -16,18 +16,20 @@ process.on("unhandledRejection", (reason: unknown) => {
 });
 
 const start = async () => {
+  const app = createApp();
+  const host = "0.0.0.0";
+  const port = env.port;
+  app.listen(port, host, () => {
+    console.log(`Server listening on http://${host}:${port}`);
+  });
+  // Connect DB in background so slow/unreachable DB does not block health checks
   try {
     await connectDatabase();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn("Database connection failed:", msg);
     console.warn("Running without MongoDB. Login with:", env.adminEmail, "/", env.adminPassword);
-    // dbConnected stays false so login will use dev credentials
   }
-  const app = createApp();
-  app.listen(env.port, () => {
-    console.log(`Server running on port ${env.port}`);
-  });
 };
 
 start().catch((error: unknown) => {
