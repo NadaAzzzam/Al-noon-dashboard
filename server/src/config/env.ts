@@ -2,7 +2,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const defaultPort = process.env.NODE_ENV === "production" ? 8080 : 4000;
+// Default to 8080 so cloud platforms (Render, Railway, etc.) can reach the app when they expect 0.0.0.0:8080.
+// For local dev, set PORT=4000 in server/.env.
+const defaultPort = 8080;
 export const env = {
   port: process.env.PORT ? Number(process.env.PORT) : defaultPort,
   mongoUri: process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/al-noon-node",
