@@ -25,7 +25,9 @@
     "saved": "تم الحفظ",
     "saving": "جاري الحفظ…",
     "network_error": "تعذر الاتصال بالخادم.",
-    "remove": "إزالة"
+    "remove": "إزالة",
+    "clear_filters": "مسح الفلاتر",
+    "showing": "عرض"
   },
   "nav": {
     "app_name": "إدارة النون",
@@ -44,7 +46,11 @@
     "settings": "الإعدادات",
     "logout": "تسجيل الخروج",
     "low_stock": "مخزون منخفض",
-    "new_today": "جديد اليوم"
+    "new_today": "جديد اليوم",
+    "welcome_back": "مرحباً بعودتك",
+    "store_group": "المتجر",
+    "people_group": "الأشخاص",
+    "content_group": "المحتوى"
   },
   "auth": {
     "login_title": "تسجيل دخول المشرف",

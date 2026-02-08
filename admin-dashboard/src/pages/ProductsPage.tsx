@@ -12,6 +12,8 @@ import {
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
 
+const PAGE_SIZE = 20;
+
 const ProductsPage = () => {
   const { t } = useTranslation();
   const localized = useLocalized();
@@ -27,12 +29,24 @@ const ProductsPage = () => {
   const [ratingFilter, setRatingFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
+  const hasFilters = !!(search || statusFilter || categoryFilter || newArrivalFilter || salesFilter || ratingFilter);
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("");
+    setCategoryFilter("");
+    setNewArrivalFilter(false);
+    setSalesFilter("");
+    setRatingFilter("");
+    setPage(1);
+  };
+
   const loadProducts = async () => {
     setError(null);
     try {
       const res = (await api.listProducts({
         page,
-        limit: 20,
+        limit: PAGE_SIZE,
         search: search || undefined,
         status: statusFilter || undefined,
         category: categoryFilter || undefined,
@@ -92,7 +106,24 @@ const ProductsPage = () => {
     }
   };
 
-  const totalPages = Math.ceil(total / 20);
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const startItem = (page - 1) * PAGE_SIZE + 1;
+  const endItem = Math.min(page * PAGE_SIZE, total);
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages: (number | "...")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (page > 3) pages.push("...");
+      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+      if (page < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   return (
     <div>
@@ -107,21 +138,25 @@ const ProductsPage = () => {
           <p>{t("products.subtitle")}</p>
         </div>
         <Link to="/products/new" className="button">
+          <svg className="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           {t("products.new_product")}
         </Link>
       </div>
 
       <div className="card">
         <div className="filters">
+          <span className="filters-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          </span>
           <input
             placeholder={t("common.search")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             style={{ maxWidth: 200 }}
           />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           >
             <option value="">{t("products.all_statuses")}</option>
             <option value="ACTIVE">{t("common.active")}</option>
@@ -129,7 +164,7 @@ const ProductsPage = () => {
           </select>
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
           >
             <option value="">{t("products.all_categories")}</option>
             {categories.map((c) => (
@@ -142,13 +177,13 @@ const ProductsPage = () => {
             <input
               type="checkbox"
               checked={newArrivalFilter}
-              onChange={(e) => setNewArrivalFilter(e.target.checked)}
+              onChange={(e) => { setNewArrivalFilter(e.target.checked); setPage(1); }}
             />
             <span>{t("products.new_arrivals_only")}</span>
           </label>
           <select
             value={salesFilter}
-            onChange={(e) => setSalesFilter(e.target.value)}
+            onChange={(e) => { setSalesFilter(e.target.value); setPage(1); }}
             title={t("products.filter_by_sales")}
           >
             <option value="">{t("products.all_sales")}</option>
@@ -157,7 +192,7 @@ const ProductsPage = () => {
           </select>
           <select
             value={ratingFilter}
-            onChange={(e) => setRatingFilter(e.target.value)}
+            onChange={(e) => { setRatingFilter(e.target.value); setPage(1); }}
             title={t("products.filter_by_rating")}
           >
             <option value="">{t("products.rating_any")}</option>
@@ -165,119 +200,164 @@ const ProductsPage = () => {
             <option value="3">{t("products.rating_3_stars")}</option>
             <option value="2">{t("products.rating_2_stars")}</option>
           </select>
+          {hasFilters && (
+            <button className="clear-filters-btn" onClick={clearFilters}>
+              {t("common.clear_filters", "Clear filters")}
+            </button>
+          )}
         </div>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{t("inventory.image")}</th>
-              <th>{t("products.name")}</th>
-              <th>{t("dashboard.status")}</th>
-              <th>{t("products.price")}</th>
-              <th>Discount</th>
-              <th>{t("products.stock")}</th>
-              <th>{t("products.best_selling")}</th>
-              <th>{t("products.rating")}</th>
-              <th>{t("common.actions")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((product) => (
-              <tr key={product._id}>
-                <td>
-                  {product.images?.[0] ? (
-                    <img
-                      src={getProductImageUrl(product.images[0])}
-                      alt=""
-                      className="inventory-product-img"
-                    />
-                  ) : (
-                    <span className="inventory-product-img-placeholder">
-                      {t("common.none")}
-                    </span>
-                  )}
-                </td>
-                <td>
-                  <span>{localized(product.name)}</span>
-                  {product.isNewArrival && (
-                    <span className="badge badge-new">
-                      {t("products.new_arrival_badge")}
-                    </span>
-                  )}
-                </td>
-                <td>
-                  <span
-                    className={`badge ${product.status === "ACTIVE" ? "badge-success" : "badge-muted"}`}
+
+        {products.length > 0 ? (
+          <>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t("inventory.image")}</th>
+                  <th>{t("products.name")}</th>
+                  <th>{t("dashboard.status")}</th>
+                  <th>{t("products.price")}</th>
+                  <th>{t("products.discount_price", "Discount")}</th>
+                  <th>{t("products.stock")}</th>
+                  <th>{t("products.best_selling")}</th>
+                  <th>{t("products.rating")}</th>
+                  <th>{t("common.actions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product._id}>
+                    <td>
+                      {product.images?.[0] ? (
+                        <img
+                          src={getProductImageUrl(product.images[0])}
+                          alt=""
+                          className="inventory-product-img"
+                        />
+                      ) : (
+                        <span className="inventory-product-img-placeholder">
+                          {t("common.none")}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <span>{localized(product.name)}</span>
+                      {product.isNewArrival && (
+                        <span className="badge badge-new">
+                          {t("products.new_arrival_badge")}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        className={`badge ${product.status === "ACTIVE" ? "badge-success" : "badge-muted"}`}
+                      >
+                        {product.status === "ACTIVE" ? t("common.active") : t("common.inactive")}
+                      </span>
+                    </td>
+                    <td>{formatPriceEGP(product.price)}</td>
+                    <td>
+                      {product.discountPrice != null
+                        ? formatPriceEGP(product.discountPrice)
+                        : "—"}
+                    </td>
+                    <td>
+                      <span className={product.stock === 0 ? "badge badge-danger" : product.stock <= 5 ? "badge badge-warning" : ""}>
+                        {product.stock}
+                      </span>
+                    </td>
+                    <td>{product.soldQty ?? 0}</td>
+                    <td>
+                      {product.ratingCount != null && product.ratingCount > 0 ? (
+                        <span title={t("products.rated_by_count", { count: product.ratingCount })}>
+                          {product.averageRating != null ? product.averageRating.toFixed(1) : "—"} ★ ({product.ratingCount})
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>
+                      <TableActionsDropdown
+                        ariaLabel={t("common.actions")}
+                        actions={[
+                          {
+                            label: t("common.edit"),
+                            to: `/products/${product._id}/edit`,
+                          },
+                          {
+                            label:
+                              product.status === "ACTIVE"
+                                ? t("common.disable")
+                                : t("common.enable"),
+                            onClick: () =>
+                              setStatus(
+                                product._id,
+                                product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                              ),
+                          },
+                          {
+                            label: t("common.delete"),
+                            onClick: () => removeProduct(product._id),
+                            danger: true,
+                          },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {totalPages > 1 && (
+              <div className="pagination">
+                <span className="pagination-info">
+                  {t("common.showing", "Showing")} {startItem}–{endItem} {t("common.of")} {total}
+                </span>
+                <div className="pagination-pages">
+                  <button
+                    className="pagination-page"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
                   >
-                    {product.status}
-                  </span>
-                </td>
-                <td>{formatPriceEGP(product.price)}</td>
-                <td>
-                  {product.discountPrice != null
-                    ? formatPriceEGP(product.discountPrice)
-                    : "—"}
-                </td>
-                <td>{product.stock}</td>
-                <td>{product.soldQty ?? 0}</td>
-                <td>
-                  {product.ratingCount != null && product.ratingCount > 0 ? (
-                    <span title={t("products.rated_by_count", { count: product.ratingCount })}>
-                      {product.averageRating != null ? product.averageRating.toFixed(1) : "—"} ★ ({product.ratingCount})
-                    </span>
-                  ) : (
-                    "—"
+                    ‹
+                  </button>
+                  {getPageNumbers().map((p, i) =>
+                    p === "..." ? (
+                      <span key={`e${i}`} className="pagination-ellipsis">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        className={`pagination-page ${page === p ? "active" : ""}`}
+                        onClick={() => setPage(p as number)}
+                      >
+                        {p}
+                      </button>
+                    )
                   )}
-                </td>
-                <td>
-                  <TableActionsDropdown
-                    ariaLabel={t("common.actions")}
-                    actions={[
-                      {
-                        label: t("common.edit"),
-                        to: `/products/${product._id}/edit`,
-                      },
-                      {
-                        label:
-                          product.status === "ACTIVE"
-                            ? t("common.disable")
-                            : t("common.enable"),
-                        onClick: () =>
-                          setStatus(
-                            product._id,
-                            product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-                          ),
-                      },
-                      {
-                        label: t("common.delete"),
-                        onClick: () => removeProduct(product._id),
-                        danger: true,
-                      },
-                    ]}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button
-              className="button secondary"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              {t("common.prev")}
-            </button>
-            <span>
-              {t("common.page")} {page} {t("common.of")} {totalPages}
-            </span>
-            <button
-              className="button secondary"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              {t("common.next")}
-            </button>
+                  <button
+                    className="pagination-page"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+            </div>
+            <h3>{t("products.no_products", "No products found")}</h3>
+            <p>{hasFilters ? t("products.no_products_filter", "Try adjusting your filters") : t("products.no_products_desc", "Create your first product to get started")}</p>
+            {!hasFilters && (
+              <Link to="/products/new" className="button">
+                <svg className="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                {t("products.new_product")}
+              </Link>
+            )}
           </div>
         )}
       </div>

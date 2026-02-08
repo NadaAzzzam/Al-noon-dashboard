@@ -41,6 +41,80 @@ const statusBadgeClass = (status: string) => {
   return map[status] ?? "badge";
 };
 
+/* ===== SVG Icons for stat cards ===== */
+const IconShoppingBag = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+  </svg>
+);
+const IconCalendar = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+const IconDollar = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+  </svg>
+);
+const IconTrendingUp = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+  </svg>
+);
+const IconClock = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>
+);
+const IconPeople = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+);
+const IconPackage = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+  </svg>
+);
+const IconAlertTriangle = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+);
+const IconCheckCircle = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+  </svg>
+);
+
+/* Loading skeleton */
+const DashboardSkeleton = () => (
+  <div>
+    <div className="header"><div><div className="skeleton skeleton-line" style={{ width: 200, height: 28 }} /><div className="skeleton skeleton-line" style={{ width: 300, height: 14, marginTop: 8 }} /></div></div>
+    <div className="skeleton-card-grid">
+      {[1, 2, 3, 4].map(i => (
+        <div className="skeleton-card" key={i}>
+          <div className="skeleton skeleton-line skeleton-line--short" />
+          <div className="skeleton skeleton-line skeleton-line--value" />
+        </div>
+      ))}
+    </div>
+    <div className="skeleton-card-grid">
+      {[5, 6, 7, 8].map(i => (
+        <div className="skeleton-card" key={i}>
+          <div className="skeleton skeleton-line skeleton-line--short" />
+          <div className="skeleton skeleton-line skeleton-line--value" />
+        </div>
+      ))}
+    </div>
+    <div className="dashboard-charts-row" style={{ marginBottom: 24 }}>
+      <div className="skeleton-card" style={{ height: 200 }}><div className="skeleton skeleton-line" style={{ width: "60%", height: 16 }} /></div>
+      <div className="skeleton-card" style={{ height: 200 }}><div className="skeleton skeleton-line" style={{ width: "60%", height: 16 }} /></div>
+    </div>
+  </div>
+);
+
 const DashboardPage = () => {
   const { t } = useTranslation();
   const localized = useLocalized();
@@ -72,21 +146,19 @@ const DashboardPage = () => {
   }, [t]);
 
   if (error) return <div className="error">{error}</div>;
-  if (!stats) return <div>{t("common.loading")}</div>;
+  if (!stats) return <DashboardSkeleton />;
 
   const ordersPerDay = stats.ordersPerDay ?? [];
   const chartSlice = ordersPerDay.slice(-14);
   const maxRevenue = chartSlice.length
     ? Math.max(...chartSlice.map((x) => x.revenue ?? 0))
     : 1;
-  // Chart data for Orders per day (last 30): Recharts expects { date, count } with optional display label
   const ordersChartData = ordersPerDay.map((d) => ({
     date: d._id,
     count: d.count,
-    shortDate: d._id.length >= 10 ? d._id.slice(5, 10) : d._id, // MM-DD for axis
+    shortDate: d._id.length >= 10 ? d._id.slice(5, 10) : d._id,
   }));
 
-  // Revenue comparison
   const revenueChange =
     stats.revenueLastMonth > 0
       ? ((stats.revenueThisMonth - stats.revenueLastMonth) /
@@ -96,7 +168,6 @@ const DashboardPage = () => {
         ? 100
         : 0;
 
-  // Order status breakdown
   const totalStatusOrders = (stats.orderStatusBreakdown ?? []).reduce(
     (sum, s) => sum + s.count,
     0,
@@ -113,80 +184,120 @@ const DashboardPage = () => {
 
       {/* Row 1: Key metrics */}
       <div className="card-grid">
-        <div className="card">
-          <h3>{t("dashboard.total_orders")}</h3>
-          <p className="card-value">{stats.totalOrders}</p>
+        <div className="card stat-card stat-card--blue">
+          <div className="stat-card-header">
+            <div>
+              <h3>{t("dashboard.total_orders")}</h3>
+              <p className="card-value">{stats.totalOrders}</p>
+            </div>
+            <div className="stat-card-icon stat-card-icon--blue"><IconShoppingBag /></div>
+          </div>
         </div>
-        <div className="card">
-          <h3>{t("dashboard.orders_today")}</h3>
-          <p className="card-value">{stats.ordersToday}</p>
+        <div className="card stat-card stat-card--indigo">
+          <div className="stat-card-header">
+            <div>
+              <h3>{t("dashboard.orders_today")}</h3>
+              <p className="card-value">{stats.ordersToday}</p>
+            </div>
+            <div className="stat-card-icon stat-card-icon--indigo"><IconCalendar /></div>
+          </div>
         </div>
-        <div className="card">
-          <h3>{t("dashboard.revenue_delivered")}</h3>
-          <p className="card-value">{formatPriceEGP(stats.revenue ?? 0)}</p>
+        <div className="card stat-card stat-card--green">
+          <div className="stat-card-header">
+            <div>
+              <h3>{t("dashboard.revenue_delivered")}</h3>
+              <p className="card-value">{formatPriceEGP(stats.revenue ?? 0)}</p>
+            </div>
+            <div className="stat-card-icon stat-card-icon--green"><IconDollar /></div>
+          </div>
         </div>
-        <div className="card">
-          <h3>{t("dashboard.avg_order_value")}</h3>
-          <p className="card-value">
-            {formatPriceEGP(stats.averageOrderValue ?? 0)}
-          </p>
+        <div className="card stat-card stat-card--purple">
+          <div className="stat-card-header">
+            <div>
+              <h3>{t("dashboard.avg_order_value")}</h3>
+              <p className="card-value">{formatPriceEGP(stats.averageOrderValue ?? 0)}</p>
+            </div>
+            <div className="stat-card-icon stat-card-icon--purple"><IconTrendingUp /></div>
+          </div>
         </div>
       </div>
 
       {/* Row 2: Secondary metrics */}
       <div className="card-grid">
-        <div className="card">
-          <h3>{t("dashboard.pending_orders")}</h3>
-          <p className="card-value">
-            {stats.pendingOrdersCount > 0 ? (
-              <Link to="/orders" className="notif-badge low">
-                {stats.pendingOrdersCount}
-              </Link>
-            ) : (
-              stats.pendingOrdersCount
-            )}
-          </p>
+        <div className="card stat-card stat-card--amber">
+          <div className="stat-card-header">
+            <div>
+              <h3>{t("dashboard.pending_orders")}</h3>
+              <p className="card-value">
+                {stats.pendingOrdersCount > 0 ? (
+                  <Link to="/orders" className="notif-badge low">
+                    {stats.pendingOrdersCount}
+                  </Link>
+                ) : (
+                  stats.pendingOrdersCount
+                )}
+              </p>
+            </div>
+            <div className="stat-card-icon stat-card-icon--amber"><IconClock /></div>
+          </div>
         </div>
-        <div className="card">
-          <h3>{t("dashboard.total_customers")}</h3>
-          <p className="card-value">
-            <Link to="/customers" style={{ color: "inherit" }}>
-              {stats.totalCustomers}
-            </Link>
-          </p>
+        <div className="card stat-card stat-card--blue">
+          <div className="stat-card-header">
+            <div>
+              <h3>{t("dashboard.total_customers")}</h3>
+              <p className="card-value">
+                <Link to="/customers" style={{ color: "inherit" }}>
+                  {stats.totalCustomers}
+                </Link>
+              </p>
+            </div>
+            <div className="stat-card-icon stat-card-icon--blue"><IconPeople /></div>
+          </div>
         </div>
-        <div className="card">
-          <h3>{t("dashboard.total_products")}</h3>
-          <p className="card-value">
-            <Link to="/products" style={{ color: "inherit" }}>
-              {stats.totalProducts}
-            </Link>
-          </p>
+        <div className="card stat-card stat-card--indigo">
+          <div className="stat-card-header">
+            <div>
+              <h3>{t("dashboard.total_products")}</h3>
+              <p className="card-value">
+                <Link to="/products" style={{ color: "inherit" }}>
+                  {stats.totalProducts}
+                </Link>
+              </p>
+            </div>
+            <div className="stat-card-icon stat-card-icon--indigo"><IconPackage /></div>
+          </div>
         </div>
-        <div className="card">
-          <h3>{t("dashboard.low_stock")}</h3>
-          <p className="card-value">
-            {stats.lowStockCount + stats.outOfStockCount > 0 ? (
-              <Link to="/inventory" className="notif-badge low">
-                {stats.lowStockCount + stats.outOfStockCount}
-              </Link>
-            ) : (
-              0
-            )}
-          </p>
+        <div className="card stat-card stat-card--red">
+          <div className="stat-card-header">
+            <div>
+              <h3>{t("dashboard.low_stock")}</h3>
+              <p className="card-value">
+                {stats.lowStockCount + stats.outOfStockCount > 0 ? (
+                  <Link to="/inventory" className="notif-badge low">
+                    {stats.lowStockCount + stats.outOfStockCount}
+                  </Link>
+                ) : (
+                  0
+                )}
+              </p>
+            </div>
+            <div className="stat-card-icon stat-card-icon--red"><IconAlertTriangle /></div>
+          </div>
         </div>
       </div>
 
       {/* Row 3: Revenue Comparison + Order Status Breakdown */}
       <div className="dashboard-charts-row" style={{ marginBottom: 24 }}>
         <div className="card">
-          <h3>{t("dashboard.revenue_comparison")}</h3>
+          <div className="card-header">
+            <h3>{t("dashboard.revenue_comparison")}</h3>
+          </div>
           <div className="dashboard-revenue-comparison">
             <div className="dashboard-revenue-stat">
               <p className="settings-hint" style={{ margin: "0 0 4px" }}>
                 {t("dashboard.revenue_this_month")}
               </p>
-              <p className="card-value" style={{ margin: 0 }}>
+              <p className="card-value" style={{ margin: 0, fontSize: 22 }}>
                 {formatPriceEGP(stats.revenueThisMonth ?? 0)}
               </p>
             </div>
@@ -194,7 +305,7 @@ const DashboardPage = () => {
               <p className="settings-hint" style={{ margin: "0 0 4px" }}>
                 {t("dashboard.revenue_last_month")}
               </p>
-              <p className="card-value" style={{ margin: 0 }}>
+              <p className="card-value" style={{ margin: 0, fontSize: 22 }}>
                 {formatPriceEGP(stats.revenueLastMonth ?? 0)}
               </p>
             </div>
@@ -210,7 +321,10 @@ const DashboardPage = () => {
         </div>
 
         <div className="card">
-          <h3>{t("dashboard.order_status_breakdown")}</h3>
+          <div className="card-header">
+            <h3>{t("dashboard.order_status_breakdown")}</h3>
+            <span className="badge">{totalStatusOrders} {t("dashboard.total").toLowerCase()}</span>
+          </div>
           {totalStatusOrders > 0 ? (
             <>
               <div className="dashboard-status-bar">
@@ -254,7 +368,9 @@ const DashboardPage = () => {
       {/* Orders per day (last 30) – Recharts */}
       <div className="dashboard-charts-row">
         <div className="card card-chart dashboard-orders-chart">
-          <h3>{t("dashboard.orders_per_day")}</h3>
+          <div className="card-header">
+            <h3>{t("dashboard.orders_per_day")}</h3>
+          </div>
           {ordersChartData.length > 0 ? (
             <div className="dashboard-recharts-wrap">
               <ResponsiveContainer width="100%" height={280}>
@@ -338,7 +454,9 @@ const DashboardPage = () => {
           )}
         </div>
         <div className="card card-chart">
-          <h3>{t("dashboard.revenue_per_day")}</h3>
+          <div className="card-header">
+            <h3>{t("dashboard.revenue_per_day")}</h3>
+          </div>
           <div className="chart-bars">
             {chartSlice.map((d) => (
               <div key={d._id} className="chart-bar-row">
@@ -362,10 +480,13 @@ const DashboardPage = () => {
 
       <div
         className="dashboard-charts-row"
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: 24 }}
       >
         <div className="card">
-          <h3>{t("dashboard.best_selling")}</h3>
+          <div className="card-header">
+            <h3>{t("dashboard.best_selling")}</h3>
+            <Link to="/products" className="button small outline">{t("analytics.view_all_products")}</Link>
+          </div>
           <ul className="list list-with-images">
             {(stats.bestSelling ?? []).slice(0, 12).map((b, i) => (
               <li key={b.productId ?? i}>
@@ -382,7 +503,7 @@ const DashboardPage = () => {
                   />
                 )}
                 <span className="list-item-label">{localized(b.name)}</span>
-                <span className="badge">
+                <span className="badge badge-success">
                   {b.totalQty} {t("dashboard.sold")}
                 </span>
               </li>
@@ -391,18 +512,20 @@ const DashboardPage = () => {
               <li>{t("dashboard.no_data")}</li>
             )}
           </ul>
-          <p className="analytics-hint">
-            <Link to="/products">{t("analytics.view_all_products")}</Link>
-          </p>
         </div>
 
         {/* Attention Needed */}
         <div className="card">
-          <h3>{t("dashboard.attention_needed")}</h3>
+          <div className="card-header">
+            <h3>{t("dashboard.attention_needed")}</h3>
+          </div>
           <ul className="dashboard-attention-list">
             {stats.pendingOrdersCount > 0 && (
               <li className="dashboard-attention-item">
-                <span>
+                <span className="attention-icon attention-icon--warning">
+                  <IconClock />
+                </span>
+                <span style={{ flex: 1 }}>
                   {t("dashboard.pending_need_confirmation", {
                     count: stats.pendingOrdersCount,
                   })}
@@ -412,7 +535,10 @@ const DashboardPage = () => {
             )}
             {stats.lowStockCount > 0 && (
               <li className="dashboard-attention-item">
-                <span>
+                <span className="attention-icon attention-icon--warning">
+                  <IconAlertTriangle />
+                </span>
+                <span style={{ flex: 1 }}>
                   {t("dashboard.products_low_stock", {
                     count: stats.lowStockCount,
                   })}
@@ -422,7 +548,10 @@ const DashboardPage = () => {
             )}
             {stats.outOfStockCount > 0 && (
               <li className="dashboard-attention-item">
-                <span>
+                <span className="attention-icon attention-icon--danger">
+                  <IconAlertTriangle />
+                </span>
+                <span style={{ flex: 1 }}>
                   {t("dashboard.products_out_of_stock", {
                     count: stats.outOfStockCount,
                   })}
@@ -434,6 +563,9 @@ const DashboardPage = () => {
               stats.lowStockCount === 0 &&
               stats.outOfStockCount === 0 && (
                 <li className="dashboard-attention-item">
+                  <span className="attention-icon attention-icon--success">
+                    <IconCheckCircle />
+                  </span>
                   <span style={{ color: "#64748b" }}>
                     {t("dashboard.all_good")}
                   </span>
@@ -450,7 +582,7 @@ const DashboardPage = () => {
             <p className="analytics-tracking-desc">
               {t("analytics.tracking_desc")}
             </p>
-            <Link to="/settings" className="button secondary">
+            <Link to="/settings" className="button small secondary">
               {t("analytics.configure_ga")}
             </Link>
           </div>
@@ -458,7 +590,10 @@ const DashboardPage = () => {
       </div>
 
       <div className="card" style={{ marginTop: 24 }}>
-        <h3>{t("dashboard.recent_orders")}</h3>
+        <div className="card-header">
+          <h3>{t("dashboard.recent_orders")}</h3>
+          <span className="badge">{recentOrders.length}</span>
+        </div>
         <table className="table">
           <thead>
             <tr>
@@ -490,6 +625,15 @@ const DashboardPage = () => {
                 </td>
               </tr>
             ))}
+            {recentOrders.length === 0 && (
+              <tr>
+                <td colSpan={5}>
+                  <div className="empty-state">
+                    <p>{t("dashboard.no_data")}</p>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
         <p className="analytics-hint">

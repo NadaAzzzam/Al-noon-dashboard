@@ -25,7 +25,9 @@
     "saved": "Saved",
     "saving": "Saving…",
     "network_error": "Cannot reach server.",
-    "remove": "Remove"
+    "remove": "Remove",
+    "clear_filters": "Clear filters",
+    "showing": "Showing"
   },
   "nav": {
     "app_name": "Al-noon Admin",
@@ -44,7 +46,11 @@
     "settings": "Settings",
     "logout": "Log out",
     "low_stock": "Low stock",
-    "new_today": "New today"
+    "new_today": "New today",
+    "welcome_back": "Welcome back",
+    "store_group": "Store",
+    "people_group": "People",
+    "content_group": "Content"
   },
   "auth": {
     "login_title": "Admin Login",
