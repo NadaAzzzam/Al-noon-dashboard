@@ -2,7 +2,7 @@
  * Full data seeder for Al-noon dashboard.
  * Reference: https://sawdah.world/ (Sawdah.eg – Abayas, Capes, Malhafa, modest wear)
  * Seeds: Categories, Cities, Settings (incl. content pages, hero, home collections),
- * Products, Users, Orders, Contact submissions, Subscribers.
+ * Products, Users, Orders, Payments, Contact submissions, Subscribers, Product feedback.
  */
 
 import mongoose from "mongoose";
@@ -16,6 +16,7 @@ import { Order } from "../models/Order.js";
 import { ContactSubmission } from "../models/ContactSubmission.js";
 import { Subscriber } from "../models/Subscriber.js";
 import { ProductFeedback } from "../models/ProductFeedback.js";
+import { Payment } from "../models/Payment.js";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@localhost";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin123";
@@ -231,17 +232,41 @@ async function seed() {
 
   // ----- Orders (for dashboard stats and recent orders) -----
   await Order.deleteMany({});
+  let insertedOrders: { _id: mongoose.Types.ObjectId; paymentMethod?: "COD" | "INSTAPAY"; status: string }[] = [];
   if (customerIds.length > 0 && products.length >= 3) {
     const now = new Date();
     const ordersData = [
       { user: customerIds[0], items: [{ product: products[0]._id, quantity: 1, price: 2100 }, { product: products[5]._id, quantity: 1, price: 950 }], total: 3050, status: "DELIVERED" as const, paymentMethod: "COD" as const, shippingAddress: "123 Main St, Cairo", createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
       { user: customerIds[1], items: [{ product: products[9]._id, quantity: 3, price: 120 }, { product: products[10]._id, quantity: 2, price: 95 }], total: 550, status: "CONFIRMED" as const, paymentMethod: "INSTAPAY" as const, shippingAddress: "45 Giza Ave, Giza", createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000) },
       { user: customerIds[0], items: [{ product: products[2]._id, quantity: 1, price: 1450 }], total: 1450, status: "SHIPPED" as const, paymentMethod: "COD" as const, shippingAddress: "123 Main St, Cairo", createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) },
-      { user: customerIds[2], items: [{ product: products[6]._id, quantity: 1, price: 2000 }, { product: products[19]._id, quantity: 1, price: 1760 }], total: 3760, status: "PENDING" as const, shippingAddress: "78 Alexandria Rd, Alexandria", createdAt: new Date(now.getTime() - 0.5 * 24 * 60 * 60 * 1000) },
+      { user: customerIds[2], items: [{ product: products[6]._id, quantity: 1, price: 2000 }, { product: products[19]._id, quantity: 1, price: 1760 }], total: 3760, status: "PENDING" as const, paymentMethod: "INSTAPAY" as const, shippingAddress: "78 Alexandria Rd, Alexandria", createdAt: new Date(now.getTime() - 0.5 * 24 * 60 * 60 * 1000) },
       { user: customerIds[1], items: [{ product: products[14]._id, quantity: 2, price: 180 }], total: 360, status: "DELIVERED" as const, paymentMethod: "COD" as const, shippingAddress: "45 Giza Ave, Giza", createdAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000) }
     ];
-    await Order.insertMany(ordersData);
-    console.log(`Created ${ordersData.length} orders.`);
+    insertedOrders = await Order.insertMany(ordersData);
+    console.log(`Created ${insertedOrders.length} orders.`);
+  }
+
+  // ----- Payments (for Orders / Order detail pages; one per order) -----
+  await Payment.deleteMany({});
+  if (insertedOrders.length > 0) {
+    const paymentsData = insertedOrders.map((order, index) => {
+      const method = order.paymentMethod ?? "COD";
+      // INSTAPAY: first one PAID (confirmed), second UNPAID (pending proof). COD stays UNPAID or PAID for delivered.
+      const isInstaPay = method === "INSTAPAY";
+      const status = isInstaPay
+        ? (index === 1 ? "PAID" : "UNPAID")
+        : (order.status === "DELIVERED" || order.status === "SHIPPED" ? "PAID" : "UNPAID");
+      return {
+        order: order._id,
+        method,
+        status: status as "UNPAID" | "PAID",
+        ...(isInstaPay && status === "PAID" && index === 1
+          ? { approvedAt: new Date(), approvedBy: admin!._id }
+          : {})
+      };
+    });
+    await Payment.insertMany(paymentsData);
+    console.log(`Created ${paymentsData.length} payments.`);
   }
 
   // ----- Contact form submissions (Contact Submissions page) -----
