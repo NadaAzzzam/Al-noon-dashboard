@@ -5,6 +5,7 @@ import { isDbConnected } from "../config/db.js";
 import { User } from "../models/User.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendResponse } from "../utils/response.js";
 
 const AUTH_COOKIE_NAME = "al_noon_token";
 
@@ -44,17 +45,21 @@ const DEV_ADMIN_ID = "dev-admin";
 
 export const register = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    throw new ApiError(503, "Database not available (dev mode). Register when MongoDB is connected.");
+    throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   }
   const { name, email, password } = req.body;
   const exists = await User.findOne({ email });
   if (exists) {
-    throw new ApiError(409, "User already exists");
+    throw new ApiError(409, "User already exists", { code: "errors.auth.user_exists" });
   }
   const user = await User.create({ name, email, password });
   const token = signToken(user.id, user.role);
   setAuthCookie(res, token);
-  res.status(201).json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  sendResponse(res, req.locale, {
+    status: 201,
+    message: "success.auth.register",
+    data: { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } }
+  });
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -66,9 +71,9 @@ export const login = asyncHandler(async (req, res) => {
       if (email === env.adminEmail && password === env.adminPassword) {
         const token = signToken(DEV_ADMIN_ID, "ADMIN");
         setAuthCookie(res, token);
-        res.json({
-          token,
-          user: { id: DEV_ADMIN_ID, name: env.adminName, email: env.adminEmail, role: "ADMIN" as const }
+        sendResponse(res, req.locale, {
+          message: "success.auth.login",
+          data: { token, user: { id: DEV_ADMIN_ID, name: env.adminName, email: env.adminEmail, role: "ADMIN" as const } }
         });
         return true;
       }
@@ -80,13 +85,13 @@ export const login = asyncHandler(async (req, res) => {
 
   if (!isDbConnected()) {
     if (tryDevLogin()) return;
-    throw new ApiError(401, "Invalid credentials");
+    throw new ApiError(401, "Invalid credentials", { code: "errors.auth.invalid_credentials" });
   }
 
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      throw new ApiError(401, "Invalid credentials");
+      throw new ApiError(401, "Invalid credentials", { code: "errors.auth.invalid_credentials" });
     }
     let isValid = false;
     try {
@@ -94,40 +99,43 @@ export const login = asyncHandler(async (req, res) => {
     } catch (compareErr) {
       console.error("Password compare error (invalid hash?):", compareErr instanceof Error ? compareErr.message : compareErr);
       if (tryDevLogin()) return;
-      throw new ApiError(503, "Database error. Try again or use admin@localhost / admin123.");
+      throw new ApiError(503, "Database error", { code: "errors.common.db_error_fallback" });
     }
     if (!isValid) {
-      throw new ApiError(401, "Invalid credentials");
+      throw new ApiError(401, "Invalid credentials", { code: "errors.auth.invalid_credentials" });
     }
     const token = signToken(user.id, user.role);
     setAuthCookie(res, token);
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    sendResponse(res, req.locale, {
+      message: "success.auth.login",
+      data: { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } }
+    });
   } catch (e) {
     if (e instanceof ApiError) throw e;
     console.error("Login error (falling back to dev login):", e instanceof Error ? e.message : e);
     if (tryDevLogin()) return;
-    throw new ApiError(503, "Database error. Try again or use admin@localhost / admin123.");
+    throw new ApiError(503, "Database error", { code: "errors.common.db_error_fallback" });
   }
 });
 
 export const me = asyncHandler(async (req, res) => {
   if (!req.auth) {
-    throw new ApiError(401, "Unauthorized");
+    throw new ApiError(401, "Unauthorized", { code: "errors.auth.unauthorized" });
   }
   if (!isDbConnected()) {
-    res.json({
-      user: { id: req.auth.userId, name: env.adminName, email: env.adminEmail, role: req.auth.role }
+    sendResponse(res, req.locale, {
+      data: { user: { id: req.auth.userId, name: env.adminName, email: env.adminEmail, role: req.auth.role } }
     });
     return;
   }
   const user = await User.findById(req.auth.userId).select("name email role");
   if (!user) {
-    throw new ApiError(404, "User not found");
+    throw new ApiError(404, "User not found", { code: "errors.auth.user_not_found" });
   }
-  res.json({ user });
+  sendResponse(res, req.locale, { data: { user } });
 });
 
-export const signOut = asyncHandler(async (_req, res) => {
+export const signOut = asyncHandler(async (req, res) => {
   res.clearCookie(AUTH_COOKIE_NAME, { path: "/" });
-  res.status(204).send();
+  sendResponse(res, req.locale, { status: 204 });
 });

@@ -4,6 +4,7 @@ import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { logoPath, collectionImagePath, heroImagePath, heroVideoPath, sectionImagePath, sectionVideoPath, promoImagePath } from "../middlewares/upload.js";
+import { sendResponse } from "../utils/response.js";
 
 const heroDefault = {
   images: [] as string[],
@@ -38,7 +39,9 @@ const defaults = {
   featuredProductsLimit: 8,
   feedbackSectionEnabled: false,
   feedbackDisplayLimit: 6,
-  contentPages: [] as { slug: string; title: { en: string; ar: string }; content: { en: string; ar: string } }[]
+  contentPages: [] as { slug: string; title: { en: string; ar: string }; content: { en: string; ar: string } }[],
+  orderNotificationsEnabled: false,
+  orderNotificationEmail: ""
 };
 
 function normalizeSettings(raw: Record<string, unknown> | null): Record<string, unknown> {
@@ -61,19 +64,17 @@ function normalizeSettings(raw: Record<string, unknown> | null): Record<string, 
   return s;
 }
 
-export const getSettings = asyncHandler(async (_req, res) => {
+export const getSettings = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    res.json({ settings: defaults });
-    return;
+    return sendResponse(res, req.locale, { data: { settings: defaults } });
   }
   const settings = await Settings.findOne().lean();
   const normalized = normalizeSettings(settings as Record<string, unknown> | null);
-  res.json({ settings: normalized });
-  return;
+  sendResponse(res, req.locale, { data: { settings: normalized } });
 });
 
 export const updateSettings = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const updates = req.body;
   const toSet: Record<string, unknown> = {};
   if (updates.storeNameEn !== undefined || updates.storeNameAr !== undefined) {
@@ -215,68 +216,74 @@ export const updateSettings = asyncHandler(async (req, res) => {
       })
       .filter(Boolean);
   }
+  if (updates.orderNotificationsEnabled !== undefined) {
+    toSet.orderNotificationsEnabled = Boolean(updates.orderNotificationsEnabled);
+  }
+  if (updates.orderNotificationEmail !== undefined) {
+    const v = String(updates.orderNotificationEmail ?? "").trim().toLowerCase();
+    toSet.orderNotificationEmail = v || "";
+  }
   const settings = await Settings.findOneAndUpdate(
     {},
     { $set: toSet },
     { new: true, upsert: true }
   ).lean();
-  res.json({ settings });
+  sendResponse(res, req.locale, { message: "success.settings.updated", data: { settings } });
 });
 
 export const uploadLogo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
   const pathUrl = logoPath(file.filename);
   await Settings.findOneAndUpdate({}, { $set: { logo: pathUrl } }, { new: true, upsert: true });
-  res.json({ logo: pathUrl });
-  return;
+  sendResponse(res, req.locale, { message: "success.settings.logo_uploaded", data: { logo: pathUrl } });
 });
 
 /** Upload a collection image for homepage. Returns { image: "/uploads/collections/..." }. Does not update settings. */
 export const uploadCollectionImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
   const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
   const pathUrl = collectionImagePath(file.filename);
-  res.json({ image: pathUrl });
+  sendResponse(res, req.locale, { message: "success.settings.image_uploaded", data: { image: pathUrl } });
 });
 
 /** Upload hero image. Returns { image: "/uploads/hero/..." }. Does not update settings. */
 export const uploadHeroImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
   const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
   const pathUrl = heroImagePath(file.filename);
-  res.json({ image: pathUrl });
+  sendResponse(res, req.locale, { message: "success.settings.image_uploaded", data: { image: pathUrl } });
 });
 
 /** Upload section image (New Arrivals or Our Collection banner). Returns { image: "/uploads/sections/..." }. */
 export const uploadSectionImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
   const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
   const pathUrl = sectionImagePath(file.filename);
-  res.json({ image: pathUrl });
+  sendResponse(res, req.locale, { message: "success.settings.image_uploaded", data: { image: pathUrl } });
 });
 
 /** Upload hero video. Returns { video: "/uploads/hero/videos/..." }. */
 export const uploadHeroVideo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
   const file = req.file;
-  if (!file) throw new ApiError(400, "No video file uploaded. Please select a video (MP4, WebM, MOV, OGG).");
+  if (!file) throw new ApiError(400, "No video file uploaded", { code: "errors.upload.no_video" });
   const pathUrl = heroVideoPath(file.filename);
-  res.json({ video: pathUrl });
+  sendResponse(res, req.locale, { message: "success.settings.video_uploaded", data: { video: pathUrl } });
 });
 
 /** Upload section video (New Arrivals or Our Collection). Returns { video: "/uploads/sections/videos/..." }. */
 export const uploadSectionVideo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
   const file = req.file;
-  if (!file) throw new ApiError(400, "No video file uploaded. Please select a video (MP4, WebM, MOV, OGG).");
+  if (!file) throw new ApiError(400, "No video file uploaded", { code: "errors.upload.no_video" });
   const pathUrl = sectionVideoPath(file.filename);
-  res.json({ video: pathUrl });
+  sendResponse(res, req.locale, { message: "success.settings.video_uploaded", data: { video: pathUrl } });
 });
 
 /** Upload promotional banner image. Returns { image: "/uploads/promo/..." }. */
 export const uploadPromoImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
   const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
   const pathUrl = promoImagePath(file.filename);
-  res.json({ image: pathUrl });
+  sendResponse(res, req.locale, { message: "success.settings.image_uploaded", data: { image: pathUrl } });
 });

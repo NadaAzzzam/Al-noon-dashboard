@@ -7,10 +7,14 @@ import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { productImagePath, productVideoPath } from "../middlewares/upload.js";
+import { sendResponse } from "../utils/response.js";
 
 export const listProducts = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return res.json({ products: [], total: 0, page: 1, limit: 20, totalPages: 0 });
+    return sendResponse(res, req.locale, {
+      data: [],
+      pagination: { total: 0, page: 1, limit: 20, totalPages: 0 }
+    });
   }
   const page = Number(req.query.page) || 1;
   const limit = Math.min(Number(req.query.limit) || 20, 100);
@@ -60,7 +64,6 @@ export const listProducts = asyncHandler(async (req, res) => {
     ];
   }
 
-  // Filter by minimum average rating (from approved feedback)
   if (minRating != null && !Number.isNaN(minRating) && minRating >= 1 && minRating <= 5) {
     const ratingAgg = await ProductFeedback.aggregate<{ _id: mongoose.Types.ObjectId }>([
       { $match: { approved: true } },
@@ -71,7 +74,10 @@ export const listProducts = asyncHandler(async (req, res) => {
     const ratedProductIds = ratingAgg.map((r) => r._id);
     filter._id = { $in: ratedProductIds };
     if (ratedProductIds.length === 0) {
-      return res.json({ products: [], total: 0, page, limit, totalPages: 0 });
+      return sendResponse(res, req.locale, {
+        data: [],
+        pagination: { total: 0, page, limit, totalPages: 0 }
+      });
     }
   }
 
@@ -154,7 +160,6 @@ export const listProducts = asyncHandler(async (req, res) => {
       .lean();
   }
 
-  // Attach sold quantity (from CONFIRMED/SHIPPED/DELIVERED orders) for each product
   const productIds = (products as { _id: unknown }[]).map((p) => p._id);
   if (productIds.length > 0) {
     const soldAgg = await Order.aggregate([
@@ -173,7 +178,6 @@ export const listProducts = asyncHandler(async (req, res) => {
     }));
   }
 
-  // Attach average rating and rating count (from approved feedback) for each product
   if (productIds.length > 0) {
     const ratingAgg = await ProductFeedback.aggregate<{ _id: mongoose.Types.ObjectId; avgRating: number; count: number }>([
       { $match: { product: { $in: productIds.map((id) => (typeof id === "string" ? new mongoose.Types.ObjectId(id) : id)) }, approved: true } },
@@ -193,37 +197,33 @@ export const listProducts = asyncHandler(async (req, res) => {
     });
   }
 
-  res.json({
-    products,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit)
+  sendResponse(res, req.locale, {
+    data: products,
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
   });
 });
 
 export const getProduct = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const product = await Product.findOne({ _id: req.params.id, deletedAt: null }).populate(
     "category",
     "name status"
   );
   if (!product) {
-    throw new ApiError(404, "Product not found");
+    throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
-  res.json({ product });
+  sendResponse(res, req.locale, { data: { product } });
 });
 
-/** Public: related products (same category) for "You may also like" on product detail. */
 export const getRelatedProducts = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return res.json({ products: [] });
+    return sendResponse(res, req.locale, { data: [] });
   }
   const productId = req.params.id;
   const limit = Math.min(Math.max(1, Number(req.query.limit) || 4), 20);
   const product = await Product.findOne({ _id: productId, deletedAt: null }).select("category").lean();
   if (!product || !product.category) {
-    return res.json({ products: [] });
+    return sendResponse(res, req.locale, { data: [] });
   }
   const categoryId = typeof product.category === "object" && product.category && "_id" in product.category
     ? (product.category as { _id: unknown })._id
@@ -238,7 +238,7 @@ export const getRelatedProducts = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
-  res.json({ products });
+  sendResponse(res, req.locale, { data: products });
 });
 
 function mapBodyToProduct(body: Record<string, unknown>) {
@@ -281,60 +281,60 @@ function mapBodyToProduct(body: Record<string, unknown>) {
 }
 
 export const createProduct = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const product = await Product.create(mapBodyToProduct(req.body));
-  res.status(201).json({ product });
+  sendResponse(res, req.locale, { status: 201, message: "success.product.created", data: { product } });
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const product = await Product.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },
     mapBodyToProduct(req.body),
     { new: true }
   );
   if (!product) {
-    throw new ApiError(404, "Product not found");
+    throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
-  res.json({ product });
+  sendResponse(res, req.locale, { message: "success.product.updated", data: { product } });
 });
 
 export const deleteProduct = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const product = await Product.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },
     { deletedAt: new Date() },
     { new: true }
   );
   if (!product) {
-    throw new ApiError(404, "Product not found");
+    throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
-  res.json({ product });
+  sendResponse(res, req.locale, { message: "success.product.deleted", data: { product } });
 });
 
 export const setProductStatus = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const product = await Product.findOneAndUpdate(
     { _id: req.params.id, deletedAt: null },
     { status: req.body.status },
     { new: true }
   );
   if (!product) {
-    throw new ApiError(404, "Product not found");
+    throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
-  res.json({ product });
+  sendResponse(res, req.locale, { message: "success.product.status_updated", data: { product } });
 });
 
 export const uploadProductImages = asyncHandler(async (req: Request, res) => {
   const files = req.files as Express.Multer.File[] | undefined;
-  if (!files?.length) throw new ApiError(400, "No images uploaded. Please select one or more images.");
+  if (!files?.length) throw new ApiError(400, "No images uploaded", { code: "errors.upload.no_image" });
   const paths = files.map((f) => productImagePath(f.filename));
-  res.json({ paths });
+  sendResponse(res, req.locale, { message: "success.product.images_uploaded", data: { paths } });
 });
 
 export const uploadProductVideos = asyncHandler(async (req: Request, res) => {
   const files = req.files as Express.Multer.File[] | undefined;
-  if (!files?.length) throw new ApiError(400, "No videos uploaded. Please select one or more video files.");
+  if (!files?.length) throw new ApiError(400, "No videos uploaded", { code: "errors.upload.no_video" });
   const paths = files.map((f) => productVideoPath(f.filename));
-  res.json({ paths });
+  sendResponse(res, req.locale, { message: "success.product.videos_uploaded", data: { paths } });
 });

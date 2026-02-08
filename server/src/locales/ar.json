@@ -22,7 +22,110 @@
       "not_found": "التصنيف غير موجود"
     },
     "order": {
-      "not_found": "الطلب غير موجود"
+      "not_found": "الطلب غير موجود",
+      "cancel_not_allowed": "يمكن إلغاء الطلبات المعلقة أو المؤكدة فقط"
+    },
+    "payment": {
+      "not_found": "لم يتم العثور على دفعة لهذا الطلب",
+      "instapay_only": "يمكن معالجة مدفوعات InstaPay فقط",
+      "proof_required": "رابط إثبات الدفع مطلوب"
+    },
+    "city": {
+      "not_found": "المدينة غير موجودة",
+      "already_exists": "مدينة بهذا الاسم موجودة بالفعل"
+    },
+    "feedback": {
+      "not_found": "التقييم غير موجود",
+      "product_required": "المنتج مطلوب",
+      "customer_name_required": "اسم العميل مطلوب",
+      "message_required": "الرسالة مطلوبة",
+      "invalid_rating": "التقييم يجب أن يكون بين 1 و 5"
+    },
+    "contact": {
+      "name_required": "الاسم مطلوب",
+      "email_required": "بريد إلكتروني صالح مطلوب",
+      "comment_required": "التعليق مطلوب"
+    },
+    "newsletter": {
+      "not_available": "الاشتراك في النشرة البريدية غير متاح"
+    },
+    "upload": {
+      "no_image": "لم يتم رفع صورة. الرجاء اختيار صورة.",
+      "no_video": "لم يتم رفع فيديو. الرجاء اختيار فيديو.",
+      "file_too_large": "الملف كبير جداً (الحد الأقصى 2 ميجابايت)"
+    },
+    "inventory": {
+      "invalid_stock": "المخزون يجب أن يكون عدداً صحيحاً غير سالب"
+    },
+    "user": {
+      "not_found": "المستخدم غير موجود",
+      "customer_not_found": "العميل غير موجود"
+    },
+    "page": {
+      "not_found": "الصفحة غير موجودة"
+    }
+  },
+  "success": {
+    "auth": {
+      "login": "تم تسجيل الدخول بنجاح",
+      "register": "تم إنشاء الحساب بنجاح",
+      "signout": "تم تسجيل الخروج بنجاح"
+    },
+    "product": {
+      "created": "تم إنشاء المنتج بنجاح",
+      "updated": "تم تحديث المنتج بنجاح",
+      "deleted": "تم حذف المنتج بنجاح",
+      "status_updated": "تم تحديث حالة المنتج",
+      "images_uploaded": "تم رفع الصور بنجاح",
+      "videos_uploaded": "تم رفع الفيديوهات بنجاح"
+    },
+    "category": {
+      "created": "تم إنشاء التصنيف بنجاح",
+      "updated": "تم تحديث التصنيف بنجاح",
+      "deleted": "تم حذف التصنيف بنجاح",
+      "status_updated": "تم تحديث حالة التصنيف"
+    },
+    "order": {
+      "created": "تم تقديم الطلب بنجاح",
+      "status_updated": "تم تحديث حالة الطلب",
+      "cancelled": "تم إلغاء الطلب بنجاح"
+    },
+    "settings": {
+      "updated": "تم تحديث الإعدادات بنجاح",
+      "logo_uploaded": "تم رفع الشعار بنجاح",
+      "image_uploaded": "تم رفع الصورة بنجاح",
+      "video_uploaded": "تم رفع الفيديو بنجاح"
+    },
+    "city": {
+      "created": "تم إنشاء المدينة بنجاح",
+      "updated": "تم تحديث المدينة بنجاح",
+      "deleted": "تم حذف المدينة بنجاح"
+    },
+    "feedback": {
+      "created": "تم إنشاء التقييم بنجاح",
+      "updated": "تم تحديث التقييم بنجاح",
+      "deleted": "تم حذف التقييم بنجاح",
+      "status_updated": "تم تحديث حالة التقييم"
+    },
+    "contact": {
+      "submitted": "تم إرسال الرسالة بنجاح"
+    },
+    "newsletter": {
+      "subscribed": "تم الاشتراك بنجاح",
+      "already_subscribed": "مشترك بالفعل"
+    },
+    "payment": {
+      "proof_attached": "تم إرفاق إثبات الدفع",
+      "confirmed": "تم تأكيد الدفع"
+    },
+    "user": {
+      "role_updated": "تم تحديث دور المستخدم بنجاح"
+    },
+    "inventory": {
+      "stock_updated": "تم تحديث المخزون بنجاح"
+    },
+    "common": {
+      "fetched": "تم جلب البيانات بنجاح"
     }
   },
   "validation": {

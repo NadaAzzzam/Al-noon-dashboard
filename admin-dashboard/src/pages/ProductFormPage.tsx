@@ -82,8 +82,8 @@ const ProductFormPage = () => {
 
   const loadCategories = useCallback(async () => {
     try {
-      const res = (await api.listCategories()) as { categories: Category[] };
-      setCategories(res.categories ?? []);
+      const res = (await api.listCategories()) as { data?: { categories: Category[] }; categories?: Category[] };
+      setCategories(res.data?.categories ?? res.categories ?? []);
     } catch (_) {}
   }, []);
 
@@ -92,8 +92,12 @@ const ProductFormPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = (await api.getProduct(id)) as { product: Product };
-      const p = res.product;
+      const res = (await api.getProduct(id)) as { data?: { product: Product }; product?: Product };
+      const p = res.data?.product ?? res.product;
+      if (!p) {
+        setError("Product not found");
+        return;
+      }
       const name =
         typeof p.name === "object"
           ? p.name

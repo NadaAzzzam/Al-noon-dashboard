@@ -109,9 +109,10 @@ export type Order = {
   paymentMethod?: "COD" | "INSTAPAY";
   shippingAddress?: string;
   user?: { name: string; email: string };
-  items?: { product: { name: LocalizedString; price: number; discountPrice?: number }; quantity: number; price: number }[];
+  items?: { product: { name: LocalizedString; price: number; discountPrice?: number; images?: string[] }; quantity: number; price: number }[];
   payment?: { method: string; status: string; instaPayProofUrl?: string };
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type DashboardStats = {
@@ -168,6 +169,8 @@ export type Settings = {
   featuredProductsEnabled?: boolean;
   featuredProductsLimit?: number;
   contentPages?: ContentPage[];
+  orderNotificationsEnabled?: boolean;
+  orderNotificationEmail?: string;
 };
 
 export type ContentPage = {
@@ -215,6 +218,8 @@ export type SettingsPayload = Partial<{
   feedbackSectionEnabled?: boolean;
   feedbackDisplayLimit?: number;
   contentPages: { slug: string; titleEn: string; titleAr: string; contentEn: string; contentAr: string }[];
+  orderNotificationsEnabled?: boolean;
+  orderNotificationEmail?: string;
 }>;
 
 /** Public store config for e-commerce (store name, logo, footer, newsletter, homepage collections). */
@@ -259,16 +264,23 @@ export type ProductFeedback = {
   updatedAt?: string;
 };
 
-/** Thrown for any non-2xx API response. */
+/** Thrown for any non-2xx API response. Backend sends { success: false, message, code, data: null }. */
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public body?: unknown
+    public body?: unknown,
+    public code?: string
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+/** Current UI language for API (Accept-Language / x-language). */
+function getApiLocale(): string {
+  if (typeof localStorage === "undefined") return "en";
+  return localStorage.getItem("al_noon_lang") === "ar" ? "ar" : "en";
 }
 
 const AUTH_TOKEN_KEY = "al_noon_token";
@@ -276,14 +288,17 @@ export const getToken = () => sessionStorage.getItem(AUTH_TOKEN_KEY);
 export const setToken = (token: string) => sessionStorage.setItem(AUTH_TOKEN_KEY, token);
 export const clearToken = () => sessionStorage.removeItem(AUTH_TOKEN_KEY);
 
-async function parseErrorResponse(response: Response): Promise<{ message: string; body?: unknown }> {
+async function parseErrorResponse(response: Response): Promise<{ message: string; body?: unknown; code?: string }> {
   const text = await response.text();
   let message = response.statusText || "Request failed";
   let body: unknown;
+  let code: string | undefined;
   try {
     body = text ? JSON.parse(text) : undefined;
-    if (body && typeof body === "object" && "message" in body && typeof (body as { message: unknown }).message === "string") {
-      message = (body as { message: string }).message;
+    if (body && typeof body === "object") {
+      const b = body as { message?: string; code?: string };
+      if (typeof b.message === "string") message = b.message;
+      if (typeof b.code === "string") code = b.code;
     }
   } catch {
     if (text) message = text;
@@ -292,13 +307,15 @@ async function parseErrorResponse(response: Response): Promise<{ message: string
   if (response.status === 403) message = message || "Forbidden";
   if (response.status === 404) message = message || "Not found";
   if (response.status >= 500) message = message || "Server error";
-  return { message, body };
+  return { message, body, code };
 }
 
+/** Backend success shape: { success: true, data?, message?, pagination? }. We return the full body so callers use body.data / body.pagination. */
 const request = async (path: string, options: RequestInit = {}): Promise<unknown> => {
   const token = getToken();
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
+  headers.set("Accept-Language", getApiLocale());
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   let response: Response;
@@ -310,11 +327,12 @@ const request = async (path: string, options: RequestInit = {}): Promise<unknown
   }
 
   if (!response.ok) {
-    const { message, body } = await parseErrorResponse(response);
-    throw new ApiError(response.status, message, body);
+    const { message, body, code } = await parseErrorResponse(response);
+    throw new ApiError(response.status, message, body, code);
   }
   if (response.status === 204) return null;
-  return response.json();
+  const body = (await response.json()) as { success?: boolean; data?: unknown; message?: string; pagination?: unknown };
+  return body;
 };
 
 export const api = {
@@ -354,6 +372,7 @@ export const api = {
   uploadProductImages: async (files: File[]): Promise<string[]> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     files.forEach((f) => formData.append("images", f));
@@ -364,16 +383,18 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { paths: string[] };
-    return data.paths ?? [];
+    const body = (await response.json()) as { data?: { paths?: string[] }; paths?: string[] };
+    const data = body?.data ?? body;
+    return data?.paths ?? [];
   },
   /** Upload product videos; returns paths to use in product.videos (max 10, 100MB each). */
   uploadProductVideos: async (files: File[]): Promise<string[]> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     files.forEach((f) => formData.append("videos", f));
@@ -384,11 +405,12 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { paths: string[] };
-    return data.paths ?? [];
+    const resBody = (await response.json()) as { data?: { paths?: string[] }; paths?: string[] };
+    const data = resBody?.data ?? resBody;
+    return data?.paths ?? [];
   },
   setProductStatus: (id: string, status: "ACTIVE" | "INACTIVE") =>
     request(`/products/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
@@ -480,6 +502,7 @@ export const api = {
   uploadFeedbackImage: async (file: File): Promise<string> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     formData.set("image", file);
@@ -490,17 +513,19 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { image: string };
-    return data.image ?? "";
+    const body = (await response.json()) as { data?: { image?: string }; image?: string };
+    const data = body?.data ?? body;
+    return data?.image ?? "";
   },
 
   /** Upload logo image file. Returns the logo path (e.g. /uploads/logos/logo-123.png). */
   uploadLogo: async (file: File): Promise<string> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     formData.set("logo", file);
@@ -511,16 +536,18 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { logo: string };
-    return data.logo;
+    const body = (await response.json()) as { data?: { logo?: string }; logo?: string };
+    const data = body?.data ?? body;
+    return data?.logo ?? "";
   },
   /** Upload collection image for homepage. Returns image path (e.g. /uploads/collections/...). */
   uploadCollectionImage: async (file: File): Promise<string> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     formData.set("image", file);
@@ -531,16 +558,18 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { image: string };
-    return data.image;
+    const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
+    const data = resBody?.data ?? resBody;
+    return data?.image ?? "";
   },
   /** Upload hero image for storefront. Returns image path (e.g. /uploads/hero/...). */
   uploadHeroImage: async (file: File): Promise<string> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     formData.set("image", file);
@@ -551,16 +580,18 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { image: string };
-    return data.image;
+    const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
+    const data = resBody?.data ?? resBody;
+    return data?.image ?? "";
   },
   /** Upload section image (New Arrivals or Our Collection banner). Returns image path. */
   uploadSectionImage: async (file: File): Promise<string> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     formData.set("image", file);
@@ -571,16 +602,18 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { image: string };
-    return data.image;
+    const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
+    const data = resBody?.data ?? resBody;
+    return data?.image ?? "";
   },
   /** Upload hero video. Returns video path. */
   uploadHeroVideo: async (file: File): Promise<string> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     formData.set("video", file);
@@ -591,16 +624,18 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { video: string };
-    return data.video;
+    const resBody = (await response.json()) as { data?: { video?: string }; video?: string };
+    const data = resBody?.data ?? resBody;
+    return data?.video ?? "";
   },
   /** Upload section video (New Arrivals or Our Collection). Returns video path. */
   uploadSectionVideo: async (file: File): Promise<string> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     formData.set("video", file);
@@ -611,16 +646,18 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { video: string };
-    return data.video;
+    const resBody = (await response.json()) as { data?: { video?: string }; video?: string };
+    const data = resBody?.data ?? resBody;
+    return data?.video ?? "";
   },
   /** Upload promotional banner image. Returns image path. */
   uploadPromoImage: async (file: File): Promise<string> => {
     const token = getToken();
     const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
     if (token) headers.set("Authorization", `Bearer ${token}`);
     const formData = new FormData();
     formData.set("image", file);
@@ -631,10 +668,11 @@ export const api = {
       body: formData
     });
     if (!response.ok) {
-      const { message } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message);
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
     }
-    const data = (await response.json()) as { image: string };
-    return data.image;
+    const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
+    const data = resBody?.data ?? resBody;
+    return data?.image ?? "";
   }
 };

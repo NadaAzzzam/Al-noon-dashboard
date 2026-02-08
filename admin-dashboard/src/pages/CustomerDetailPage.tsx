@@ -23,10 +23,10 @@ const CustomerDetailPage = () => {
           api.getCustomer(id),
           api.getCustomerOrders(id)
         ]);
-        const custRes = custData as unknown as { customer: Customer };
-        const ordRes = ordData as unknown as { orders: Order[] };
-        setCustomer(custRes.customer);
-        setOrders(ordRes.orders ?? []);
+        const custRes = custData as { data?: { customer: Customer }; customer?: Customer };
+        const ordRes = ordData as { data?: { orders: Order[] }; orders?: Order[] };
+        setCustomer(custRes.data?.customer ?? custRes.customer ?? null);
+        setOrders(ordRes.data?.orders ?? ordRes.orders ?? []);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           window.location.href = "/login";

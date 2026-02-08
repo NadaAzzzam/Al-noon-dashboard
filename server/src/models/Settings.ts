@@ -63,6 +63,10 @@ export interface SettingsDocument {
   feedbackDisplayLimit: number;
   /** Rich-text content for footer pages: Privacy, Return Policy, Shipping, About, Contact. */
   contentPages: { slug: string; title: LocalizedString; content: LocalizedString }[];
+  /** Send admin email when a customer places an order. */
+  orderNotificationsEnabled?: boolean;
+  /** Email address to receive new order notifications (defaults to admin email if not set). */
+  orderNotificationEmail?: string;
   updatedAt: Date;
 }
 
@@ -131,7 +135,9 @@ const settingsSchema = new Schema<SettingsDocument>(
         content: localizedSchema
       }],
       default: []
-    }
+    },
+    orderNotificationsEnabled: { type: Boolean, default: false },
+    orderNotificationEmail: { type: String, default: "" }
   },
   { timestamps: true }
 );

@@ -19,13 +19,13 @@ const ContactSubmissionsPage = () => {
           page,
           limit: LIMIT,
         })) as {
-          submissions: ContactSubmission[];
-          total: number;
-          page: number;
-          totalPages: number;
+          data?: { submissions: ContactSubmission[] };
+          pagination?: { total: number };
+          submissions?: ContactSubmission[];
+          total?: number;
         };
-        setSubmissions(res.submissions ?? []);
-        setTotal(res.total ?? 0);
+        setSubmissions(res.data?.submissions ?? res.submissions ?? []);
+        setTotal(res.pagination?.total ?? res.total ?? 0);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           window.location.href = "/login";

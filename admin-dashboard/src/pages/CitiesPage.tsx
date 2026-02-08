@@ -18,8 +18,8 @@ const CitiesPage = () => {
   const load = async () => {
     setError(null);
     try {
-      const res = (await api.listCities()) as { cities: City[] };
-      setCities(res.cities ?? []);
+      const res = (await api.listCities()) as { data?: { cities: City[] }; cities?: City[] };
+      setCities(res.data?.cities ?? res.cities ?? []);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         window.location.href = "/login";

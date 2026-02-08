@@ -16,13 +16,13 @@ const SubscribersPage = () => {
       setError(null);
       try {
         const res = (await api.listSubscribers({ page, limit: LIMIT })) as {
-          subscribers: Subscriber[];
-          total: number;
-          page: number;
-          totalPages: number;
+          data?: { subscribers: Subscriber[] };
+          pagination?: { total: number };
+          subscribers?: Subscriber[];
+          total?: number;
         };
-        setSubscribers(res.subscribers ?? []);
-        setTotal(res.total ?? 0);
+        setSubscribers(res.data?.subscribers ?? res.subscribers ?? []);
+        setTotal(res.pagination?.total ?? res.total ?? 0);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           window.location.href = "/login";

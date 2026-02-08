@@ -4,24 +4,27 @@ import { User } from "../models/User.js";
 import { Settings } from "../models/Settings.js";
 import { isDbConnected } from "../config/db.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendResponse } from "../utils/response.js";
 
 export const getStats = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return res.json({
-      totalOrders: 0,
-      ordersToday: 0,
-      revenue: 0,
-      lowStockCount: 0,
-      bestSelling: [],
-      ordersPerDay: [],
-      totalCustomers: 0,
-      totalProducts: 0,
-      averageOrderValue: 0,
-      pendingOrdersCount: 0,
-      outOfStockCount: 0,
-      orderStatusBreakdown: [],
-      revenueThisMonth: 0,
-      revenueLastMonth: 0
+    return sendResponse(res, req.locale, {
+      data: {
+        totalOrders: 0,
+        ordersToday: 0,
+        revenue: 0,
+        lowStockCount: 0,
+        bestSelling: [],
+        ordersPerDay: [],
+        totalCustomers: 0,
+        totalProducts: 0,
+        averageOrderValue: 0,
+        pendingOrdersCount: 0,
+        outOfStockCount: 0,
+        orderStatusBreakdown: [],
+        revenueThisMonth: 0,
+        revenueLastMonth: 0
+      }
     });
   }
 
@@ -115,29 +118,30 @@ export const getStats = asyncHandler(async (req, res) => {
     }
   ]);
 
-  res.json({
-    totalOrders,
-    ordersToday,
-    revenue,
-    lowStockCount,
-    bestSelling,
-    ordersPerDay: ordersPerDayAgg,
-    totalCustomers,
-    totalProducts,
-    averageOrderValue,
-    pendingOrdersCount,
-    outOfStockCount,
-    orderStatusBreakdown: orderStatusBreakdown.map((s: { _id: string; count: number }) => ({ status: s._id, count: s.count })),
-    revenueThisMonth: revenueThisMonthAgg[0]?.total ?? 0,
-    revenueLastMonth: revenueLastMonthAgg[0]?.total ?? 0
+  sendResponse(res, req.locale, {
+    data: {
+      totalOrders,
+      ordersToday,
+      revenue,
+      lowStockCount,
+      bestSelling,
+      ordersPerDay: ordersPerDayAgg,
+      totalCustomers,
+      totalProducts,
+      averageOrderValue,
+      pendingOrdersCount,
+      outOfStockCount,
+      orderStatusBreakdown: orderStatusBreakdown.map((s: { _id: string; count: number }) => ({ status: s._id, count: s.count })),
+      revenueThisMonth: revenueThisMonthAgg[0]?.total ?? 0,
+      revenueLastMonth: revenueLastMonthAgg[0]?.total ?? 0
+    }
   });
 });
 
 /** GET /dashboard/top-selling – top selling products (for products page). */
 export const getTopSelling = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    res.json({ topSelling: [] });
-    return;
+    return sendResponse(res, req.locale, { data: { topSelling: [] } });
   }
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 15));
   const topSelling = await Order.aggregate([
@@ -163,5 +167,5 @@ export const getTopSelling = asyncHandler(async (req, res) => {
       }
     }
   ]);
-  res.json({ topSelling });
+  sendResponse(res, req.locale, { data: { topSelling } });
 });

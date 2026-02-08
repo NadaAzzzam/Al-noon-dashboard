@@ -16,8 +16,9 @@ const LoginPage = () => {
     setError("");
     setLoading(true);
     try {
-      const response = await api.signIn(email, password) as { token: string };
-      setToken(response.token);
+      const response = (await api.signIn(email, password)) as { data?: { token: string }; token?: string };
+      const token = response?.data?.token ?? response?.token;
+      if (token) setToken(token);
       navigate("/");
     } catch (err) {
       if (err instanceof ApiError) {

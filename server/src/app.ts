@@ -23,6 +23,8 @@ import contactRoutes from "./routes/contactRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { initLocales, localeMiddleware } from "./middlewares/locale.js";
+import { sendError, sendResponse } from "./utils/response.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +52,7 @@ if (!fs.existsSync(uploadsPromoDir)) fs.mkdirSync(uploadsPromoDir, { recursive: 
 if (!fs.existsSync(uploadsFeedbackDir)) fs.mkdirSync(uploadsFeedbackDir, { recursive: true });
 
 export const createApp = () => {
+  initLocales();
   const app = express();
 
   app.use(
@@ -67,10 +70,11 @@ export const createApp = () => {
   app.use(cookieParser());
   app.use(express.json());
   app.use(morgan("dev"));
+  app.use(localeMiddleware);
   app.use("/uploads", express.static(uploadsDir));
 
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", dbConnected: isDbConnected() });
+  app.get("/api/health", (req, res) => {
+    sendResponse(res, req.locale, { data: { status: "ok", dbConnected: isDbConnected() } });
   });
 
   app.use("/api/auth", authRoutes);
@@ -92,7 +96,7 @@ export const createApp = () => {
   app.use(express.static(clientBuildPath));
   app.get("*", (req, res) => {
     if (req.path.startsWith("/api")) {
-      return res.status(404).json({ message: "Not found" });
+      return sendError(res, req.locale, { statusCode: 404, code: "errors.common.not_found" });
     }
     res.sendFile(path.join(clientBuildPath, "index.html"));
   });

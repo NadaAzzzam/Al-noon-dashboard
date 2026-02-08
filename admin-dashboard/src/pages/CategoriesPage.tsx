@@ -20,8 +20,8 @@ const CategoriesPage = () => {
   const load = async () => {
     setError(null);
     try {
-      const res = await api.listCategories() as { categories: Category[] };
-      setCategories(res.categories ?? []);
+      const res = (await api.listCategories()) as { data?: { categories: Category[] }; categories?: Category[] };
+      setCategories(res.data?.categories ?? res.categories ?? []);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         window.location.href = "/login";

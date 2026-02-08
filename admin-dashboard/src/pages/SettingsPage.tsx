@@ -17,6 +17,8 @@ type SettingsForm = {
   socialFacebook: string;
   socialInstagram: string;
   newsletterEnabled: boolean;
+  orderNotificationsEnabled: boolean;
+  orderNotificationEmail: string;
 };
 
 const SettingsPage = () => {
@@ -33,6 +35,8 @@ const SettingsPage = () => {
     socialFacebook: "",
     socialInstagram: "",
     newsletterEnabled: true,
+    orderNotificationsEnabled: false,
+    orderNotificationEmail: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -43,7 +47,9 @@ const SettingsPage = () => {
     api
       .getSettings()
       .then((res: unknown) => {
-        const d = (res as { settings: Settings }).settings;
+        const body = res as { data?: { settings: Settings }; settings?: Settings };
+        const d = body.data?.settings ?? body.settings;
+        if (!d) return;
         const sn = d.storeName;
         const storeNameEn =
           typeof sn === "object" ? (sn?.en ?? "") : (sn ?? "");
@@ -67,6 +73,8 @@ const SettingsPage = () => {
           socialFacebook: d.socialLinks?.facebook ?? "",
           socialInstagram: d.socialLinks?.instagram ?? "",
           newsletterEnabled: d.newsletterEnabled ?? true,
+          orderNotificationsEnabled: d.orderNotificationsEnabled ?? false,
+          orderNotificationEmail: d.orderNotificationEmail ?? "",
         });
       })
       .catch(() => setError(t("settings.failed_load")));
@@ -121,6 +129,8 @@ const SettingsPage = () => {
           instagram: form.socialInstagram.trim(),
         },
         newsletterEnabled: form.newsletterEnabled,
+        orderNotificationsEnabled: form.orderNotificationsEnabled,
+        orderNotificationEmail: form.orderNotificationEmail.trim() || undefined,
       });
       setSaved(true);
     } catch (err) {
@@ -434,6 +444,43 @@ const SettingsPage = () => {
                 <span>{t("settings.newsletter_enabled")}</span>
               </label>
               <p className="settings-hint">{t("settings.newsletter_hint")}</p>
+            </div>
+          </section>
+          <section className="settings-section">
+            <h3 className="settings-section-title">
+              {t("settings.section_order_notifications")}
+            </h3>
+            <p className="settings-hint" style={{ marginBottom: 12 }}>
+              {t("settings.order_notifications_hint")}
+            </p>
+            <div className="settings-fields">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={form.orderNotificationsEnabled}
+                  onChange={(e) =>
+                    setForm({ ...form, orderNotificationsEnabled: e.target.checked })
+                  }
+                />
+                <span>{t("settings.order_notifications_enabled")}</span>
+              </label>
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label htmlFor="settings-order-notification-email">
+                  {t("settings.order_notification_email")}
+                </label>
+                <input
+                  id="settings-order-notification-email"
+                  type="email"
+                  value={form.orderNotificationEmail}
+                  onChange={(e) =>
+                    setForm({ ...form, orderNotificationEmail: e.target.value })
+                  }
+                  placeholder={t("settings.order_notification_email_placeholder")}
+                />
+                <p className="settings-hint">
+                  {t("settings.order_notification_email_hint")}
+                </p>
+              </div>
             </div>
           </section>
           <section className="settings-section">

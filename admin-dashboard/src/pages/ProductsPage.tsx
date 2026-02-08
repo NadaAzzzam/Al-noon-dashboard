@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { ImageLightbox } from "../components/ImageLightbox";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import {
   api,
@@ -28,8 +29,16 @@ const ProductsPage = () => {
   const [salesFilter, setSalesFilter] = useState<string>("");
   const [ratingFilter, setRatingFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
 
-  const hasFilters = !!(search || statusFilter || categoryFilter || newArrivalFilter || salesFilter || ratingFilter);
+  const hasFilters = !!(
+    search ||
+    statusFilter ||
+    categoryFilter ||
+    newArrivalFilter ||
+    salesFilter ||
+    ratingFilter
+  );
 
   const clearFilters = () => {
     setSearch("");
@@ -53,9 +62,14 @@ const ProductsPage = () => {
         newArrival: newArrivalFilter || undefined,
         sort: salesFilter || undefined,
         minRating: ratingFilter ? Number(ratingFilter) : undefined,
-      })) as { products: Product[]; total: number };
-      setProducts(res.products ?? []);
-      setTotal(res.total ?? 0);
+      })) as {
+        data?: Product[];
+        pagination?: { total: number };
+        products?: Product[];
+        total?: number;
+      };
+      setProducts(res.data ?? res.products ?? []);
+      setTotal(res.pagination?.total ?? res.total ?? 0);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         window.location.href = "/login";
@@ -69,14 +83,25 @@ const ProductsPage = () => {
 
   const loadCategories = async () => {
     try {
-      const res = (await api.listCategories()) as { categories: Category[] };
-      setCategories(res.categories ?? []);
+      const res = (await api.listCategories()) as {
+        data?: { categories: Category[] };
+        categories?: Category[];
+      };
+      setCategories(res.data?.categories ?? res.categories ?? []);
     } catch (_) {}
   };
 
   useEffect(() => {
     loadProducts();
-  }, [page, search, statusFilter, categoryFilter, newArrivalFilter, salesFilter, ratingFilter]);
+  }, [
+    page,
+    search,
+    statusFilter,
+    categoryFilter,
+    newArrivalFilter,
+    salesFilter,
+    ratingFilter,
+  ]);
   useEffect(() => {
     loadCategories();
   }, []);
@@ -118,7 +143,12 @@ const ProductsPage = () => {
     } else {
       pages.push(1);
       if (page > 3) pages.push("...");
-      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+      for (
+        let i = Math.max(2, page - 1);
+        i <= Math.min(totalPages - 1, page + 1);
+        i++
+      )
+        pages.push(i);
       if (page < totalPages - 2) pages.push("...");
       pages.push(totalPages);
     }
@@ -127,6 +157,11 @@ const ProductsPage = () => {
 
   return (
     <div>
+      <ImageLightbox
+        open={!!imagePopupSrc}
+        src={imagePopupSrc}
+        onClose={() => setImagePopupSrc(null)}
+      />
       {error && (
         <div className="error" style={{ marginBottom: 16 }}>
           {error}
@@ -138,7 +173,17 @@ const ProductsPage = () => {
           <p>{t("products.subtitle")}</p>
         </div>
         <Link to="/products/new" className="button">
-          <svg className="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <svg
+            className="button-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
           {t("products.new_product")}
         </Link>
       </div>
@@ -146,17 +191,32 @@ const ProductsPage = () => {
       <div className="card">
         <div className="filters">
           <span className="filters-label">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
           </span>
           <input
             placeholder={t("common.search")}
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             style={{ maxWidth: 200 }}
           />
           <select
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">{t("products.all_statuses")}</option>
             <option value="ACTIVE">{t("common.active")}</option>
@@ -164,7 +224,10 @@ const ProductsPage = () => {
           </select>
           <select
             value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setPage(1);
+            }}
           >
             <option value="">{t("products.all_categories")}</option>
             {categories.map((c) => (
@@ -177,22 +240,33 @@ const ProductsPage = () => {
             <input
               type="checkbox"
               checked={newArrivalFilter}
-              onChange={(e) => { setNewArrivalFilter(e.target.checked); setPage(1); }}
+              onChange={(e) => {
+                setNewArrivalFilter(e.target.checked);
+                setPage(1);
+              }}
             />
             <span>{t("products.new_arrivals_only")}</span>
           </label>
           <select
             value={salesFilter}
-            onChange={(e) => { setSalesFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSalesFilter(e.target.value);
+              setPage(1);
+            }}
             title={t("products.filter_by_sales")}
           >
             <option value="">{t("products.all_sales")}</option>
-            <option value="highestSelling">{t("products.highest_selling")}</option>
+            <option value="highestSelling">
+              {t("products.highest_selling")}
+            </option>
             <option value="lowSelling">{t("products.low_sale")}</option>
           </select>
           <select
             value={ratingFilter}
-            onChange={(e) => { setRatingFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setRatingFilter(e.target.value);
+              setPage(1);
+            }}
             title={t("products.filter_by_rating")}
           >
             <option value="">{t("products.rating_any")}</option>
@@ -231,7 +305,20 @@ const ProductsPage = () => {
                         <img
                           src={getProductImageUrl(product.images[0])}
                           alt=""
-                          className="inventory-product-img"
+                          className="inventory-product-img table-image-clickable"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() =>
+                            setImagePopupSrc(
+                              getProductImageUrl(product.images![0]),
+                            )
+                          }
+                          onKeyDown={(e) =>
+                            e.key === "Enter" &&
+                            setImagePopupSrc(
+                              getProductImageUrl(product.images![0]),
+                            )
+                          }
                         />
                       ) : (
                         <span className="inventory-product-img-placeholder">
@@ -251,7 +338,9 @@ const ProductsPage = () => {
                       <span
                         className={`badge ${product.status === "ACTIVE" ? "badge-success" : "badge-muted"}`}
                       >
-                        {product.status === "ACTIVE" ? t("common.active") : t("common.inactive")}
+                        {product.status === "ACTIVE"
+                          ? t("common.active")
+                          : t("common.inactive")}
                       </span>
                     </td>
                     <td>{formatPriceEGP(product.price)}</td>
@@ -261,15 +350,31 @@ const ProductsPage = () => {
                         : "—"}
                     </td>
                     <td>
-                      <span className={product.stock === 0 ? "badge badge-danger" : product.stock <= 5 ? "badge badge-warning" : ""}>
+                      <span
+                        className={
+                          product.stock === 0
+                            ? "badge badge-danger"
+                            : product.stock <= 5
+                              ? "badge badge-warning"
+                              : ""
+                        }
+                      >
                         {product.stock}
                       </span>
                     </td>
                     <td>{product.soldQty ?? 0}</td>
                     <td>
-                      {product.ratingCount != null && product.ratingCount > 0 ? (
-                        <span title={t("products.rated_by_count", { count: product.ratingCount })}>
-                          {product.averageRating != null ? product.averageRating.toFixed(1) : "—"} ★ ({product.ratingCount})
+                      {product.ratingCount != null &&
+                      product.ratingCount > 0 ? (
+                        <span
+                          title={t("products.rated_by_count", {
+                            count: product.ratingCount,
+                          })}
+                        >
+                          {product.averageRating != null
+                            ? product.averageRating.toFixed(1)
+                            : "—"}{" "}
+                          ★ ({product.ratingCount})
                         </span>
                       ) : (
                         "—"
@@ -291,7 +396,9 @@ const ProductsPage = () => {
                             onClick: () =>
                               setStatus(
                                 product._id,
-                                product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                                product.status === "ACTIVE"
+                                  ? "INACTIVE"
+                                  : "ACTIVE",
                               ),
                           },
                           {
@@ -309,7 +416,8 @@ const ProductsPage = () => {
             {totalPages > 1 && (
               <div className="pagination">
                 <span className="pagination-info">
-                  {t("common.showing", "Showing")} {startItem}–{endItem} {t("common.of")} {total}
+                  {t("common.showing", "Showing")} {startItem}–{endItem}{" "}
+                  {t("common.of")} {total}
                 </span>
                 <div className="pagination-pages">
                   <button
@@ -321,7 +429,9 @@ const ProductsPage = () => {
                   </button>
                   {getPageNumbers().map((p, i) =>
                     p === "..." ? (
-                      <span key={`e${i}`} className="pagination-ellipsis">…</span>
+                      <span key={`e${i}`} className="pagination-ellipsis">
+                        …
+                      </span>
                     ) : (
                       <button
                         key={p}
@@ -330,7 +440,7 @@ const ProductsPage = () => {
                       >
                         {p}
                       </button>
-                    )
+                    ),
                   )}
                   <button
                     className="pagination-page"
@@ -346,15 +456,40 @@ const ProductsPage = () => {
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                <line x1="7" y1="7" x2="7.01" y2="7" />
               </svg>
             </div>
             <h3>{t("products.no_products", "No products found")}</h3>
-            <p>{hasFilters ? t("products.no_products_filter", "Try adjusting your filters") : t("products.no_products_desc", "Create your first product to get started")}</p>
+            <p>
+              {hasFilters
+                ? t("products.no_products_filter", "Try adjusting your filters")
+                : t(
+                    "products.no_products_desc",
+                    "Create your first product to get started",
+                  )}
+            </p>
             {!hasFilters && (
               <Link to="/products/new" className="button">
-                <svg className="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <svg
+                  className="button-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
                 {t("products.new_product")}
               </Link>
             )}

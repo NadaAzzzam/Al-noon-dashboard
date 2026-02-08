@@ -5,6 +5,7 @@ import { ProductFeedback } from "../models/ProductFeedback.js";
 import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendResponse } from "../utils/response.js";
 
 const heroDefault = {
   images: [] as string[],
@@ -43,9 +44,9 @@ function normalizeHero(hero: { image?: string; images?: string[]; videos?: strin
 }
 
 /** Public: used by e-commerce storefront for footer, header, newsletter. */
-export const getStore = asyncHandler(async (_req, res) => {
+export const getStore = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return res.json({ store: storeDefaults });
+    return sendResponse(res, req.locale, { data: { store: storeDefaults } });
   }
   const settings = await Settings.findOne().lean();
   const s = settings ?? null;
@@ -91,25 +92,27 @@ export const getStore = asyncHandler(async (_req, res) => {
     });
   }
 
-  res.json({
-    store: {
-      storeName: s?.storeName ?? storeDefaults.storeName,
-      logo: s?.logo ?? storeDefaults.logo,
-      quickLinks: s?.quickLinks ?? storeDefaults.quickLinks,
-      socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
-      newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled,
-      homeCollections: collectionsToShow,
-      hero,
-      heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
-      newArrivalsLimit: s?.newArrivalsLimit ?? storeDefaults.newArrivalsLimit,
-      newArrivalsSectionImages: newArrivalsImages,
-      newArrivalsSectionVideos: newArrivalsVideos,
-      homeCollectionsDisplayLimit: displayLimit,
-      ourCollectionSectionImages: ourCollectionImages,
-      ourCollectionSectionVideos: ourCollectionVideos,
-      feedbackSectionEnabled,
-      feedbackDisplayLimit,
-      feedbacks
+  sendResponse(res, req.locale, {
+    data: {
+      store: {
+        storeName: s?.storeName ?? storeDefaults.storeName,
+        logo: s?.logo ?? storeDefaults.logo,
+        quickLinks: s?.quickLinks ?? storeDefaults.quickLinks,
+        socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
+        newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled,
+        homeCollections: collectionsToShow,
+        hero,
+        heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
+        newArrivalsLimit: s?.newArrivalsLimit ?? storeDefaults.newArrivalsLimit,
+        newArrivalsSectionImages: newArrivalsImages,
+        newArrivalsSectionVideos: newArrivalsVideos,
+        homeCollectionsDisplayLimit: displayLimit,
+        ourCollectionSectionImages: ourCollectionImages,
+        ourCollectionSectionVideos: ourCollectionVideos,
+        feedbackSectionEnabled,
+        feedbackDisplayLimit,
+        feedbacks
+      }
     }
   });
 });
@@ -120,59 +123,62 @@ const CONTENT_SLUGS = ["privacy", "return-policy", "shipping-policy", "about", "
 export const getPageBySlug = asyncHandler(async (req, res) => {
   const slug = String(req.params.slug ?? "").trim().toLowerCase();
   if (!CONTENT_SLUGS.includes(slug as typeof CONTENT_SLUGS[number])) {
-    return res.status(404).json({ message: "Page not found." });
+    throw new ApiError(404, "Page not found", { code: "errors.page.not_found" });
   }
   if (!isDbConnected()) {
-    return res.json({ page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } });
+    return sendResponse(res, req.locale, { data: { page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } } });
   }
   const settings = await Settings.findOne().lean();
   const list = settings?.contentPages ?? [];
   const page = list.find((p: { slug: string }) => p.slug === slug);
   if (!page) {
-    return res.json({ page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } });
+    return sendResponse(res, req.locale, { data: { page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } } });
   }
-  res.json({
-    page: {
-      slug: page.slug,
-      title: page.title ?? { en: "", ar: "" },
-      content: page.content ?? { en: "", ar: "" }
+  sendResponse(res, req.locale, {
+    data: {
+      page: {
+        slug: page.slug,
+        title: page.title ?? { en: "", ar: "" },
+        content: page.content ?? { en: "", ar: "" }
+      }
     }
   });
 });
 
 /** Public: submit Contact Us form (name, email, phone, comment). */
 export const submitContact = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Service temporarily unavailable.");
+  if (!isDbConnected()) throw new ApiError(503, "Service temporarily unavailable", { code: "errors.common.db_unavailable" });
   const name = String(req.body?.name ?? "").trim();
   const email = String(req.body?.email ?? "").trim().toLowerCase();
   const phone = String(req.body?.phone ?? "").trim();
   const comment = String(req.body?.comment ?? "").trim();
-  if (!name) throw new ApiError(400, "Name is required.");
+  if (!name) throw new ApiError(400, "Name is required", { code: "errors.contact.name_required" });
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new ApiError(400, "Valid email is required.");
+    throw new ApiError(400, "Valid email is required", { code: "errors.contact.email_required" });
   }
-  if (!comment) throw new ApiError(400, "Comment is required.");
+  if (!comment) throw new ApiError(400, "Comment is required", { code: "errors.contact.comment_required" });
   await ContactSubmission.create({ name, email, phone: phone || undefined, comment });
-  return res.status(201).json({ message: "Message sent successfully." });
+  sendResponse(res, req.locale, { status: 201, message: "success.contact.submitted" });
 });
 
 /** Public: subscribe to newsletter (e-commerce footer form). */
 export const subscribeNewsletter = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Service temporarily unavailable.");
+  if (!isDbConnected()) throw new ApiError(503, "Service temporarily unavailable", { code: "errors.common.db_unavailable" });
   const email = String(req.body?.email ?? "").trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new ApiError(400, "Valid email is required.");
+    throw new ApiError(400, "Valid email is required", { code: "errors.contact.email_required" });
   }
   const settings = await Settings.findOne().lean();
   if (!settings?.newsletterEnabled) {
-    throw new ApiError(400, "Newsletter signup is not available.");
+    throw new ApiError(400, "Newsletter signup is not available", { code: "errors.newsletter.not_available" });
   }
   try {
     await Subscriber.create({ email });
-    return res.status(201).json({ message: "Subscribed successfully." });
+    sendResponse(res, req.locale, { status: 201, message: "success.newsletter.subscribed" });
   } catch (err: unknown) {
     if (err && typeof err === "object" && "code" in err && err.code === 11000) {
-      return res.json({ message: "Already subscribed." });
+      sendResponse(res, req.locale, { message: "success.newsletter.already_subscribed" });
+      return;
     }
     throw err;
   }

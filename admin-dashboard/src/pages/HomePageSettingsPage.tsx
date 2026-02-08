@@ -134,7 +134,9 @@ const HomePageSettingsPage = () => {
     api
       .getSettings()
       .then((res: unknown) => {
-        const d = (res as { settings: Settings }).settings;
+        const body = res as { data?: { settings: Settings }; settings?: Settings };
+        const d = body.data?.settings ?? body.settings;
+        if (!d) return;
         const h = (
           d as {
             hero?: {

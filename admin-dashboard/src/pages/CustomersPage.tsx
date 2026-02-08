@@ -12,8 +12,8 @@ const CustomersPage = () => {
     const load = async () => {
       setError(null);
       try {
-        const response = await api.listUsers() as { users: User[] };
-        setUsers(response.users ?? []);
+        const response = (await api.listUsers()) as { data?: { users: User[] }; users?: User[] };
+        setUsers(response.data?.users ?? response.users ?? []);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           window.location.href = "/login";

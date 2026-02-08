@@ -22,5 +22,12 @@ export const env = {
   devWithoutDb: process.env.DEV_WITHOUT_DB === "1",
   adminEmail: process.env.ADMIN_EMAIL ?? "admin@localhost",
   adminPassword: process.env.ADMIN_PASSWORD ?? "admin123",
-  adminName: process.env.ADMIN_NAME ?? "Admin"
+  adminName: process.env.ADMIN_NAME ?? "Admin",
+  /** SMTP for order notification emails. If not set, notifications are skipped. */
+  smtpHost: process.env.SMTP_HOST?.trim() || undefined,
+  smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+  smtpSecure: process.env.SMTP_SECURE === "1" || process.env.SMTP_SECURE === "true",
+  smtpUser: process.env.SMTP_USER?.trim() || undefined,
+  smtpPass: process.env.SMTP_PASS?.trim() || undefined,
+  smtpFrom: process.env.SMTP_FROM?.trim() || process.env.ADMIN_EMAIL || undefined
 };

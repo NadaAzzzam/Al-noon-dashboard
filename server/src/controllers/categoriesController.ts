@@ -2,14 +2,14 @@ import { Category } from "../models/Category.js";
 import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendResponse } from "../utils/response.js";
 
-export const listCategories = asyncHandler(async (_req, res) => {
+export const listCategories = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    res.json({ categories: [] });
-    return;
+    return sendResponse(res, req.locale, { data: { categories: [] } });
   }
   const categories = await Category.find().sort({ createdAt: -1 });
-  res.json({ categories });
+  sendResponse(res, req.locale, { data: { categories } });
 });
 
 function mapBodyToCategory(body: Record<string, unknown>) {
@@ -23,38 +23,38 @@ function mapBodyToCategory(body: Record<string, unknown>) {
 }
 
 export const createCategory = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const category = await Category.create(mapBodyToCategory(req.body));
-  res.status(201).json({ category });
+  sendResponse(res, req.locale, { status: 201, message: "success.category.created", data: { category } });
 });
 
 export const updateCategory = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const category = await Category.findByIdAndUpdate(req.params.id, mapBodyToCategory(req.body), { new: true });
   if (!category) {
-    throw new ApiError(404, "Category not found");
+    throw new ApiError(404, "Category not found", { code: "errors.category.not_found" });
   }
-  res.json({ category });
+  sendResponse(res, req.locale, { message: "success.category.updated", data: { category } });
 });
 
 export const deleteCategory = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const category = await Category.findByIdAndDelete(req.params.id);
   if (!category) {
-    throw new ApiError(404, "Category not found");
+    throw new ApiError(404, "Category not found", { code: "errors.category.not_found" });
   }
-  res.status(204).send();
+  sendResponse(res, req.locale, { status: 204 });
 });
 
 export const setCategoryStatus = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) throw new ApiError(503, "Database not available (dev mode).");
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const category = await Category.findByIdAndUpdate(
     req.params.id,
     { status: req.body.status },
     { new: true }
   );
   if (!category) {
-    throw new ApiError(404, "Category not found");
+    throw new ApiError(404, "Category not found", { code: "errors.category.not_found" });
   }
-  res.json({ category });
+  sendResponse(res, req.locale, { message: "success.category.status_updated", data: { category } });
 });

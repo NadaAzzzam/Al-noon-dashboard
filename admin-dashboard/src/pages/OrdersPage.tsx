@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { api, ApiError, Order, OrderStatus } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { formatPriceEGP } from "../utils/format";
+import { daysSinceOrder, isLongWait } from "../utils/orderUtils";
 
 const PAGE_SIZE = 20;
 
@@ -37,14 +38,14 @@ const OrdersPage = () => {
   const loadOrders = async () => {
     setError(null);
     try {
-      const res = await api.listOrders({
+      const res = (await api.listOrders({
         page,
         limit: PAGE_SIZE,
         status: statusFilter || undefined,
         paymentMethod: paymentFilter || undefined
-      }) as { orders: Order[]; total: number };
-      setOrders(res.orders ?? []);
-      setTotal(res.total ?? 0);
+      })) as { data?: Order[]; pagination?: { total: number }; orders?: Order[]; total?: number };
+      setOrders(res.data ?? res.orders ?? []);
+      setTotal(res.pagination?.total ?? res.total ?? 0);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         window.location.href = "/login";
@@ -125,6 +126,7 @@ const OrdersPage = () => {
                 <tr>
                   <th>{t("dashboard.order")}</th>
                   <th>{t("orders.date")}</th>
+                  <th>{t("orders.days_waiting")}</th>
                   <th>{t("dashboard.customer")}</th>
                   <th>{t("dashboard.status")}</th>
                   <th>{t("orders.payment")}</th>
@@ -143,6 +145,22 @@ const OrdersPage = () => {
                       {order.createdAt
                         ? new Date(order.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
                         : "—"}
+                    </td>
+                    <td>
+                      {(() => {
+                        const days = daysSinceOrder(order.createdAt);
+                        if (days == null) return "—";
+                        const isLongWaitOrder = isLongWait(days, order.status);
+                        return (
+                          <span
+                            className={isLongWaitOrder ? "badge badge-pending" : undefined}
+                            title={isLongWaitOrder ? t("orders.days_waiting") : undefined}
+                            style={isLongWaitOrder ? { fontWeight: 600 } : undefined}
+                          >
+                            {days === 0 ? t("orders.today") : t("orders.days_count", { count: days })}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td>{order.user?.name ?? "—"}</td>
                     <td>

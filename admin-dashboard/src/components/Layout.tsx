@@ -116,24 +116,27 @@ const Layout = () => {
 
   useEffect(() => {
     api.getProfile()
-      .then((data: unknown) => {
-        const d = data as { user?: { name: string; email: string } };
-        if (d.user) setUser(d.user);
+      .then((res: unknown) => {
+        const d = res as { data?: { user?: { name: string; email: string } }; user?: { name: string; email: string } };
+        const user = d.data?.user ?? d.user;
+        if (user) setUser(user);
       })
       .catch(() => {});
     api.getDashboardStats(1)
-      .then((data: unknown) => {
-        const d = data as { lowStockCount?: number; ordersToday?: number };
+      .then((res: unknown) => {
+        const d = res as { data?: { lowStockCount?: number; ordersToday?: number } };
+        const stats = d.data ?? res as { lowStockCount?: number; ordersToday?: number };
         setNotifications({
-          lowStock: d.lowStockCount ?? 0,
-          newOrders: d.ordersToday,
+          lowStock: stats.lowStockCount ?? 0,
+          newOrders: stats.ordersToday,
         });
       })
       .catch(() => {});
     api.getSettings()
-      .then((data: unknown) => {
-        const d = data as { settings?: { googleAnalyticsId?: string } };
-        const gaId = d.settings?.googleAnalyticsId?.trim() || import.meta.env.VITE_GA_MEASUREMENT_ID;
+      .then((res: unknown) => {
+        const d = res as { data?: { settings?: { googleAnalyticsId?: string } }; settings?: { googleAnalyticsId?: string } };
+        const settings = d.data?.settings ?? d.settings;
+        const gaId = settings?.googleAnalyticsId?.trim() || import.meta.env.VITE_GA_MEASUREMENT_ID;
         if (gaId) initGoogleAnalytics(gaId);
       })
       .catch(() => {});
