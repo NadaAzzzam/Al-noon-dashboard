@@ -12,6 +12,4 @@ const subscriberSchema = new Schema<SubscriberDocument>(
   { timestamps: true }
 );
 
-subscriberSchema.index({ email: 1 });
-
 export const Subscriber = mongoose.model<SubscriberDocument>("Subscriber", subscriberSchema);
