@@ -20,8 +20,14 @@ function expiresInToSeconds(expiresIn: string): number {
   return n; // seconds
 }
 
-const signToken = (userId: string, role: "ADMIN" | "USER") =>
-  jwt.sign({ userId, role }, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);
+function signToken(userId: string, role: "ADMIN" | "USER"): string {
+  try {
+    return jwt.sign({ userId, role }, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);
+  } catch (err) {
+    console.error("JWT sign error:", err instanceof Error ? err.message : err);
+    throw new ApiError(503, "Server misconfiguration (auth)");
+  }
+}
 
 function setAuthCookie(res: Response, token: string) {
   const isProduction = process.env.NODE_ENV === "production";
@@ -55,15 +61,19 @@ export const login = asyncHandler(async (req, res) => {
   const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
   const password = typeof req.body?.password === "string" ? req.body.password : "";
 
-  const tryDevLogin = () => {
-    if (email === env.adminEmail && password === env.adminPassword) {
-      const token = signToken(DEV_ADMIN_ID, "ADMIN");
-      setAuthCookie(res, token);
-      res.json({
-        token,
-        user: { id: DEV_ADMIN_ID, name: env.adminName, email: env.adminEmail, role: "ADMIN" as const }
-      });
-      return true;
+  const tryDevLogin = (): boolean => {
+    try {
+      if (email === env.adminEmail && password === env.adminPassword) {
+        const token = signToken(DEV_ADMIN_ID, "ADMIN");
+        setAuthCookie(res, token);
+        res.json({
+          token,
+          user: { id: DEV_ADMIN_ID, name: env.adminName, email: env.adminEmail, role: "ADMIN" as const }
+        });
+        return true;
+      }
+    } catch (e) {
+      console.error("Dev login fallback error:", e instanceof Error ? e.message : e);
     }
     return false;
   };
@@ -78,7 +88,14 @@ export const login = asyncHandler(async (req, res) => {
     if (!user) {
       throw new ApiError(401, "Invalid credentials");
     }
-    const isValid = await user.comparePassword(password);
+    let isValid = false;
+    try {
+      isValid = await user.comparePassword(password);
+    } catch (compareErr) {
+      console.error("Password compare error (invalid hash?):", compareErr instanceof Error ? compareErr.message : compareErr);
+      if (tryDevLogin()) return;
+      throw new ApiError(503, "Database error. Try again or use admin@localhost / admin123.");
+    }
     if (!isValid) {
       throw new ApiError(401, "Invalid credentials");
     }
@@ -87,7 +104,7 @@ export const login = asyncHandler(async (req, res) => {
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (e) {
     if (e instanceof ApiError) throw e;
-    console.error("Login DB error (falling back to dev login):", e);
+    console.error("Login error (falling back to dev login):", e instanceof Error ? e.message : e);
     if (tryDevLogin()) return;
     throw new ApiError(503, "Database error. Try again or use admin@localhost / admin123.");
   }

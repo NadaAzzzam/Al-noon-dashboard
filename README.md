@@ -63,11 +63,11 @@ ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=secret ADMIN_NAME="Your Name" npm run
 
 If the user exists, they are promoted to ADMIN; otherwise a new admin is created.
 
-| Variable         | Default          |
-|------------------|------------------|
+| Variable         | Default           |
+| ---------------- | ----------------- |
 | `ADMIN_EMAIL`    | `admin@localhost` |
-| `ADMIN_PASSWORD` | `admin123`       |
-| `ADMIN_NAME`     | `Admin`          |
+| `ADMIN_PASSWORD` | `admin123`        |
+| `ADMIN_NAME`     | `Admin`           |
 
 ---
 
@@ -130,6 +130,8 @@ The server serves the React build from `admin-dashboard/dist` and the API under 
 
 One service can serve both the API and the admin UI.
 
+**GitHub Pages:** Hosts **static files only** (HTML/CSS/JS). It does **not** run Node.js. You can put the built React app there only if the backend is hosted elsewhere, and you’d set `VITE_API_URL` to your API URL when building. For a free full-stack demo, use **Render.com** below (one free Node service for API + frontend).
+
 ### 1. Push to GitHub
 
 Have the project in a GitHub (or GitLab) repository.
@@ -138,31 +140,57 @@ Have the project in a GitHub (or GitLab) repository.
 
 Create a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster and get a connection string (e.g. `mongodb+srv://user:pass@cluster.mongodb.net/al-noon-node`). Use it as `MONGO_URI` when deploying.
 
-### Deploy on Fly.io (free, no credit card)
+### Deploy on Render.com (free, no credit card)
+
+The repo includes `render.yaml`, so Render can build and run the whole app (Node API + React UI) as one free web service.
+
+1. Go to [render.com](https://render.com) and sign up (GitHub login is fine).
+2. **New → Blueprint** and connect your GitHub repo. Render will detect `render.yaml`.
+3. **Environment** (or in the dashboard for the new service):
+   - `MONGO_URI`: your MongoDB Atlas connection string (required).
+   - `JWT_SECRET`: a long random string (e.g. from `openssl rand -hex 32`).
+   - `CLIENT_URL`: after first deploy, set this to your Render URL (e.g. `https://al-noon-dashboard.onrender.com`) so CORS and cookies work.
+4. Deploy. Build runs `npm run build`, start runs `npm start`. The app will be at the URL Render gives you (e.g. `https://al-noon-dashboard.onrender.com`).
+5. **Create admin user:** from your machine with the same `MONGO_URI`, run:
+   ```bash
+   cd server
+   ADMIN_EMAIL=your@email.com ADMIN_PASSWORD=your-password npm run seed:admin
+   ```
+
+**Note:** On the free tier the service may sleep after inactivity; the first request can take 30–60 seconds to wake up.
+
+### Deploy on Fly.io (free; trial / limits may apply)
 
 1. **Install Fly CLI:** [https://fly.io/docs/hands-on/install-flyctl/](https://fly.io/docs/hands-on/install-flyctl/)  
    (Windows: `powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"`)
 
 2. **Sign up and log in:**
+
    ```bash
    fly auth signup
    ```
+
    or `fly auth login` if you already have an account.
 
 3. **From the project root, launch the app** (first time only):
+
    ```bash
    fly launch --no-deploy
    ```
+
    Use an app name like `al-noon-dashboard`, choose a region. Do **not** add Postgres or Redis (you use MongoDB Atlas).
 
 4. **Set secrets:**
+
    ```bash
    fly secrets set MONGO_URI="mongodb+srv://USER:PASS@cluster0.xxxxx.mongodb.net/al-noon-node?appName=Cluster0"
    fly secrets set JWT_SECRET="your-long-random-string"
    ```
+
    Use your real Atlas URI and a long random string for `JWT_SECRET` (e.g. `openssl rand -hex 32`).
 
 5. **Deploy:**
+
    ```bash
    fly deploy
    ```
@@ -184,13 +212,13 @@ Or use defaults (`admin@localhost` / `admin123`) if you seeded locally against t
 
 ### Environment variables (production)
 
-| Variable       | Required | Description |
-|----------------|----------|-------------|
-| `PORT`         | No       | Server port (host usually sets this). |
-| `MONGO_URI`    | Yes      | MongoDB connection string (e.g. Atlas). |
-| `JWT_SECRET`   | Yes      | Secret for JWT signing. |
-| `CLIENT_URL`   | No       | CORS origin; set if frontend is on another host. |
-| `JWT_EXPIRES_IN` | No     | Default `1d`. |
+| Variable         | Required | Description                                      |
+| ---------------- | -------- | ------------------------------------------------ |
+| `PORT`           | No       | Server port (host usually sets this).            |
+| `MONGO_URI`      | Yes      | MongoDB connection string (e.g. Atlas).          |
+| `JWT_SECRET`     | Yes      | Secret for JWT signing.                          |
+| `CLIENT_URL`     | No       | CORS origin; set if frontend is on another host. |
+| `JWT_EXPIRES_IN` | No       | Default `1d`.                                    |
 
 ### Deploying elsewhere (Railway, etc.)
 

@@ -21,7 +21,13 @@ const LoginPage = () => {
       navigate("/");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message || (err.status === 401 ? t("auth.invalid_credentials") : t("auth.something_wrong")));
+        if (err.status === 404) {
+          setError("API not found. Is the server running on port 4000? Start it with: npm run dev (in the server folder).");
+        } else if (err.status >= 500) {
+          setError(err.message || "Server error. Try again or use admin@localhost / admin123 if the database is not connected.");
+        } else {
+          setError(err.message || (err.status === 401 ? t("auth.invalid_credentials") : t("auth.something_wrong")));
+        }
       } else {
         setError(err instanceof Error ? err.message : t("auth.login_failed"));
       }
