@@ -1,0 +1,16 @@
+{
+  "name": "al-noon-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Al-noon admin dashboard - full stack (backend + frontend)",
+  "scripts": {
+    "install:all": "cd admin-dashboard && npm ci && cd ../server && npm ci",
+    "build": "cd admin-dashboard && npm ci && npm run build && cd ../server && npm ci && npm run build",
+    "start": "cd server && node dist/server.js",
+    "dev:server": "cd server && npm run dev",
+    "dev:admin": "cd admin-dashboard && npm run dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

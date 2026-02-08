@@ -7,8 +7,80 @@ A full-stack e-commerce admin platform with a Node.js + Express + MongoDB backen
 ```
 Al-noon-node/
 ├── server/             # Express + MongoDB backend
-└── admin-dashboard/    # React + TypeScript admin UI
+├── admin-dashboard/    # React + TypeScript admin UI
+├── package.json        # Root scripts for build & deploy
+└── render.yaml         # Render.com one-click deploy config
 ```
+
+---
+
+## Deploying (Backend + Frontend)
+
+The app is set up so **one service** serves both the API and the admin UI. Recommended: **Render.com** (free tier).
+
+### 1. Push your repo to GitHub
+
+Ensure the project is in a GitHub (or GitLab) repository.
+
+### 2. MongoDB for production
+
+Create a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster and get a connection string (e.g. `mongodb+srv://user:pass@cluster.mongodb.net/al-noon-node`). You will use it as `MONGO_URI` in the next step.
+
+### 3. Deploy on Render (one-click)
+
+1. Go to [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
+2. Connect your GitHub/GitLab repo and select the repo that contains this project.
+3. Render will read `render.yaml` and create a **Web Service** named `al-noon-dashboard`.
+4. In the service **Environment** tab, set:
+   - **MONGO_URI** – your MongoDB Atlas connection string (required for production).
+   - **CLIENT_URL** – optional; if not set, Render’s URL is used automatically.
+5. Deploy. The build runs `npm run build` (builds admin UI then server), then `npm start` (runs the server). The app will be at `https://<your-service>.onrender.com`.
+
+**Note:** On the free tier, the service may spin down after inactivity; the first request after that can be slow.
+
+### 4. After first deploy: create admin user
+
+From your machine (with the same `MONGO_URI` or from a one-off script), run the admin seed so you can log in:
+
+```bash
+cd server
+# Set MONGO_URI to your Atlas URI (e.g. in .env)
+ADMIN_EMAIL=your@email.com ADMIN_PASSWORD=your-secure-password npm run seed:admin
+```
+
+Or use the defaults (admin@localhost / admin123) if you ran the seed locally against the same database.
+
+### Environment variables (production)
+
+| Variable       | Required | Description |
+|----------------|----------|-------------|
+| `PORT`         | Set by Render | Server port. |
+| `MONGO_URI`    | Yes (for DB) | MongoDB connection string (e.g. Atlas). |
+| `JWT_SECRET`   | Yes | Secret for JWT signing (Render can generate). |
+| `CLIENT_URL`   | No | CORS origin; defaults to Render URL if not set. |
+| `JWT_EXPIRES_IN` | No | Default `1d`. |
+
+See `server/.env.example` for local development. Copy it to `server/.env` and fill in values.
+
+### Deploying elsewhere (Railway, Fly.io, etc.)
+
+From the repo root:
+
+- **Build:** `npm run build` (installs and builds both `admin-dashboard` and `server`).
+- **Start:** `npm start` (runs `server`; ensure `admin-dashboard/dist` exists from the build).
+
+Set `PORT`, `MONGO_URI`, `JWT_SECRET`, and optionally `CLIENT_URL` in your host’s environment.
+
+### Frontend and backend on different hosts (optional)
+
+If you host the frontend separately (e.g. Vercel/Netlify):
+
+1. Build the admin dashboard with the API base URL:  
+   `VITE_API_URL=https://your-api.onrender.com/api npm run build` (in `admin-dashboard/`).
+2. Deploy the built static site to Vercel/Netlify.
+3. Deploy the server (e.g. Render) and set **CLIENT_URL** to your frontend URL (e.g. `https://your-dashboard.vercel.app`).
+
+---
 
 ## Backend (Express + MongoDB)
 
@@ -91,19 +163,22 @@ npm run dev
 
 The admin UI runs at `http://localhost:5173` and proxies API calls to the backend.
 
-## Production build
+## Production build (local or single-server deploy)
 
-To serve the admin dashboard from the Node server:
+From the **repo root** (recommended):
 
 ```bash
-cd admin-dashboard
-npm install
-npm run build
-
-cd ../server
-npm install
 npm run build
 npm start
 ```
 
-The server will serve the React build from `admin-dashboard/dist`.
+This builds the admin UI and server, then starts the server. The API and dashboard are served from one process.
+
+Alternatively, from each folder:
+
+```bash
+cd admin-dashboard && npm install && npm run build
+cd ../server && npm install && npm run build && npm start
+```
+
+The server serves the React build from `admin-dashboard/dist` and the API under `/api/*`. For deployment to Render or other hosts, see **Deploying** above.
