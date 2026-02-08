@@ -1,32 +1,65 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getStoredLanguage, setStoredLanguage, type Lang } from "../i18n";
 import { api, clearToken } from "../services/api";
+import { initGoogleAnalytics, sendPageView } from "../utils/googleAnalytics";
 
 const Layout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-  const [notifications, setNotifications] = useState<{ lowStock: number; newOrders?: number }>({ lowStock: 0 });
+  const [user, setUser] = useState<{ name: string; email: string } | null>(
+    null,
+  );
+  const [notifications, setNotifications] = useState<{
+    lowStock: number;
+    newOrders?: number;
+  }>({ lowStock: 0 });
   const currentLang = getStoredLanguage();
 
   useEffect(() => {
-    api.getProfile().then((data: unknown) => {
-      const d = data as { user?: { name: string; email: string } };
-      if (d.user) setUser(d.user);
-    }).catch(() => {});
-    api.getDashboardStats(1).then((data: unknown) => {
-      const d = data as { lowStockCount?: number; ordersToday?: number };
-      setNotifications({ lowStock: d.lowStockCount ?? 0, newOrders: d.ordersToday });
-    }).catch(() => {});
+    api
+      .getProfile()
+      .then((data: unknown) => {
+        const d = data as { user?: { name: string; email: string } };
+        if (d.user) setUser(d.user);
+      })
+      .catch(() => {});
+    api
+      .getDashboardStats(1)
+      .then((data: unknown) => {
+        const d = data as { lowStockCount?: number; ordersToday?: number };
+        setNotifications({
+          lowStock: d.lowStockCount ?? 0,
+          newOrders: d.ordersToday,
+        });
+      })
+      .catch(() => {});
+    api
+      .getSettings()
+      .then((data: unknown) => {
+        const d = data as { settings?: { googleAnalyticsId?: string } };
+        const gaId =
+          d.settings?.googleAnalyticsId?.trim() ||
+          import.meta.env.VITE_GA_MEASUREMENT_ID;
+        if (gaId) initGoogleAnalytics(gaId);
+      })
+      .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    sendPageView(location.pathname, document.title);
+  }, [location.pathname]);
+
   const handleLogout = () => {
-    api.signOut().catch(() => {}).finally(() => {
-      clearToken();
-      navigate("/login");
-    });
+    api
+      .signOut()
+      .catch(() => {})
+      .finally(() => {
+        clearToken();
+        navigate("/login");
+      });
   };
 
   return (
@@ -58,11 +91,21 @@ const Layout = () => {
           <NavLink className="nav-link" to="/users">
             {t("nav.users")}
           </NavLink>
+          <NavLink className="nav-link" to="/subscribers">
+            {t("nav.subscribers")}
+          </NavLink>
+          <NavLink className="nav-link" to="/contact">
+            {t("nav.contact")}
+          </NavLink>
           <NavLink className="nav-link" to="/settings">
             {t("nav.settings")}
           </NavLink>
         </nav>
-        <button className="button secondary" onClick={handleLogout} style={{ marginTop: 24 }}>
+        <button
+          className="button secondary"
+          onClick={handleLogout}
+          style={{ marginTop: 24 }}
+        >
           {t("nav.logout")}
         </button>
       </aside>

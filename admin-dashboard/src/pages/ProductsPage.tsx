@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
-import { api, ApiError, Category, Product, getProductImageUrl } from "../services/api";
+import {
+  api,
+  ApiError,
+  Category,
+  Product,
+  getProductImageUrl,
+} from "../services/api";
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
 
@@ -16,18 +22,20 @@ const ProductsPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [newArrivalFilter, setNewArrivalFilter] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadProducts = async () => {
     setError(null);
     try {
-      const res = await api.listProducts({
+      const res = (await api.listProducts({
         page,
         limit: 20,
         search: search || undefined,
         status: statusFilter || undefined,
-        category: categoryFilter || undefined
-      }) as { products: Product[]; total: number };
+        category: categoryFilter || undefined,
+        newArrival: newArrivalFilter || undefined,
+      })) as { products: Product[]; total: number };
       setProducts(res.products ?? []);
       setTotal(res.total ?? 0);
     } catch (err) {
@@ -35,19 +43,25 @@ const ProductsPage = () => {
         window.location.href = "/login";
         return;
       }
-      setError(err instanceof ApiError ? err.message : t("products.failed_load"));
+      setError(
+        err instanceof ApiError ? err.message : t("products.failed_load"),
+      );
     }
   };
 
   const loadCategories = async () => {
     try {
-      const res = await api.listCategories() as { categories: Category[] };
+      const res = (await api.listCategories()) as { categories: Category[] };
       setCategories(res.categories ?? []);
     } catch (_) {}
   };
 
-  useEffect(() => { loadProducts(); }, [page, search, statusFilter, categoryFilter]);
-  useEffect(() => { loadCategories(); }, []);
+  useEffect(() => {
+    loadProducts();
+  }, [page, search, statusFilter, categoryFilter, newArrivalFilter]);
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   const setStatus = async (id: string, status: "ACTIVE" | "INACTIVE") => {
     setError(null);
@@ -55,7 +69,9 @@ const ProductsPage = () => {
       await api.setProductStatus(id, status);
       loadProducts();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("products.failed_status"));
+      setError(
+        err instanceof ApiError ? err.message : t("products.failed_status"),
+      );
     }
   };
 
@@ -66,7 +82,9 @@ const ProductsPage = () => {
       await api.deleteProduct(id);
       loadProducts();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("products.failed_delete"));
+      setError(
+        err instanceof ApiError ? err.message : t("products.failed_delete"),
+      );
     }
   };
 
@@ -74,28 +92,55 @@ const ProductsPage = () => {
 
   return (
     <div>
-      {error && <div className="error" style={{ marginBottom: 16 }}>{error}</div>}
+      {error && (
+        <div className="error" style={{ marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
       <div className="header">
         <div>
           <h1>{t("products.title")}</h1>
           <p>{t("products.subtitle")}</p>
         </div>
-        <Link to="/products/new" className="button">{t("products.new_product")}</Link>
+        <Link to="/products/new" className="button">
+          {t("products.new_product")}
+        </Link>
       </div>
       <div className="card">
         <div className="filters">
-          <input placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 200 }} />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <input
+            placeholder={t("common.search")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ maxWidth: 200 }}
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="">{t("products.all_statuses")}</option>
             <option value="ACTIVE">{t("common.active")}</option>
             <option value="INACTIVE">{t("common.inactive")}</option>
           </select>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
             <option value="">{t("products.all_categories")}</option>
             {categories.map((c) => (
-              <option key={c._id} value={c._id}>{localized(c.name)}</option>
+              <option key={c._id} value={c._id}>
+                {localized(c.name)}
+              </option>
             ))}
           </select>
+          <label className="filters-checkbox">
+            <input
+              type="checkbox"
+              checked={newArrivalFilter}
+              onChange={(e) => setNewArrivalFilter(e.target.checked)}
+            />
+            <span>{t("products.new_arrivals_only")}</span>
+          </label>
         </div>
         <table className="table">
           <thead>
@@ -114,25 +159,63 @@ const ProductsPage = () => {
               <tr key={product._id}>
                 <td>
                   {product.images?.[0] ? (
-                    <img src={getProductImageUrl(product.images[0])} alt="" className="inventory-product-img" />
+                    <img
+                      src={getProductImageUrl(product.images[0])}
+                      alt=""
+                      className="inventory-product-img"
+                    />
                   ) : (
-                    <span className="inventory-product-img-placeholder">{t("common.none")}</span>
+                    <span className="inventory-product-img-placeholder">
+                      {t("common.none")}
+                    </span>
                   )}
                 </td>
-                <td>{localized(product.name)}</td>
                 <td>
-                  <span className={`badge ${product.status === "ACTIVE" ? "badge-success" : "badge-muted"}`}>{product.status}</span>
+                  <span>{localized(product.name)}</span>
+                  {product.isNewArrival && (
+                    <span className="badge badge-new">
+                      {t("products.new_arrival_badge")}
+                    </span>
+                  )}
+                </td>
+                <td>
+                  <span
+                    className={`badge ${product.status === "ACTIVE" ? "badge-success" : "badge-muted"}`}
+                  >
+                    {product.status}
+                  </span>
                 </td>
                 <td>{formatPriceEGP(product.price)}</td>
-                <td>{product.discountPrice != null ? formatPriceEGP(product.discountPrice) : "—"}</td>
+                <td>
+                  {product.discountPrice != null
+                    ? formatPriceEGP(product.discountPrice)
+                    : "—"}
+                </td>
                 <td>{product.stock}</td>
                 <td>
                   <TableActionsDropdown
                     ariaLabel={t("common.actions")}
                     actions={[
-                      { label: t("common.edit"), to: `/products/${product._id}/edit` },
-                      { label: product.status === "ACTIVE" ? t("common.disable") : t("common.enable"), onClick: () => setStatus(product._id, product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE") },
-                      { label: t("common.delete"), onClick: () => removeProduct(product._id), danger: true }
+                      {
+                        label: t("common.edit"),
+                        to: `/products/${product._id}/edit`,
+                      },
+                      {
+                        label:
+                          product.status === "ACTIVE"
+                            ? t("common.disable")
+                            : t("common.enable"),
+                        onClick: () =>
+                          setStatus(
+                            product._id,
+                            product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+                          ),
+                      },
+                      {
+                        label: t("common.delete"),
+                        onClick: () => removeProduct(product._id),
+                        danger: true,
+                      },
                     ]}
                   />
                 </td>
@@ -142,9 +225,23 @@ const ProductsPage = () => {
         </table>
         {totalPages > 1 && (
           <div className="pagination">
-            <button className="button secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("common.prev")}</button>
-            <span>{t("common.page")} {page} {t("common.of")} {totalPages}</span>
-            <button className="button secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>{t("common.next")}</button>
+            <button
+              className="button secondary"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              {t("common.prev")}
+            </button>
+            <span>
+              {t("common.page")} {page} {t("common.of")} {totalPages}
+            </span>
+            <button
+              className="button secondary"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              {t("common.next")}
+            </button>
           </div>
         )}
       </div>

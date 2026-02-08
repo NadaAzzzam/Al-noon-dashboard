@@ -3,15 +3,57 @@ import { Settings } from "../models/Settings.js";
 import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { logoPath } from "../middlewares/upload.js";
+import { logoPath, collectionImagePath, heroImagePath, heroVideoPath, sectionImagePath, sectionVideoPath } from "../middlewares/upload.js";
+
+const heroDefault = {
+  images: [] as string[],
+  videos: [] as string[],
+  title: { en: "", ar: "" },
+  subtitle: { en: "", ar: "" },
+  ctaLabel: { en: "", ar: "" },
+  ctaUrl: ""
+};
 
 const defaults = {
   storeName: { en: "Al-noon", ar: "النون" },
   logo: "",
   instaPayNumber: "",
   paymentMethods: { cod: true, instaPay: true },
-  lowStockThreshold: 5
+  lowStockThreshold: 5,
+  quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
+  socialLinks: { facebook: "", instagram: "" },
+  newsletterEnabled: true,
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; url: string; order: number }[],
+  hero: heroDefault,
+  heroEnabled: true,
+  newArrivalsLimit: 8,
+  newArrivalsSectionImages: [] as string[],
+  newArrivalsSectionVideos: [] as string[],
+  homeCollectionsDisplayLimit: 0,
+  ourCollectionSectionImages: [] as string[],
+  ourCollectionSectionVideos: [] as string[],
+  contentPages: [] as { slug: string; title: { en: string; ar: string }; content: { en: string; ar: string } }[]
 };
+
+function normalizeSettings(raw: Record<string, unknown> | null): Record<string, unknown> {
+  if (!raw) return defaults as unknown as Record<string, unknown>;
+  const s = { ...raw };
+  const hero = s.hero as { image?: string; images?: string[]; videos?: string[] } | undefined;
+  if (hero) {
+    if (!Array.isArray(hero.images)) hero.images = hero.image ? [hero.image] : [];
+    if (!Array.isArray(hero.videos)) hero.videos = [];
+    delete (hero as Record<string, unknown>).image;
+  }
+  if (!Array.isArray(s.newArrivalsSectionImages)) {
+    s.newArrivalsSectionImages = (s.newArrivalsSectionImage && String(s.newArrivalsSectionImage)) ? [String(s.newArrivalsSectionImage)] : [];
+  }
+  if (!Array.isArray(s.newArrivalsSectionVideos)) s.newArrivalsSectionVideos = [];
+  if (!Array.isArray(s.ourCollectionSectionImages)) {
+    s.ourCollectionSectionImages = (s.ourCollectionSectionImage && String(s.ourCollectionSectionImage)) ? [String(s.ourCollectionSectionImage)] : [];
+  }
+  if (!Array.isArray(s.ourCollectionSectionVideos)) s.ourCollectionSectionVideos = [];
+  return s;
+}
 
 export const getSettings = asyncHandler(async (_req, res) => {
   if (!isDbConnected()) {
@@ -19,7 +61,8 @@ export const getSettings = asyncHandler(async (_req, res) => {
     return;
   }
   const settings = await Settings.findOne().lean();
-  res.json({ settings: settings ?? defaults });
+  const normalized = normalizeSettings(settings as Record<string, unknown> | null);
+  res.json({ settings: normalized });
   return;
 });
 
@@ -44,6 +87,101 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.lowStockThreshold !== undefined) {
     toSet.lowStockThreshold = Math.max(0, Math.floor(Number(updates.lowStockThreshold)));
   }
+  if (updates.googleAnalyticsId !== undefined) {
+    const v = String(updates.googleAnalyticsId ?? "").trim();
+    toSet.googleAnalyticsId = v || undefined;
+  }
+  if (updates.quickLinks !== undefined && Array.isArray(updates.quickLinks)) {
+    toSet.quickLinks = updates.quickLinks.map((item: { labelEn?: string; labelAr?: string; url?: string }) => ({
+      label: {
+        en: String(item.labelEn ?? "").trim(),
+        ar: String(item.labelAr ?? "").trim()
+      },
+      url: String(item.url ?? "").trim()
+    })).filter((item: { url: string }) => item.url);
+  }
+  if (updates.socialLinks !== undefined && typeof updates.socialLinks === "object") {
+    toSet.socialLinks = {
+      facebook: String(updates.socialLinks.facebook ?? "").trim(),
+      instagram: String(updates.socialLinks.instagram ?? "").trim()
+    };
+  }
+  if (updates.newsletterEnabled !== undefined) toSet.newsletterEnabled = Boolean(updates.newsletterEnabled);
+  if (updates.homeCollections !== undefined && Array.isArray(updates.homeCollections)) {
+    const items = updates.homeCollections
+      .map((item: { titleEn?: string; titleAr?: string; image?: string; url?: string; order?: number }, idx: number) => ({
+        title: {
+          en: String(item.titleEn ?? "").trim(),
+          ar: String(item.titleAr ?? "").trim()
+        },
+        image: String(item.image ?? "").trim(),
+        url: String(item.url ?? "").trim(),
+        order: typeof item.order === "number" ? item.order : idx
+      }))
+      .filter((item: { image: string; url: string }) => item.image || item.url);
+    toSet.homeCollections = items.sort((a: { order: number }, b: { order: number }) => a.order - b.order);
+  }
+  if (updates.hero !== undefined && typeof updates.hero === "object") {
+    const h = updates.hero;
+    const images = Array.isArray(h.images) ? h.images.map((x: unknown) => String(x ?? "").trim()).filter(Boolean) : [];
+    const videos = Array.isArray(h.videos) ? h.videos.map((x: unknown) => String(x ?? "").trim()).filter(Boolean) : [];
+    toSet.hero = {
+      images,
+      videos,
+      title: {
+        en: String(h.titleEn ?? "").trim(),
+        ar: String(h.titleAr ?? "").trim()
+      },
+      subtitle: {
+        en: String(h.subtitleEn ?? "").trim(),
+        ar: String(h.subtitleAr ?? "").trim()
+      },
+      ctaLabel: {
+        en: String(h.ctaLabelEn ?? "").trim(),
+        ar: String(h.ctaLabelAr ?? "").trim()
+      },
+      ctaUrl: String(h.ctaUrl ?? "").trim()
+    };
+  }
+  if (updates.heroEnabled !== undefined) toSet.heroEnabled = Boolean(updates.heroEnabled);
+  if (updates.newArrivalsLimit !== undefined) {
+    toSet.newArrivalsLimit = Math.max(1, Math.min(24, Math.floor(Number(updates.newArrivalsLimit))));
+  }
+  if (updates.newArrivalsSectionImages !== undefined && Array.isArray(updates.newArrivalsSectionImages)) {
+    toSet.newArrivalsSectionImages = updates.newArrivalsSectionImages.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
+  }
+  if (updates.newArrivalsSectionVideos !== undefined && Array.isArray(updates.newArrivalsSectionVideos)) {
+    toSet.newArrivalsSectionVideos = updates.newArrivalsSectionVideos.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
+  }
+  if (updates.homeCollectionsDisplayLimit !== undefined) {
+    toSet.homeCollectionsDisplayLimit = Math.max(0, Math.floor(Number(updates.homeCollectionsDisplayLimit)));
+  }
+  if (updates.ourCollectionSectionImages !== undefined && Array.isArray(updates.ourCollectionSectionImages)) {
+    toSet.ourCollectionSectionImages = updates.ourCollectionSectionImages.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
+  }
+  if (updates.ourCollectionSectionVideos !== undefined && Array.isArray(updates.ourCollectionSectionVideos)) {
+    toSet.ourCollectionSectionVideos = updates.ourCollectionSectionVideos.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
+  }
+  if (updates.contentPages !== undefined && Array.isArray(updates.contentPages)) {
+    const allowedSlugs = ["privacy", "return-policy", "shipping-policy", "about", "contact"];
+    toSet.contentPages = updates.contentPages
+      .map((item: { slug?: string; titleEn?: string; titleAr?: string; contentEn?: string; contentAr?: string }) => {
+        const slug = String(item.slug ?? "").trim().toLowerCase();
+        if (!allowedSlugs.includes(slug)) return null;
+        return {
+          slug,
+          title: {
+            en: String(item.titleEn ?? "").trim(),
+            ar: String(item.titleAr ?? "").trim()
+          },
+          content: {
+            en: String(item.contentEn ?? "").trim(),
+            ar: String(item.contentAr ?? "").trim()
+          }
+        };
+      })
+      .filter(Boolean);
+  }
   const settings = await Settings.findOneAndUpdate(
     {},
     { $set: toSet },
@@ -60,4 +198,44 @@ export const uploadLogo = asyncHandler(async (req: Request, res: Response, _next
   await Settings.findOneAndUpdate({}, { $set: { logo: pathUrl } }, { new: true, upsert: true });
   res.json({ logo: pathUrl });
   return;
+});
+
+/** Upload a collection image for homepage. Returns { image: "/uploads/collections/..." }. Does not update settings. */
+export const uploadCollectionImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+  const file = req.file;
+  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  const pathUrl = collectionImagePath(file.filename);
+  res.json({ image: pathUrl });
+});
+
+/** Upload hero image. Returns { image: "/uploads/hero/..." }. Does not update settings. */
+export const uploadHeroImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+  const file = req.file;
+  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  const pathUrl = heroImagePath(file.filename);
+  res.json({ image: pathUrl });
+});
+
+/** Upload section image (New Arrivals or Our Collection banner). Returns { image: "/uploads/sections/..." }. */
+export const uploadSectionImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+  const file = req.file;
+  if (!file) throw new ApiError(400, "No image file uploaded. Please select an image (PNG, JPG, GIF, WEBP).");
+  const pathUrl = sectionImagePath(file.filename);
+  res.json({ image: pathUrl });
+});
+
+/** Upload hero video. Returns { video: "/uploads/hero/videos/..." }. */
+export const uploadHeroVideo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+  const file = req.file;
+  if (!file) throw new ApiError(400, "No video file uploaded. Please select a video (MP4, WebM, MOV, OGG).");
+  const pathUrl = heroVideoPath(file.filename);
+  res.json({ video: pathUrl });
+});
+
+/** Upload section video (New Arrivals or Our Collection). Returns { video: "/uploads/sections/videos/..." }. */
+export const uploadSectionVideo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+  const file = req.file;
+  if (!file) throw new ApiError(400, "No video file uploaded. Please select a video (MP4, WebM, MOV, OGG).");
+  const pathUrl = sectionVideoPath(file.filename);
+  res.json({ video: pathUrl });
 });

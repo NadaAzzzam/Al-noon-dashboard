@@ -1,0 +1,148 @@
+import { Settings } from "../models/Settings.js";
+import { Subscriber } from "../models/Subscriber.js";
+import { ContactSubmission } from "../models/ContactSubmission.js";
+import { isDbConnected } from "../config/db.js";
+import { ApiError } from "../utils/apiError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+
+const heroDefault = {
+  images: [] as string[],
+  videos: [] as string[],
+  title: { en: "", ar: "" },
+  subtitle: { en: "", ar: "" },
+  ctaLabel: { en: "", ar: "" },
+  ctaUrl: ""
+};
+
+const storeDefaults = {
+  storeName: { en: "Al-noon", ar: "النون" },
+  logo: "",
+  quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
+  socialLinks: { facebook: "", instagram: "" },
+  newsletterEnabled: true,
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; url: string; order: number }[],
+  hero: heroDefault,
+  heroEnabled: true,
+  newArrivalsLimit: 8,
+  newArrivalsSectionImages: [] as string[],
+  newArrivalsSectionVideos: [] as string[],
+  homeCollectionsDisplayLimit: 0,
+  ourCollectionSectionImages: [] as string[],
+  ourCollectionSectionVideos: [] as string[]
+};
+
+function normalizeHero(hero: { image?: string; images?: string[]; videos?: string[] } | null | undefined) {
+  if (!hero) return heroDefault;
+  const images = Array.isArray(hero.images) ? hero.images : (hero.image ? [hero.image] : []);
+  const videos = Array.isArray(hero.videos) ? hero.videos : [];
+  return { ...hero, images, videos };
+}
+
+/** Public: used by e-commerce storefront for footer, header, newsletter. */
+export const getStore = asyncHandler(async (_req, res) => {
+  if (!isDbConnected()) {
+    return res.json({ store: storeDefaults });
+  }
+  const settings = await Settings.findOne().lean();
+  const s = settings ?? null;
+  const homeCollections = (s?.homeCollections ?? storeDefaults.homeCollections).sort((a, b) => a.order - b.order);
+  const displayLimit = s?.homeCollectionsDisplayLimit ?? storeDefaults.homeCollectionsDisplayLimit;
+  const collectionsToShow = displayLimit > 0 ? homeCollections.slice(0, displayLimit) : homeCollections;
+
+  const hero = normalizeHero(s?.hero as { image?: string; images?: string[]; videos?: string[] } | null);
+  const newArrivalsImages = Array.isArray((s as { newArrivalsSectionImages?: string[] })?.newArrivalsSectionImages)
+    ? (s as { newArrivalsSectionImages: string[] }).newArrivalsSectionImages
+    : ((s as { newArrivalsSectionImage?: string })?.newArrivalsSectionImage ? [(s as { newArrivalsSectionImage: string }).newArrivalsSectionImage] : storeDefaults.newArrivalsSectionImages);
+  const newArrivalsVideos = Array.isArray((s as { newArrivalsSectionVideos?: string[] })?.newArrivalsSectionVideos)
+    ? (s as { newArrivalsSectionVideos: string[] }).newArrivalsSectionVideos
+    : storeDefaults.newArrivalsSectionVideos;
+  const ourCollectionImages = Array.isArray((s as { ourCollectionSectionImages?: string[] })?.ourCollectionSectionImages)
+    ? (s as { ourCollectionSectionImages: string[] }).ourCollectionSectionImages
+    : ((s as { ourCollectionSectionImage?: string })?.ourCollectionSectionImage ? [(s as { ourCollectionSectionImage: string }).ourCollectionSectionImage] : storeDefaults.ourCollectionSectionImages);
+  const ourCollectionVideos = Array.isArray((s as { ourCollectionSectionVideos?: string[] })?.ourCollectionSectionVideos)
+    ? (s as { ourCollectionSectionVideos: string[] }).ourCollectionSectionVideos
+    : storeDefaults.ourCollectionSectionVideos;
+
+  res.json({
+    store: {
+      storeName: s?.storeName ?? storeDefaults.storeName,
+      logo: s?.logo ?? storeDefaults.logo,
+      quickLinks: s?.quickLinks ?? storeDefaults.quickLinks,
+      socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
+      newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled,
+      homeCollections: collectionsToShow,
+      hero,
+      heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
+      newArrivalsLimit: s?.newArrivalsLimit ?? storeDefaults.newArrivalsLimit,
+      newArrivalsSectionImages: newArrivalsImages,
+      newArrivalsSectionVideos: newArrivalsVideos,
+      homeCollectionsDisplayLimit: displayLimit,
+      ourCollectionSectionImages: ourCollectionImages,
+      ourCollectionSectionVideos: ourCollectionVideos
+    }
+  });
+});
+
+const CONTENT_SLUGS = ["privacy", "return-policy", "shipping-policy", "about", "contact"] as const;
+
+/** Public: get one content page by slug for storefront (e.g. /policy/privacy). */
+export const getPageBySlug = asyncHandler(async (req, res) => {
+  const slug = String(req.params.slug ?? "").trim().toLowerCase();
+  if (!CONTENT_SLUGS.includes(slug as typeof CONTENT_SLUGS[number])) {
+    return res.status(404).json({ message: "Page not found." });
+  }
+  if (!isDbConnected()) {
+    return res.json({ page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } });
+  }
+  const settings = await Settings.findOne().lean();
+  const list = settings?.contentPages ?? [];
+  const page = list.find((p: { slug: string }) => p.slug === slug);
+  if (!page) {
+    return res.json({ page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } });
+  }
+  res.json({
+    page: {
+      slug: page.slug,
+      title: page.title ?? { en: "", ar: "" },
+      content: page.content ?? { en: "", ar: "" }
+    }
+  });
+});
+
+/** Public: submit Contact Us form (name, email, phone, comment). */
+export const submitContact = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) throw new ApiError(503, "Service temporarily unavailable.");
+  const name = String(req.body?.name ?? "").trim();
+  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  const phone = String(req.body?.phone ?? "").trim();
+  const comment = String(req.body?.comment ?? "").trim();
+  if (!name) throw new ApiError(400, "Name is required.");
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new ApiError(400, "Valid email is required.");
+  }
+  if (!comment) throw new ApiError(400, "Comment is required.");
+  await ContactSubmission.create({ name, email, phone: phone || undefined, comment });
+  return res.status(201).json({ message: "Message sent successfully." });
+});
+
+/** Public: subscribe to newsletter (e-commerce footer form). */
+export const subscribeNewsletter = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) throw new ApiError(503, "Service temporarily unavailable.");
+  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new ApiError(400, "Valid email is required.");
+  }
+  const settings = await Settings.findOne().lean();
+  if (!settings?.newsletterEnabled) {
+    throw new ApiError(400, "Newsletter signup is not available.");
+  }
+  try {
+    await Subscriber.create({ email });
+    return res.status(201).json({ message: "Subscribed successfully." });
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && err.code === 11000) {
+      return res.json({ message: "Already subscribed." });
+    }
+    throw err;
+  }
+});

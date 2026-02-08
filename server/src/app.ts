@@ -8,6 +8,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { env } from "./config/env.js";
 import authRoutes from "./routes/authRoutes.js";
+import storeRoutes from "./routes/storeRoutes.js";
+import newsletterRoutes from "./routes/newsletterRoutes.js";
+import subscribersRoutes from "./routes/subscribersRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
@@ -16,6 +19,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import cityRoutes from "./routes/cityRoutes.js";
+import contactRoutes from "./routes/contactRoutes.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
@@ -25,8 +29,20 @@ const __dirname = path.dirname(__filename);
 const uploadsDir = path.resolve(__dirname, "../uploads");
 const uploadsLogosDir = path.join(uploadsDir, "logos");
 const uploadsProductsDir = path.join(uploadsDir, "products");
+const uploadsProductVideosDir = path.join(uploadsDir, "products", "videos");
+const uploadsCollectionsDir = path.join(uploadsDir, "collections");
+const uploadsHeroDir = path.join(uploadsDir, "hero");
+const uploadsHeroVideosDir = path.join(uploadsDir, "hero", "videos");
+const uploadsSectionsDir = path.join(uploadsDir, "sections");
+const uploadsSectionVideosDir = path.join(uploadsDir, "sections", "videos");
 if (!fs.existsSync(uploadsLogosDir)) fs.mkdirSync(uploadsLogosDir, { recursive: true });
 if (!fs.existsSync(uploadsProductsDir)) fs.mkdirSync(uploadsProductsDir, { recursive: true });
+if (!fs.existsSync(uploadsProductVideosDir)) fs.mkdirSync(uploadsProductVideosDir, { recursive: true });
+if (!fs.existsSync(uploadsCollectionsDir)) fs.mkdirSync(uploadsCollectionsDir, { recursive: true });
+if (!fs.existsSync(uploadsHeroDir)) fs.mkdirSync(uploadsHeroDir, { recursive: true });
+if (!fs.existsSync(uploadsHeroVideosDir)) fs.mkdirSync(uploadsHeroVideosDir, { recursive: true });
+if (!fs.existsSync(uploadsSectionsDir)) fs.mkdirSync(uploadsSectionsDir, { recursive: true });
+if (!fs.existsSync(uploadsSectionVideosDir)) fs.mkdirSync(uploadsSectionVideosDir, { recursive: true });
 
 export const createApp = () => {
   const app = express();
@@ -43,6 +59,9 @@ export const createApp = () => {
   });
 
   app.use("/api/auth", authRoutes);
+  app.use("/api/store", storeRoutes);
+  app.use("/api/newsletter", newsletterRoutes);
+  app.use("/api/subscribers", subscribersRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/products", productRoutes);
   app.use("/api/categories", categoryRoutes);
@@ -51,6 +70,7 @@ export const createApp = () => {
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/settings", settingsRoutes);
   app.use("/api/cities", cityRoutes);
+  app.use("/api/contact", contactRoutes);
 
   const clientBuildPath = path.resolve(__dirname, "../../admin-dashboard/dist");
   app.use(express.static(clientBuildPath));

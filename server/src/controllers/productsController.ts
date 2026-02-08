@@ -3,7 +3,7 @@ import { Product } from "../models/Product.js";
 import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { productImagePath } from "../middlewares/upload.js";
+import { productImagePath, productVideoPath } from "../middlewares/upload.js";
 
 export const listProducts = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
@@ -14,10 +14,38 @@ export const listProducts = asyncHandler(async (req, res) => {
   const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
   const status = req.query.status as string | undefined;
   const category = req.query.category as string | undefined;
+  const newArrival = req.query.newArrival as string | undefined;
+  const availability = req.query.availability as string | undefined;
+  const color = typeof req.query.color === "string" ? req.query.color.trim() : "";
+  const minPrice = req.query.minPrice != null ? Number(req.query.minPrice) : undefined;
+  const maxPrice = req.query.maxPrice != null ? Number(req.query.maxPrice) : undefined;
+  const sort = (req.query.sort as string) || "newest";
 
   const filter: Record<string, unknown> = { deletedAt: null };
   if (status === "ACTIVE" || status === "INACTIVE") filter.status = status;
   if (category) filter.category = category;
+  if (newArrival === "true") filter.isNewArrival = true;
+  if (availability === "inStock") filter.stock = { $gt: 0 };
+  if (availability === "outOfStock") filter.stock = 0;
+  if (color) filter.colors = { $in: [new RegExp(color, "i")] };
+  if (minPrice != null && !Number.isNaN(minPrice)) {
+    filter.$and = filter.$and || [];
+    (filter.$and as unknown[]).push({
+      $or: [
+        { discountPrice: { $ne: null, $gte: minPrice } },
+        { discountPrice: null, price: { $gte: minPrice } }
+      ]
+    });
+  }
+  if (maxPrice != null && !Number.isNaN(maxPrice)) {
+    filter.$and = filter.$and || [];
+    (filter.$and as unknown[]).push({
+      $or: [
+        { discountPrice: { $ne: null, $lte: maxPrice } },
+        { discountPrice: null, price: { $lte: maxPrice } }
+      ]
+    });
+  }
   if (search) {
     const re = new RegExp(search, "i");
     filter.$or = [
@@ -28,15 +56,45 @@ export const listProducts = asyncHandler(async (req, res) => {
     ];
   }
 
-  const [products, total] = await Promise.all([
-    Product.find(filter)
+  const total = await Product.countDocuments(filter);
+
+  const useEffectivePriceSort = sort === "priceAsc" || sort === "priceDesc";
+  let products: unknown[];
+
+  if (useEffectivePriceSort) {
+    const effectivePriceSort = sort === "priceAsc" ? 1 : -1;
+    products = await Product.aggregate([
+      { $match: filter },
+      { $addFields: { effectivePrice: { $ifNull: ["$discountPrice", "$price"] } } },
+      { $sort: { effectivePrice: effectivePriceSort as 1 | -1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+      { $lookup: { from: "categories", localField: "category", foreignField: "_id", as: "categoryDoc" } },
+      { $unwind: { path: "$categoryDoc", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          category: {
+            _id: "$categoryDoc._id",
+            name: "$categoryDoc.name",
+            status: "$categoryDoc.status"
+          }
+        }
+      },
+      { $project: { categoryDoc: 0, effectivePrice: 0 } }
+    ]);
+  } else {
+    const sortOption: Record<string, 1 | -1> =
+      sort === "nameAsc" ? { "name.en": 1 } :
+      sort === "nameDesc" ? { "name.en": -1 } :
+      sort === "bestSelling" ? { createdAt: -1 } :
+      { createdAt: -1 };
+    products = await Product.find(filter)
       .populate("category", "name status")
-      .sort({ createdAt: -1 })
+      .sort(sortOption)
       .skip((page - 1) * limit)
       .limit(limit)
-      .lean(),
-    Product.countDocuments(filter)
-  ]);
+      .lean();
+  }
 
   res.json({
     products,
@@ -59,14 +117,51 @@ export const getProduct = asyncHandler(async (req, res) => {
   res.json({ product });
 });
 
+/** Public: related products (same category) for "You may also like" on product detail. */
+export const getRelatedProducts = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) {
+    return res.json({ products: [] });
+  }
+  const productId = req.params.id;
+  const limit = Math.min(Math.max(1, Number(req.query.limit) || 4), 20);
+  const product = await Product.findOne({ _id: productId, deletedAt: null }).select("category").lean();
+  if (!product || !product.category) {
+    return res.json({ products: [] });
+  }
+  const categoryId = typeof product.category === "object" && product.category && "_id" in product.category
+    ? (product.category as { _id: unknown })._id
+    : product.category;
+  const products = await Product.find({
+    _id: { $ne: productId },
+    category: categoryId,
+    status: "ACTIVE",
+    deletedAt: null
+  })
+    .populate("category", "name status")
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  res.json({ products });
+});
+
 function mapBodyToProduct(body: Record<string, unknown>) {
-  const { nameEn, nameAr, descriptionEn, descriptionAr, sizes, sizeDescriptions, colors, images, imageColors, ...rest } = body;
+  const {
+    nameEn, nameAr, descriptionEn, descriptionAr, detailsEn, detailsAr, stylingTipEn, stylingTipAr,
+    sizes, sizeDescriptions, colors, images, imageColors, videos, isNewArrival, ...rest
+  } = body;
   const payload: Record<string, unknown> = { ...rest };
+  if (isNewArrival !== undefined) payload.isNewArrival = Boolean(isNewArrival);
   if (nameEn !== undefined || nameAr !== undefined) {
     payload.name = { en: String(nameEn ?? "").trim(), ar: String(nameAr ?? "").trim() };
   }
   if (descriptionEn !== undefined || descriptionAr !== undefined) {
     payload.description = { en: String(descriptionEn ?? "").trim(), ar: String(descriptionAr ?? "").trim() };
+  }
+  if (detailsEn !== undefined || detailsAr !== undefined) {
+    payload.details = { en: String(detailsEn ?? "").trim(), ar: String(detailsAr ?? "").trim() };
+  }
+  if (stylingTipEn !== undefined || stylingTipAr !== undefined) {
+    payload.stylingTip = { en: String(stylingTipEn ?? "").trim(), ar: String(stylingTipAr ?? "").trim() };
   }
   if (sizes !== undefined) {
     const sizeArr = Array.isArray(sizes) ? sizes.map((s) => String(s).trim()).filter(Boolean) : [];
@@ -80,7 +175,10 @@ function mapBodyToProduct(body: Record<string, unknown>) {
   if (images !== undefined && Array.isArray(images)) {
     payload.images = images.map((p) => String(p));
     const colorArr = Array.isArray(imageColors) ? imageColors.map((c) => String(c ?? "").trim()) : [];
-    payload.imageColors = payload.images.map((_: unknown, i: number) => colorArr[i] ?? "");
+    payload.imageColors = (payload.images as string[]).map((_: string, i: number) => colorArr[i] ?? "");
+  }
+  if (videos !== undefined && Array.isArray(videos)) {
+    payload.videos = videos.map((v) => String(v).trim()).filter(Boolean);
   }
   return payload;
 }
@@ -134,5 +232,12 @@ export const uploadProductImages = asyncHandler(async (req: Request, res) => {
   const files = req.files as Express.Multer.File[] | undefined;
   if (!files?.length) throw new ApiError(400, "No images uploaded. Please select one or more images.");
   const paths = files.map((f) => productImagePath(f.filename));
+  res.json({ paths });
+});
+
+export const uploadProductVideos = asyncHandler(async (req: Request, res) => {
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (!files?.length) throw new ApiError(400, "No videos uploaded. Please select one or more video files.");
+  const paths = files.map((f) => productVideoPath(f.filename));
   res.json({ paths });
 });

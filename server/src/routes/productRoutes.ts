@@ -3,15 +3,17 @@ import {
   createProduct,
   deleteProduct,
   getProduct,
+  getRelatedProducts,
   listProducts,
   setProductStatus,
   updateProduct,
-  uploadProductImages
+  uploadProductImages,
+  uploadProductVideos
 } from "../controllers/productsController.js";
 import { updateStock } from "../controllers/inventoryController.js";
 import { authenticate, requireRole } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
-import { uploadProductImages as multerProductImages } from "../middlewares/upload.js";
+import { uploadProductImages as multerProductImages, uploadProductVideos as multerProductVideos } from "../middlewares/upload.js";
 import {
   productParamsSchema,
   productQuerySchema,
@@ -23,10 +25,12 @@ import { stockUpdateSchema } from "../validators/inventory.js";
 const router = Router();
 
 router.get("/", validate(productQuerySchema), listProducts);
+router.get("/:id/related", validate(productParamsSchema), getRelatedProducts);
 router.get("/:id", validate(productParamsSchema), getProduct);
 
 router.use(authenticate, requireRole(["ADMIN"]));
 router.post("/images", multerProductImages, uploadProductImages);
+router.post("/videos", multerProductVideos, uploadProductVideos);
 router.post("/", validate(productSchema), createProduct);
 router.put("/:id", validate(productSchema.merge(productParamsSchema)), updateProduct);
 router.patch("/:id/status", validate(productStatusSchema), setProductStatus);

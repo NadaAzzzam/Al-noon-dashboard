@@ -13,6 +13,12 @@ export function getProductImageUrl(path: string): string {
   return path.startsWith("http") ? path : getUploadsBaseUrl() + path;
 }
 
+/** Full URL for a product video (uploaded path or external URL). */
+export function getProductVideoUrl(path: string): string {
+  if (!path) return "";
+  return path.startsWith("http") ? path : getUploadsBaseUrl() + path;
+}
+
 export type User = {
   id: string;
   name: string;
@@ -33,10 +39,18 @@ export type Product = {
   imageColors?: string[];
   stock: number;
   status: "ACTIVE" | "INACTIVE";
+  /** When true, show in "New Arrivals" on the storefront. */
+  isNewArrival?: boolean;
   sizes?: string[];
   /** Optional description per size (e.g. weight), same length as sizes. */
   sizeDescriptions?: string[];
   colors?: string[];
+  /** Video paths (uploaded) or external URLs. Shown with images on product detail. */
+  videos?: string[];
+  /** Optional "Details" section (e.g. Fabric, Color, Style, Season). */
+  details?: LocalizedString;
+  /** Optional styling tip for storefront. */
+  stylingTip?: LocalizedString;
   category?: { name: LocalizedString; status?: string } | string;
 };
 
@@ -51,8 +65,14 @@ export type ProductPayload = {
   stock: number;
   category?: string;
   status?: "ACTIVE" | "INACTIVE";
+  isNewArrival?: boolean;
   images?: string[];
   imageColors?: string[];
+  videos?: string[];
+  detailsEn?: string;
+  detailsAr?: string;
+  stylingTipEn?: string;
+  stylingTipAr?: string;
   sizes?: string[];
   sizeDescriptions?: string[];
   colors?: string[];
@@ -108,12 +128,45 @@ export type City = {
 /** Payload for create/update city (API accepts nameEn, nameAr) */
 export type CityPayload = { nameEn: string; nameAr: string; deliveryFee?: number };
 
+export type QuickLink = { label: LocalizedString; url: string };
+
 export type Settings = {
   storeName: LocalizedString;
   logo?: string;
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
   lowStockThreshold: number;
+  googleAnalyticsId?: string;
+  quickLinks?: QuickLink[];
+  socialLinks?: { facebook?: string; instagram?: string };
+  newsletterEnabled?: boolean;
+  homeCollections?: HomeCollection[];
+  hero?: HeroConfig;
+  heroEnabled?: boolean;
+  newArrivalsLimit?: number;
+  newArrivalsSectionImages?: string[];
+  newArrivalsSectionVideos?: string[];
+  homeCollectionsDisplayLimit?: number;
+  ourCollectionSectionImages?: string[];
+  ourCollectionSectionVideos?: string[];
+  contentPages?: ContentPage[];
+};
+
+export type ContentPage = {
+  slug: string;
+  title: LocalizedString;
+  content: LocalizedString;
+};
+
+export type HomeCollection = { title: LocalizedString; image: string; url: string; order: number };
+
+export type HeroConfig = {
+  images: string[];
+  videos: string[];
+  title: LocalizedString;
+  subtitle: LocalizedString;
+  ctaLabel: LocalizedString;
+  ctaUrl: string;
 };
 
 /** Payload for update settings (API accepts storeNameEn, storeNameAr, etc.) */
@@ -124,7 +177,50 @@ export type SettingsPayload = Partial<{
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
   lowStockThreshold: number;
+  googleAnalyticsId: string;
+  quickLinks: { labelEn: string; labelAr: string; url: string }[];
+  socialLinks: { facebook: string; instagram: string };
+  newsletterEnabled: boolean;
+  homeCollections: { titleEn: string; titleAr: string; image: string; url: string; order: number }[];
+  hero: { images: string[]; videos: string[]; titleEn: string; titleAr: string; subtitleEn: string; subtitleAr: string; ctaLabelEn: string; ctaLabelAr: string; ctaUrl: string };
+  heroEnabled: boolean;
+  newArrivalsLimit: number;
+  newArrivalsSectionImages?: string[];
+  newArrivalsSectionVideos?: string[];
+  homeCollectionsDisplayLimit: number;
+  ourCollectionSectionImages?: string[];
+  ourCollectionSectionVideos?: string[];
+  contentPages: { slug: string; titleEn: string; titleAr: string; contentEn: string; contentAr: string }[];
 }>;
+
+/** Public store config for e-commerce (store name, logo, footer, newsletter, homepage collections). */
+export type StoreConfig = {
+  storeName: LocalizedString;
+  logo: string;
+  quickLinks: QuickLink[];
+  socialLinks: { facebook: string; instagram: string };
+  newsletterEnabled: boolean;
+  homeCollections: HomeCollection[];
+  hero: HeroConfig;
+  heroEnabled: boolean;
+  newArrivalsLimit: number;
+  newArrivalsSectionImages?: string[];
+  newArrivalsSectionVideos?: string[];
+  homeCollectionsDisplayLimit: number;
+  ourCollectionSectionImages?: string[];
+  ourCollectionSectionVideos?: string[];
+};
+
+export type Subscriber = { email: string; createdAt: string };
+
+export type ContactSubmission = {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  comment: string;
+  createdAt: string;
+};
 
 /** Thrown for any non-2xx API response. */
 export class ApiError extends Error {
@@ -197,17 +293,20 @@ export const api = {
   getCustomer: (id: string) => request(`/users/${id}`),
   getCustomerOrders: (id: string) => request(`/users/${id}/orders`),
 
-  listProducts: (params?: { page?: number; limit?: number; search?: string; status?: string; category?: string }) => {
+  listProducts: (params?: { page?: number; limit?: number; search?: string; status?: string; category?: string; newArrival?: boolean }) => {
     const sp = new URLSearchParams();
     if (params?.page != null) sp.set("page", String(params.page));
     if (params?.limit != null) sp.set("limit", String(params.limit));
     if (params?.search) sp.set("search", params.search);
     if (params?.status) sp.set("status", params.status);
+    if (params?.newArrival === true) sp.set("newArrival", "true");
     if (params?.category) sp.set("category", params.category);
     const q = sp.toString();
     return request(`/products${q ? `?${q}` : ""}`);
   },
   getProduct: (id: string) => request(`/products/${id}`),
+  getRelatedProducts: (id: string, limit?: number) =>
+    request(`/products/${id}/related${limit != null ? `?limit=${limit}` : ""}`),
   createProduct: (payload: ProductPayload) =>
     request("/products", { method: "POST", body: JSON.stringify(payload) }),
   updateProduct: (id: string, payload: Partial<ProductPayload>) =>
@@ -220,6 +319,26 @@ export const api = {
     const formData = new FormData();
     files.forEach((f) => formData.append("images", f));
     const response = await fetch(`${API_BASE}/products/images`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { paths: string[] };
+    return data.paths ?? [];
+  },
+  /** Upload product videos; returns paths to use in product.videos (max 10, 100MB each). */
+  uploadProductVideos: async (files: File[]): Promise<string[]> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    files.forEach((f) => formData.append("videos", f));
+    const response = await fetch(`${API_BASE}/products/videos`, {
       method: "POST",
       headers,
       credentials: "include",
@@ -282,6 +401,20 @@ export const api = {
   getSettings: () => request("/settings"),
   updateSettings: (payload: SettingsPayload) =>
     request("/settings", { method: "PUT", body: JSON.stringify(payload) }),
+  listSubscribers: (params?: { page?: number; limit?: number }) => {
+    const sp = new URLSearchParams();
+    if (params?.page != null) sp.set("page", String(params.page));
+    if (params?.limit != null) sp.set("limit", String(params.limit));
+    const q = sp.toString();
+    return request(`/subscribers${q ? `?${q}` : ""}`);
+  },
+  listContactSubmissions: (params?: { page?: number; limit?: number }) => {
+    const sp = new URLSearchParams();
+    if (params?.page != null) sp.set("page", String(params.page));
+    if (params?.limit != null) sp.set("limit", String(params.limit));
+    const q = sp.toString();
+    return request(`/contact${q ? `?${q}` : ""}`);
+  },
   /** Upload logo image file. Returns the logo path (e.g. /uploads/logos/logo-123.png). */
   uploadLogo: async (file: File): Promise<string> => {
     const token = getToken();
@@ -301,5 +434,105 @@ export const api = {
     }
     const data = (await response.json()) as { logo: string };
     return data.logo;
+  },
+  /** Upload collection image for homepage. Returns image path (e.g. /uploads/collections/...). */
+  uploadCollectionImage: async (file: File): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("image", file);
+    const response = await fetch(`${API_BASE}/settings/collection-image`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { image: string };
+    return data.image;
+  },
+  /** Upload hero image for storefront. Returns image path (e.g. /uploads/hero/...). */
+  uploadHeroImage: async (file: File): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("image", file);
+    const response = await fetch(`${API_BASE}/settings/hero-image`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { image: string };
+    return data.image;
+  },
+  /** Upload section image (New Arrivals or Our Collection banner). Returns image path. */
+  uploadSectionImage: async (file: File): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("image", file);
+    const response = await fetch(`${API_BASE}/settings/section-image`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { image: string };
+    return data.image;
+  },
+  /** Upload hero video. Returns video path. */
+  uploadHeroVideo: async (file: File): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("video", file);
+    const response = await fetch(`${API_BASE}/settings/hero-video`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { video: string };
+    return data.video;
+  },
+  /** Upload section video (New Arrivals or Our Collection). Returns video path. */
+  uploadSectionVideo: async (file: File): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("video", file);
+    const response = await fetch(`${API_BASE}/settings/section-video`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message);
+    }
+    const data = (await response.json()) as { video: string };
+    return data.video;
   }
 };

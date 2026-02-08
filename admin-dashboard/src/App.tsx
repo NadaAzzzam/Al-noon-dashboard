@@ -11,7 +11,12 @@ import OrderDetailPage from "./pages/OrderDetailPage";
 import OrdersPage from "./pages/OrdersPage";
 import ProductFormPage from "./pages/ProductFormPage";
 import ProductsPage from "./pages/ProductsPage";
+import SettingsLayout from "./components/SettingsLayout";
+import ContactSubmissionsPage from "./pages/ContactSubmissionsPage";
+import ContentPagesPage from "./pages/ContentPagesPage";
+import HomePageSettingsPage from "./pages/HomePageSettingsPage";
 import SettingsPage from "./pages/SettingsPage";
+import SubscribersPage from "./pages/SubscribersPage";
 import UsersPage from "./pages/UsersPage";
 import { getToken } from "./services/api";
 
@@ -45,7 +50,13 @@ const App = () => (
       <Route path="customers" element={<CustomersPage />} />
       <Route path="customers/:id" element={<CustomerDetailPage />} />
       <Route path="users" element={<UsersPage />} />
-      <Route path="settings" element={<SettingsPage />} />
+      <Route path="subscribers" element={<SubscribersPage />} />
+      <Route path="contact" element={<ContactSubmissionsPage />} />
+      <Route path="settings" element={<SettingsLayout />}>
+        <Route index element={<SettingsPage />} />
+        <Route path="home" element={<HomePageSettingsPage />} />
+        <Route path="content-pages" element={<ContentPagesPage />} />
+      </Route>
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>
