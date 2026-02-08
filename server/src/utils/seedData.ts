@@ -1,7 +1,8 @@
 /**
  * Full data seeder for Al-noon dashboard.
  * Reference: https://sawdah.world/ (Sawdah.eg – Abayas, Capes, Malhafa, modest wear)
- * Seeds: Categories, Cities, Settings, Products (hijab, niqab, abaya, cape, tarha), Users, Orders.
+ * Seeds: Categories, Cities, Settings (incl. content pages, hero, home collections),
+ * Products, Users, Orders, Contact submissions, Subscribers.
  */
 
 import mongoose from "mongoose";
@@ -12,6 +13,8 @@ import { Settings } from "../models/Settings.js";
 import { Product } from "../models/Product.js";
 import { User } from "../models/User.js";
 import { Order } from "../models/Order.js";
+import { ContactSubmission } from "../models/ContactSubmission.js";
+import { Subscriber } from "../models/Subscriber.js";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@localhost";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin123";
@@ -66,15 +69,80 @@ async function seed() {
   await City.insertMany(citiesData);
   console.log(`Created ${citiesData.length} cities.`);
 
-  // ----- Settings -----
+  // ----- Settings (store, content pages, hero, home collections) -----
   await Settings.deleteMany({});
+  const contentPages = [
+    {
+      slug: "privacy",
+      title: { en: "Privacy Policy", ar: "سياسة الخصوصية" },
+      content: {
+        en: "<p>At Al-noon we respect your privacy. We collect only the information necessary to process your orders and improve your experience. We do not sell your data to third parties.</p><p>For any questions, contact us at the details provided on our Contact page.</p>",
+        ar: "<p>في النون نحترم خصوصيتك. نجمع فقط المعلومات اللازمة لمعالجة طلباتك وتحسين تجربتك. نحن لا نبيع بياناتك لأطراف ثالثة.</p><p>لأي استفسارات، تواصل معنا على التفاصيل المذكورة في صفحة اتصل بنا.</p>"
+      }
+    },
+    {
+      slug: "return-policy",
+      title: { en: "Return Policy", ar: "سياسة الإرجاع" },
+      content: {
+        en: "<p>Items can be returned within 14 days of delivery if unused and in original packaging. Refunds are processed within 5–7 business days.</p><p>To start a return, contact us with your order number and reason.</p>",
+        ar: "<p>يمكن إرجاع المنتجات خلال 14 يوماً من الاستلام إذا كانت غير مستخدمة وفي الغلاف الأصلي. تتم معالجة الاسترداد خلال 5–7 أيام عمل.</p><p>لبدء إرجاع، تواصل معنا برقم الطلب والسبب.</p>"
+      }
+    },
+    {
+      slug: "shipping-policy",
+      title: { en: "Shipping Policy", ar: "سياسة الشحن" },
+      content: {
+        en: "<p>We ship across Egypt. Delivery fees vary by city and are shown at checkout. Orders are typically dispatched within 1–2 business days. Delivery usually takes 2–5 business days depending on your location.</p>",
+        ar: "<p>نشحن إلى جميع أنحاء مصر. رسوم التوصيل تختلف حسب المحافظة وتظهر عند الدفع. يتم إرسال الطلبات عادة خلال 1–2 يوم عمل. التوصيل يستغرق عادة 2–5 أيام عمل حسب موقعك.</p>"
+      }
+    },
+    {
+      slug: "about",
+      title: { en: "About Us", ar: "من نحن" },
+      content: {
+        en: "<p>Al-noon offers modest wear for every occasion—abayas, capes, malhafa, hijab, niqab, and more. We focus on quality, comfort, and style.</p><p>Thank you for choosing Al-noon.</p>",
+        ar: "<p>النون تقدم ملابس محتشمة لكل مناسبة—عبايات، كابات، ملحفة، حجاب، نقاب، والمزيد. نركز على الجودة والراحة والأناقة.</p><p>شكراً لاختياركم النون.</p>"
+      }
+    }
+  ];
+  const heroImage = "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&q=80";
   await Settings.create({
     storeName: { en: "Al-noon", ar: "النون" },
     instaPayNumber: "+20 10 000 0000",
     paymentMethods: { cod: true, instaPay: true },
-    lowStockThreshold: 5
+    lowStockThreshold: 5,
+    quickLinks: [
+      { label: { en: "Privacy", ar: "الخصوصية" }, url: "/page/privacy" },
+      { label: { en: "Return Policy", ar: "سياسة الإرجاع" }, url: "/page/return-policy" },
+      { label: { en: "Shipping", ar: "الشحن" }, url: "/page/shipping-policy" },
+      { label: { en: "About", ar: "من نحن" }, url: "/page/about" }
+    ],
+    socialLinks: { facebook: "https://facebook.com", instagram: "https://instagram.com" },
+    newsletterEnabled: true,
+    hero: {
+      images: [heroImage],
+      videos: [],
+      title: { en: "Modest Wear for Every Occasion", ar: "ملابس محتشمة لكل مناسبة" },
+      subtitle: { en: "Abayas, capes, hijab & more", ar: "عبايات، كابات، حجاب والمزيد" },
+      ctaLabel: { en: "Shop Now", ar: "تسوق الآن" },
+      ctaUrl: "/products"
+    },
+    heroEnabled: true,
+    newArrivalsLimit: 8,
+    newArrivalsSectionImages: [],
+    newArrivalsSectionVideos: [],
+    homeCollectionsDisplayLimit: 0,
+    ourCollectionSectionImages: [],
+    ourCollectionSectionVideos: [],
+    homeCollections: [
+      { title: { en: "Abayas", ar: "عبايات" }, image: IMAGES.abaya1, url: "/products?category=abayas", order: 1 },
+      { title: { en: "Capes", ar: "كابات" }, image: IMAGES.cape1, url: "/products?category=capes", order: 2 },
+      { title: { en: "Hijab", ar: "حجاب" }, image: IMAGES.hijab1, url: "/products?category=hijab", order: 3 },
+      { title: { en: "Malhafa", ar: "ملحفة" }, image: IMAGES.fabric1, url: "/products?category=malhafa", order: 4 }
+    ],
+    contentPages
   });
-  console.log("Created settings.");
+  console.log("Created settings (with content pages, hero, home collections).");
 
   // ----- Products (Sawdah-inspired + Hijab/Niqab/Tarha, prices in EGP) -----
   await Product.deleteMany({});
@@ -153,6 +221,32 @@ async function seed() {
     await Order.insertMany(ordersData);
     console.log(`Created ${ordersData.length} orders.`);
   }
+
+  // ----- Contact form submissions (Contact Submissions page) -----
+  await ContactSubmission.deleteMany({});
+  const contactData = [
+    { name: "Noura Mohamed", email: "noura.m@example.com", phone: "+20 100 111 2233", comment: "When will the Melton Abaya be back in size M? Thank you." },
+    { name: "Heba Ali", email: "heba.ali@example.com", phone: "", comment: "Do you ship to Alexandria? What is the delivery time?" },
+    { name: "Aisha Hassan", email: "aisha.h@example.com", phone: "+20 122 333 4455", comment: "I would like to exchange my order #1234 for a different color. How can I do that?" },
+    { name: "Yasmin Ibrahim", email: "yasmin@example.com", phone: "+20 155 666 7788", comment: "Great quality! When will you have more Wool Cape in Camel?" },
+    { name: "Layla Ahmed", email: "layla.a@example.com", phone: "", comment: "Do you have a physical store? I would like to try the abayas before buying." }
+  ];
+  await ContactSubmission.insertMany(contactData);
+  console.log(`Created ${contactData.length} contact submissions.`);
+
+  // ----- Newsletter subscribers (Subscribers page) -----
+  await Subscriber.deleteMany({});
+  const subscribersData = [
+    { email: "sara.ahmed@example.com" },
+    { email: "fatma.hassan@example.com" },
+    { email: "mariam.ali@example.com" },
+    { email: "newsletter@example.com" },
+    { email: "customer1@test.com" },
+    { email: "customer2@test.com" },
+    { email: "subscriber@alnoon.local" }
+  ];
+  await Subscriber.insertMany(subscribersData);
+  console.log(`Created ${subscribersData.length} subscribers.`);
 
   console.log("\nSeed completed. You can log in with admin@localhost / admin123");
   await mongoose.disconnect();
