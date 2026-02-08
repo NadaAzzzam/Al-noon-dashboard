@@ -56,13 +56,13 @@ export const getStore = asyncHandler(async (_req, res) => {
   const hero = normalizeHero(s?.hero as { image?: string; images?: string[]; videos?: string[] } | null);
   const newArrivalsImages = Array.isArray((s as { newArrivalsSectionImages?: string[] })?.newArrivalsSectionImages)
     ? (s as { newArrivalsSectionImages: string[] }).newArrivalsSectionImages
-    : ((s as { newArrivalsSectionImage?: string })?.newArrivalsSectionImage ? [(s as { newArrivalsSectionImage: string }).newArrivalsSectionImage] : storeDefaults.newArrivalsSectionImages);
+    : ((s as unknown as { newArrivalsSectionImage?: string })?.newArrivalsSectionImage ? [(s as unknown as { newArrivalsSectionImage: string }).newArrivalsSectionImage] : storeDefaults.newArrivalsSectionImages);
   const newArrivalsVideos = Array.isArray((s as { newArrivalsSectionVideos?: string[] })?.newArrivalsSectionVideos)
     ? (s as { newArrivalsSectionVideos: string[] }).newArrivalsSectionVideos
     : storeDefaults.newArrivalsSectionVideos;
   const ourCollectionImages = Array.isArray((s as { ourCollectionSectionImages?: string[] })?.ourCollectionSectionImages)
     ? (s as { ourCollectionSectionImages: string[] }).ourCollectionSectionImages
-    : ((s as { ourCollectionSectionImage?: string })?.ourCollectionSectionImage ? [(s as { ourCollectionSectionImage: string }).ourCollectionSectionImage] : storeDefaults.ourCollectionSectionImages);
+    : ((s as unknown as { ourCollectionSectionImage?: string })?.ourCollectionSectionImage ? [(s as unknown as { ourCollectionSectionImage: string }).ourCollectionSectionImage] : storeDefaults.ourCollectionSectionImages);
   const ourCollectionVideos = Array.isArray((s as { ourCollectionSectionVideos?: string[] })?.ourCollectionSectionVideos)
     ? (s as { ourCollectionSectionVideos: string[] }).ourCollectionSectionVideos
     : storeDefaults.ourCollectionSectionVideos;

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Order } from "../models/Order.js";
 import { Payment } from "../models/Payment.js";
 import { Product } from "../models/Product.js";
@@ -34,7 +35,7 @@ export const confirmPayment = asyncHandler(async (req, res) => {
   payment.status = approved ? "PAID" : "UNPAID";
   if (approved) {
     payment.approvedAt = new Date();
-    payment.approvedBy = req.auth?.userId;
+    payment.approvedBy = req.auth?.userId ? new mongoose.Types.ObjectId(req.auth.userId) : undefined;
   } else {
     payment.approvedAt = undefined;
     payment.approvedBy = undefined;
