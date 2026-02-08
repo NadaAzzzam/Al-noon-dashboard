@@ -97,15 +97,18 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Unauthorized", { code: "errors.auth.unauthorized" });
   }
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const { items, paymentMethod, shippingAddress } = req.body;
-  const total = items.reduce(
+  const { items, paymentMethod, shippingAddress, deliveryFee } = req.body;
+  const subtotal = items.reduce(
     (sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price,
     0
   );
+  const fee = typeof deliveryFee === "number" && deliveryFee >= 0 ? deliveryFee : 0;
+  const total = subtotal + fee;
   const order = await Order.create({
     user: req.auth.userId,
     items,
     total,
+    deliveryFee: fee,
     paymentMethod: paymentMethod || "COD",
     shippingAddress
   });

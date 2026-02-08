@@ -245,6 +245,7 @@
     "order_id": "طلب {{id}}",
     "customer": "العميل",
     "address": "العنوان",
+    "delivery_fee": "رسوم التوصيل",
     "date": "التاريخ",
     "days_since_order": "الأيام منذ الطلب",
     "long_wait_notice": "هذا الطلب بانتظار منذ {{count}} أيام — يُفضّل معالجته.",
@@ -256,7 +257,8 @@
     "method": "الطريقة",
     "proof": "الإثبات",
     "view_screenshot": "عرض لقطة الشاشة",
-    "instapay_proof_placeholder": "رابط إثبات إنستاباي",
+    "view_proof": "عرض الإثبات",
+    "instapay_proof_placeholder": "اختر ملف (صورة أو PDF)",
     "attach_proof": "إرفاق الإثبات",
     "approve_payment": "الموافقة على الدفع",
     "reject": "رفض",
@@ -265,6 +267,8 @@
     "price": "السعر",
     "qty": "الكمية",
     "subtotal": "المجموع الفرعي",
+    "total_order_price": "إجمالي الطلب",
+    "delivery_fees": "رسوم التوصيل",
     "total_label": "المجموع",
     "failed_load": "فشل تحميل الطلب",
     "failed_status": "فشل تحديث الحالة",
@@ -275,6 +279,8 @@
   "customers": {
     "title": "العملاء",
     "subtitle": "عرض العملاء وسجل طلباتهم.",
+    "image": "الصورة",
+    "member_since": "عضو منذ",
     "orders_history": "سجل الطلبات",
     "no_orders": "لا توجد طلبات",
     "failed_load": "فشل تحميل العملاء"
@@ -282,6 +288,7 @@
   "customer_detail": {
     "back_customers": "← العملاء",
     "customer": "العميل",
+    "member_since": "عضو منذ",
     "orders_history": "سجل الطلبات",
     "no_orders": "لا توجد طلبات",
     "failed_load": "فشل التحميل"

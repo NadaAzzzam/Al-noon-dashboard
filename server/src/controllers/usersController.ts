@@ -10,7 +10,7 @@ export const listUsers = asyncHandler(async (req, res) => {
     return sendResponse(res, req.locale, { data: { users: [] } });
   }
   const users = await User.find()
-    .select("name email role createdAt")
+    .select("name email role avatar createdAt")
     .sort({ createdAt: -1 })
     .lean();
   sendResponse(res, req.locale, {
@@ -20,6 +20,7 @@ export const listUsers = asyncHandler(async (req, res) => {
         name: (u as { name: string }).name,
         email: (u as { email: string }).email,
         role: (u as { role: string }).role,
+        avatar: (u as { avatar?: string }).avatar,
         createdAt: (u as { createdAt: Date }).createdAt
       }))
     }
@@ -28,7 +29,7 @@ export const listUsers = asyncHandler(async (req, res) => {
 
 export const getCustomer = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const user = await User.findById(req.params.id).select("name email role createdAt").lean();
+  const user = await User.findById(req.params.id).select("name email role avatar createdAt updatedAt").lean();
   if (!user) {
     throw new ApiError(404, "Customer not found", { code: "errors.user.customer_not_found" });
   }
@@ -39,7 +40,9 @@ export const getCustomer = asyncHandler(async (req, res) => {
         name: (user as { name: string }).name,
         email: (user as { email: string }).email,
         role: (user as { role: string }).role,
-        createdAt: (user as { createdAt: Date }).createdAt
+        avatar: (user as { avatar?: string }).avatar,
+        createdAt: (user as { createdAt: Date }).createdAt,
+        updatedAt: (user as { updatedAt?: Date }).updatedAt
       }
     }
   });

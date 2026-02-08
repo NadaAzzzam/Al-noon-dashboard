@@ -16,6 +16,7 @@ const sectionsDir = path.resolve(__dirname, "../../uploads/sections");
 const sectionVideosDir = path.resolve(__dirname, "../../uploads/sections/videos");
 const promoDir = path.resolve(__dirname, "../../uploads/promo");
 const feedbackDir = path.resolve(__dirname, "../../uploads/feedback");
+const paymentProofDir = path.resolve(__dirname, "../../uploads/payment-proof");
 
 const logoStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, logosDir),
@@ -227,4 +228,30 @@ export const uploadFeedbackImage = multer({
 /** Public path for uploaded feedback/screenshot image. */
 export function feedbackImagePath(filename: string): string {
   return `/uploads/feedback/${filename}`;
+}
+
+const paymentProofStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, paymentProofDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || ".png";
+    const safeExt = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf"].includes(ext.toLowerCase()) ? ext : ".png";
+    cb(null, `proof-${Date.now()}-${Math.random().toString(36).slice(2, 9)}${safeExt}`);
+  }
+});
+
+const paymentProofFilter: multer.Options["fileFilter"] = (req, file, cb) => {
+  const imageOrPdf = /^image\/(png|jpeg|jpg|gif|webp)$/i.test(file.mimetype) || file.mimetype === "application/pdf";
+  if (imageOrPdf) cb(null, true);
+  else cb(new ApiError(400, "Only images (PNG, JPG, GIF, WEBP) or PDF are allowed"));
+};
+
+export const uploadPaymentProof = multer({
+  storage: paymentProofStorage,
+  fileFilter: paymentProofFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }
+}).single("proof");
+
+/** Public path for uploaded payment proof (InstaPay screenshot/PDF). */
+export function paymentProofPath(filename: string): string {
+  return `/uploads/payment-proof/${filename}`;
 }

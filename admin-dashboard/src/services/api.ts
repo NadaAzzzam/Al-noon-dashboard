@@ -24,6 +24,8 @@ export type User = {
   name: string;
   email: string;
   role: "ADMIN" | "USER";
+  avatar?: string;
+  createdAt?: string;
 };
 
 export type LocalizedString = { en: string; ar: string };
@@ -106,6 +108,8 @@ export type Order = {
   _id: string;
   status: OrderStatus;
   total: number;
+  /** Delivery/shipping fee in EGP. */
+  deliveryFee?: number;
   paymentMethod?: "COD" | "INSTAPAY";
   shippingAddress?: string;
   user?: { name: string; email: string };
@@ -451,8 +455,25 @@ export const api = {
   updateOrderStatus: (id: string, status: OrderStatus) =>
     request(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   cancelOrder: (id: string) => request(`/orders/${id}/cancel`, { method: "POST" }),
-  attachPaymentProof: (orderId: string, instaPayProofUrl: string) =>
-    request(`/orders/${orderId}/payment-proof`, { method: "PATCH", body: JSON.stringify({ instaPayProofUrl }) }),
+  /** Upload InstaPay proof file (image or PDF). Attaches proof to the order payment. */
+  attachPaymentProof: async (orderId: string, file: File): Promise<void> => {
+    const token = getToken();
+    const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const formData = new FormData();
+    formData.set("proof", file);
+    const response = await fetch(`${API_BASE}/orders/${orderId}/payment-proof`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+    if (!response.ok) {
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
+    }
+  },
   confirmPayment: (orderId: string, approved: boolean) =>
     request(`/orders/${orderId}/payments/confirm`, { method: "POST", body: JSON.stringify({ approved }) }),
 

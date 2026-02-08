@@ -3,14 +3,15 @@ import { Order } from "../models/Order.js";
 import { Payment } from "../models/Payment.js";
 import { Product } from "../models/Product.js";
 import { isDbConnected } from "../config/db.js";
+import { paymentProofPath } from "../middlewares/upload.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
 
 export const attachPaymentProof = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const url = typeof req.body.instaPayProofUrl === "string" ? req.body.instaPayProofUrl.trim() : "";
-  if (!url) throw new ApiError(400, "Payment proof URL is required", { code: "errors.payment.proof_required" });
+  const file = req.file;
+  if (!file) throw new ApiError(400, "Payment proof file is required", { code: "errors.payment.proof_required" });
   const payment = await Payment.findOne({ order: req.params.id });
   if (!payment) {
     throw new ApiError(404, "Payment not found for this order", { code: "errors.payment.not_found" });
@@ -18,7 +19,7 @@ export const attachPaymentProof = asyncHandler(async (req, res) => {
   if (payment.method !== "INSTAPAY") {
     throw new ApiError(400, "Only InstaPay can have proof attached", { code: "errors.payment.instapay_only" });
   }
-  payment.instaPayProofUrl = url;
+  payment.instaPayProofUrl = paymentProofPath(file.filename);
   await payment.save();
   sendResponse(res, req.locale, { message: "success.payment.proof_attached", data: { payment } });
 });

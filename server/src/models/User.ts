@@ -8,6 +8,7 @@ export interface UserDocument {
   email: string;
   password: string;
   role: UserRole;
+  avatar?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -18,7 +19,8 @@ const userSchema = new Schema<UserDocument>(
     name: { type: String, required: true },
     email: { type: String, required: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ["ADMIN", "USER"], default: "USER" }
+    role: { type: String, enum: ["ADMIN", "USER"], default: "USER" },
+    avatar: { type: String, required: false }
   },
   { timestamps: true }
 );

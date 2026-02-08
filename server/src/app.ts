@@ -40,6 +40,7 @@ const uploadsSectionsDir = path.join(uploadsDir, "sections");
 const uploadsSectionVideosDir = path.join(uploadsDir, "sections", "videos");
 const uploadsPromoDir = path.join(uploadsDir, "promo");
 const uploadsFeedbackDir = path.join(uploadsDir, "feedback");
+const uploadsPaymentProofDir = path.join(uploadsDir, "payment-proof");
 if (!fs.existsSync(uploadsLogosDir)) fs.mkdirSync(uploadsLogosDir, { recursive: true });
 if (!fs.existsSync(uploadsProductsDir)) fs.mkdirSync(uploadsProductsDir, { recursive: true });
 if (!fs.existsSync(uploadsProductVideosDir)) fs.mkdirSync(uploadsProductVideosDir, { recursive: true });
@@ -50,6 +51,7 @@ if (!fs.existsSync(uploadsSectionsDir)) fs.mkdirSync(uploadsSectionsDir, { recur
 if (!fs.existsSync(uploadsSectionVideosDir)) fs.mkdirSync(uploadsSectionVideosDir, { recursive: true });
 if (!fs.existsSync(uploadsPromoDir)) fs.mkdirSync(uploadsPromoDir, { recursive: true });
 if (!fs.existsSync(uploadsFeedbackDir)) fs.mkdirSync(uploadsFeedbackDir, { recursive: true });
+if (!fs.existsSync(uploadsPaymentProofDir)) fs.mkdirSync(uploadsPaymentProofDir, { recursive: true });
 
 export const createApp = () => {
   initLocales();

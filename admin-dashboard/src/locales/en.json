@@ -246,6 +246,7 @@
     "order_id": "Order {{id}}",
     "customer": "Customer",
     "address": "Address",
+    "delivery_fee": "Delivery fee",
     "date": "Date",
     "days_since_order": "Days since order",
     "long_wait_notice": "This order has been waiting {{count}} days — consider prioritizing.",
@@ -257,7 +258,8 @@
     "method": "Method",
     "proof": "Proof",
     "view_screenshot": "View screenshot",
-    "instapay_proof_placeholder": "InstaPay proof URL",
+    "view_proof": "View proof",
+    "instapay_proof_placeholder": "Choose file (image or PDF)",
     "attach_proof": "Attach proof",
     "approve_payment": "Approve payment",
     "reject": "Reject",
@@ -266,6 +268,8 @@
     "price": "Price",
     "qty": "Qty",
     "subtotal": "Subtotal",
+    "total_order_price": "Total order price",
+    "delivery_fees": "Delivery fees",
     "total_label": "Total",
     "failed_load": "Failed to load order",
     "failed_status": "Failed to update status",
@@ -276,6 +280,8 @@
   "customers": {
     "title": "Customers",
     "subtitle": "View customers and their order history.",
+    "image": "Image",
+    "member_since": "Member since",
     "orders_history": "Orders history",
     "no_orders": "No orders",
     "failed_load": "Failed to load customers"
@@ -283,6 +289,7 @@
   "customer_detail": {
     "back_customers": "← Customers",
     "customer": "Customer",
+    "member_since": "Member since",
     "orders_history": "Orders history",
     "no_orders": "No orders",
     "failed_load": "Failed to load"

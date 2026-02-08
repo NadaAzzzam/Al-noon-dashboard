@@ -8,6 +8,7 @@ import {
   Order,
   OrderStatus,
   getProductImageUrl,
+  getUploadsBaseUrl,
 } from "../services/api";
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
@@ -26,7 +27,7 @@ const OrderDetailPage = () => {
   const localized = useLocalized();
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
-  const [proofUrl, setProofUrl] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
 
@@ -82,11 +83,11 @@ const OrderDetailPage = () => {
 
   const attachProof = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !proofUrl.trim()) return;
+    if (!id || !proofFile) return;
     setError(null);
     try {
-      await api.attachPaymentProof(id, proofUrl.trim());
-      setProofUrl("");
+      await api.attachPaymentProof(id, proofFile);
+      setProofFile(null);
       load();
     } catch (err) {
       setError(
@@ -194,6 +195,10 @@ const OrderDetailPage = () => {
           </p>
         )}
         <p>
+          <strong>{t("order_detail.delivery_fee")}:</strong>{" "}
+          {formatPriceEGP(order.deliveryFee ?? 0)}
+        </p>
+        <p>
           <strong>{t("order_detail.status")}:</strong>{" "}
           <select
             value={order.status}
@@ -232,11 +237,11 @@ const OrderDetailPage = () => {
               <p>
                 <strong>{t("order_detail.proof")}:</strong>{" "}
                 <a
-                  href={payment.instaPayProofUrl}
+                  href={payment.instaPayProofUrl.startsWith("http") ? payment.instaPayProofUrl : getUploadsBaseUrl() + payment.instaPayProofUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {t("order_detail.view_screenshot")}
+                  {t("order_detail.view_proof")}
                 </a>
               </p>
             ) : (
@@ -247,16 +252,21 @@ const OrderDetailPage = () => {
                   gap: 8,
                   alignItems: "center",
                   marginTop: 8,
+                  flexWrap: "wrap",
                 }}
               >
                 <input
-                  type="url"
-                  placeholder={t("order_detail.instapay_proof_placeholder")}
-                  value={proofUrl}
-                  onChange={(e) => setProofUrl(e.target.value)}
-                  style={{ flex: 1, maxWidth: 320 }}
+                  type="file"
+                  id="order-payment-proof"
+                  accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,application/pdf"
+                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                  style={{ flex: "1 1 200px", minWidth: 0 }}
                 />
-                <button className="button" type="submit">
+                <button
+                  className="button"
+                  type="submit"
+                  disabled={!proofFile}
+                >
                   {t("order_detail.attach_proof")}
                 </button>
               </form>
@@ -334,11 +344,30 @@ const OrderDetailPage = () => {
             })}
           </tbody>
         </table>
-        <p>
-          <strong>
-            {t("order_detail.total_label")}: {formatPriceEGP(order.total)}
-          </strong>
-        </p>
+        {(() => {
+          const itemsSubtotal = (order.items ?? []).reduce(
+            (sum, item) => sum + (item.quantity ?? 0) * (item.price ?? 0),
+            0
+          );
+          const deliveryFee = order.deliveryFee ?? 0;
+          return (
+            <>
+              <p>
+                <strong>{t("order_detail.total_order_price")}:</strong>{" "}
+                {formatPriceEGP(itemsSubtotal)}
+              </p>
+              <p>
+                <strong>{t("order_detail.delivery_fees")}:</strong>{" "}
+                {formatPriceEGP(deliveryFee)}
+              </p>
+              <p>
+                <strong>
+                  {t("order_detail.total_label")}: {formatPriceEGP(order.total)}
+                </strong>
+              </p>
+            </>
+          );
+        })()}
       </div>
     </div>
   );

@@ -12,6 +12,8 @@ export interface OrderDocument {
   user: mongoose.Types.ObjectId;
   items: OrderItem[];
   total: number;
+  /** Delivery/shipping fee in EGP. Optional for backwards compatibility. */
+  deliveryFee?: number;
   status: OrderStatus;
   paymentMethod?: "COD" | "INSTAPAY";
   shippingAddress?: string;
@@ -33,6 +35,7 @@ const orderSchema = new Schema<OrderDocument>(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     items: { type: [orderItemSchema], required: true },
     total: { type: Number, required: true },
+    deliveryFee: { type: Number, default: 0, min: 0 },
     status: {
       type: String,
       enum: ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"],

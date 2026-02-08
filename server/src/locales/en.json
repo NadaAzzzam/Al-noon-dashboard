@@ -28,7 +28,7 @@
     "payment": {
       "not_found": "Payment not found for this order",
       "instapay_only": "Only InstaPay payments can be processed",
-      "proof_required": "Payment proof URL is required"
+      "proof_required": "Payment proof file is required"
     },
     "city": {
       "not_found": "City not found",

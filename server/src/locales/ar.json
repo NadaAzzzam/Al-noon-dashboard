@@ -28,7 +28,7 @@
     "payment": {
       "not_found": "لم يتم العثور على دفعة لهذا الطلب",
       "instapay_only": "يمكن معالجة مدفوعات InstaPay فقط",
-      "proof_required": "رابط إثبات الدفع مطلوب"
+      "proof_required": "ملف إثبات الدفع مطلوب"
     },
     "city": {
       "not_found": "المدينة غير موجودة",
