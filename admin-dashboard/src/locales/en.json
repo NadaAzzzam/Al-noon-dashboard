@@ -261,6 +261,8 @@
     "view_proof": "View proof",
     "instapay_proof_placeholder": "Choose file (image or PDF)",
     "attach_proof": "Attach proof",
+    "preview_before_attach": "Preview — click “Attach proof” to upload.",
+    "proof_image_load_error": "Image could not be loaded. Use the link above to open the proof.",
     "approve_payment": "Approve payment",
     "reject": "Reject",
     "items": "Items",

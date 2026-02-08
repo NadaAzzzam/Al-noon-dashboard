@@ -260,6 +260,8 @@
     "view_proof": "عرض الإثبات",
     "instapay_proof_placeholder": "اختر ملف (صورة أو PDF)",
     "attach_proof": "إرفاق الإثبات",
+    "preview_before_attach": "معاينة — انقر «إرفاق الإثبات» للرفع.",
+    "proof_image_load_error": "تعذر تحميل الصورة. استخدم الرابط أعلاه لفتح الإثبات.",
     "approve_payment": "الموافقة على الدفع",
     "reject": "رفض",
     "items": "العناصر",

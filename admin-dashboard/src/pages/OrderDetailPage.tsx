@@ -23,6 +23,11 @@ function isProofImageUrl(url: string): boolean {
   const pathname = url.split("?")[0];
   return /\.(png|jpe?g|gif|webp)$/i.test(pathname);
 }
+
+/** True if the file is an image (by MIME type). */
+function isImageFile(file: File): boolean {
+  return file.type.startsWith("image/");
+}
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
 import { daysSinceOrder, isLongWait } from "../utils/orderUtils";
@@ -41,8 +46,29 @@ const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
+  const [proofImageLoadError, setProofImageLoadError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
+
+  // Object URL for selected proof file preview (revoke on change/unmount)
+  useEffect(() => {
+    if (proofFile && isImageFile(proofFile)) {
+      const url = URL.createObjectURL(proofFile);
+      setProofPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+        setProofPreviewUrl(null);
+      };
+    }
+    setProofPreviewUrl(null);
+    return undefined;
+  }, [proofFile]);
+
+  // Reset proof image error when proof URL changes (e.g. new upload or different order)
+  useEffect(() => {
+    setProofImageLoadError(false);
+  }, [order?.payment?.instaPayProofUrl]);
 
   const load = async () => {
     if (!id) return;
@@ -273,6 +299,30 @@ const OrderDetailPage = () => {
                 {t("order_detail.attach_proof")}
               </button>
             </form>
+            {proofPreviewUrl && (
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  alignItems: "flex-start",
+                }}
+              >
+                <img
+                  src={proofPreviewUrl}
+                  alt={t("order_detail.proof")}
+                  style={{
+                    maxHeight: 280,
+                    maxWidth: 360,
+                    objectFit: "contain",
+                    border: "1px solid var(--color-border, #e0e0e0)",
+                    borderRadius: 8,
+                  }}
+                />
+                <span style={{ marginLeft: 8, color: "var(--color-muted, #666)", fontSize: 14 }}>
+                  {t("order_detail.preview_before_attach")}
+                </span>
+              </div>
+            )}
             {payment?.instaPayProofUrl && (
               <>
                 <p style={{ marginTop: 8, marginBottom: 4 }}>
@@ -292,20 +342,24 @@ const OrderDetailPage = () => {
                       alignItems: "flex-start",
                     }}
                   >
-                    <img
-                      src={getProofFullUrl(payment.instaPayProofUrl)}
-                      alt={t("order_detail.proof")}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                      style={{
-                        maxHeight: 280,
-                        maxWidth: 360,
-                        objectFit: "contain",
-                        border: "1px solid var(--color-border, #e0e0e0)",
-                        borderRadius: 8,
-                      }}
-                    />
+                    {proofImageLoadError ? (
+                      <p style={{ color: "var(--color-muted, #666)", margin: 0, fontSize: 14 }}>
+                        {t("order_detail.proof_image_load_error")}
+                      </p>
+                    ) : (
+                      <img
+                        src={getProofFullUrl(payment.instaPayProofUrl)}
+                        alt={t("order_detail.proof")}
+                        onError={() => setProofImageLoadError(true)}
+                        style={{
+                          maxHeight: 280,
+                          maxWidth: 360,
+                          objectFit: "contain",
+                          border: "1px solid var(--color-border, #e0e0e0)",
+                          borderRadius: 8,
+                        }}
+                      />
+                    )}
                   </div>
                 )}
                 {payment?.status === "UNPAID" && (
