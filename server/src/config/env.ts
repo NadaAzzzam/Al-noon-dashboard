@@ -6,9 +6,13 @@ dotenv.config();
 // For local dev, set PORT=4000 in server/.env.
 const defaultPort = 8080;
 const rawPort = process.env.PORT ? Number(process.env.PORT) : defaultPort;
-// On Fly.io, internal_port in fly.toml is 8080; use it so the app works even if PORT=4000 was set in secrets.
-const port =
-  process.env.FLY_APP_NAME && rawPort === 4000 ? 8080 : rawPort;
+// In production/cloud, always use 8080 so the platform can reach the app (even if .env has PORT=4000).
+const isCloud =
+  process.env.NODE_ENV === "production" ||
+  process.env.FLY_APP_NAME ||
+  process.env.RENDER_EXTERNAL_URL ||
+  process.env.RAILWAY_ENVIRONMENT;
+const port = isCloud && rawPort === 4000 ? defaultPort : rawPort;
 export const env = {
   port,
   mongoUri: process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/al-noon-node",
