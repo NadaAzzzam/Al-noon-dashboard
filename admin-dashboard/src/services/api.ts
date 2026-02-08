@@ -268,6 +268,46 @@ export type ProductFeedback = {
   updatedAt?: string;
 };
 
+export type ReportsTab = "sales" | "orders" | "products" | "customers";
+
+export type SalesReportData = {
+  totalRevenue: number;
+  totalOrders: number;
+  averageOrderValue: number;
+  totalDeliveryFees: number;
+  revenueOverTime: { _id: string; revenue: number }[];
+  ordersOverTime: { _id: string; count: number }[];
+  revenueByPaymentMethod: { _id: string; revenue: number; count: number }[];
+  revenueByCategory: { _id: string; categoryName?: LocalizedString; revenue: number }[];
+};
+
+export type OrdersReportData = {
+  totalOrders: number;
+  cancellationRate: number;
+  avgProcessingDays: number;
+  statusBreakdown: { status: string; count: number }[];
+  ordersByPaymentMethod: { _id: string; count: number; revenue: number }[];
+  topOrders: { _id: string; total: number; status: string; paymentMethod?: string; user?: { name: string; email: string }; createdAt: string }[];
+};
+
+export type ProductsReportData = {
+  bestSelling: { _id: string; name: LocalizedString; image?: string; price?: number; totalQty: number; totalRevenue: number }[];
+  worstSelling: { _id: string; name: LocalizedString; image?: string; totalQty: number; totalRevenue: number }[];
+  productsByCategory: { _id: string; categoryName?: LocalizedString; count: number }[];
+  lowStockItems: { _id: string; name: LocalizedString; image?: string; stock: number; price: number }[];
+  topRated: { _id: string; name: LocalizedString; image?: string; avgRating: number; ratingCount: number }[];
+};
+
+export type CustomersReportData = {
+  newCustomersCount: number;
+  repeatCustomers: number;
+  newCustomersInPeriod: number;
+  avgLifetimeValue: number;
+  newCustomersOverTime: { _id: string; count: number }[];
+  topCustomers: { _id: string; name: string; email: string; totalSpent: number; orderCount: number }[];
+  orderFrequency: { orders: number; customers: number }[];
+};
+
 /** Thrown for any non-2xx API response. Backend sends { success: false, message, code, data: null }. */
 export class ApiError extends Error {
   constructor(
@@ -676,6 +716,17 @@ export const api = {
     const data = resBody?.data ?? resBody;
     return data?.video ?? "";
   },
+  getReports: (params: { tab: ReportsTab; startDate?: string; endDate?: string; status?: string; paymentMethod?: string; category?: string }) => {
+    const sp = new URLSearchParams();
+    sp.set("tab", params.tab);
+    if (params.startDate) sp.set("startDate", params.startDate);
+    if (params.endDate) sp.set("endDate", params.endDate);
+    if (params.status) sp.set("status", params.status);
+    if (params.paymentMethod) sp.set("paymentMethod", params.paymentMethod);
+    if (params.category) sp.set("category", params.category);
+    return request(`/reports?${sp.toString()}`);
+  },
+
   /** Upload promotional banner image. Returns image path. */
   uploadPromoImage: async (file: File): Promise<string> => {
     const token = getToken();

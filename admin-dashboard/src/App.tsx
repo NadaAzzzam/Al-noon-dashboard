@@ -18,6 +18,7 @@ import ContentPagesPage from "./pages/ContentPagesPage";
 import HomePageSettingsPage from "./pages/HomePageSettingsPage";
 import SettingsPage from "./pages/SettingsPage";
 import SubscribersPage from "./pages/SubscribersPage";
+import ReportsPage from "./pages/ReportsPage";
 import UsersPage from "./pages/UsersPage";
 import { getToken } from "./services/api";
 
@@ -40,6 +41,7 @@ const App = () => (
       }
     >
       <Route index element={<DashboardPage />} />
+      <Route path="reports" element={<ReportsPage />} />
       <Route path="products" element={<ProductsPage />} />
       <Route path="products/new" element={<ProductFormPage />} />
       <Route path="products/:id/edit" element={<ProductFormPage />} />

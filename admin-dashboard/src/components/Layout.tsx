@@ -11,6 +11,11 @@ const IconDashboard = () => (
     <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
   </svg>
 );
+const IconReports = () => (
+  <svg className="nav-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+);
 const IconProducts = () => (
   <svg className="nav-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
@@ -92,6 +97,7 @@ const getBreadcrumb = (pathname: string): string => {
     "/contact": "nav.contact",
     "/feedback": "nav.feedback",
     "/settings": "nav.settings",
+    "/reports": "nav.reports",
     "/settings/home": "settings.tab_home_page",
     "/settings/content-pages": "settings.tab_content_pages",
   };
@@ -177,6 +183,9 @@ const Layout = () => {
           <p className="nav-group-label">{t("nav.overview")}</p>
           <NavLink className="nav-link" to="/" end>
             <IconDashboard /> {t("nav.overview")}
+          </NavLink>
+          <NavLink className="nav-link" to="/reports">
+            <IconReports /> {t("nav.reports")}
           </NavLink>
 
           <p className="nav-group-label">{t("nav.store_group", "Store")}</p>
