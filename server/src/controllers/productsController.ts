@@ -149,8 +149,8 @@ export const listProducts = asyncHandler(async (req, res) => {
   } else {
     const sortOption: Record<string, 1 | -1> =
       sort === "nameAsc" ? { "name.en": 1 } :
-      sort === "nameDesc" ? { "name.en": -1 } :
-      { createdAt: -1 };
+        sort === "nameDesc" ? { "name.en": -1 } :
+          { createdAt: -1 };
     products = await Product.find(filter)
       .populate("category", "name status")
       .sort(sortOption)
