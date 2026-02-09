@@ -23,6 +23,7 @@ import contactRoutes from "./routes/contactRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import reportsRoutes from "./routes/reportsRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import { swaggerSpec } from "./swagger.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { initLocales, localeMiddleware } from "./middlewares/locale.js";
@@ -70,7 +71,23 @@ export const createApp = () => {
       },
     })
   );
-  app.use(cors({ origin: env.clientUrl, credentials: true }));
+  const allowedOrigins = [
+    env.clientUrl,
+    "http://localhost:5173",
+    "http://localhost:4200",
+  ].filter(Boolean);
+  const originSet = new Set(allowedOrigins);
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        if (!origin || originSet.has(origin)) return cb(null, true);
+        if (process.env.NODE_ENV !== "production" && /^https?:\/\/localhost(:\d+)?$/.test(origin))
+          return cb(null, true);
+        return cb(null, false);
+      },
+      credentials: true,
+    })
+  );
   app.use(cookieParser());
   app.use(express.json());
   app.use(morgan("dev"));
@@ -80,6 +97,56 @@ export const createApp = () => {
   app.get("/api/health", (req, res) => {
     sendResponse(res, req.locale, { data: { status: "ok", dbConnected: isDbConnected() } });
   });
+
+  // Swagger UI: custom HTML so we control which initializer runs; spec loaded by URL
+  const noStore = (res: express.Response) => res.set("Cache-Control", "no-store");
+  app.get(["/api-docs", "/api-docs/"], (req, res) => {
+    noStore(res);
+    res.type("text/html");
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Al-Noon API Docs</title>
+  <link rel="stylesheet" href="/api-docs/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="/api-docs/swagger-ui-bundle.js"></script>
+  <script src="/api-docs/swagger-ui-standalone-preset.js"></script>
+  <script src="/api-docs/swagger-initializer.js"></script>
+</body>
+</html>`);
+  });
+  app.get("/api-docs/spec.json", (_req, res) => {
+    noStore(res);
+    const spec = JSON.parse(JSON.stringify(swaggerSpec));
+    res.type("application/json");
+    res.send(JSON.stringify(spec));
+  });
+  app.get("/api-docs/swagger-initializer.js", (_req, res) => {
+    noStore(res);
+    res.type("application/javascript");
+    res.send(
+      `window.onload = function() {
+  fetch("/api-docs/spec.json")
+    .then(function(r) { return r.json(); })
+    .then(function(spec) {
+      window.ui = SwaggerUIBundle({
+        spec: spec,
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        docExpansion: 'list',
+        presets: [ SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset ],
+        plugins: [ SwaggerUIBundle.plugins.DownloadUrl ],
+        layout: "StandaloneLayout"
+      });
+    })
+    .catch(function(e) { console.error("Failed to load spec", e); });
+};`
+    );
+  });
+  app.use("/api-docs", express.static(path.join(__dirname, "../node_modules/swagger-ui-dist")));
 
   app.use("/api/auth", authRoutes);
   app.use("/api/store", storeRoutes);
