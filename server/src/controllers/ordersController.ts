@@ -69,11 +69,31 @@ export const listOrders = asyncHandler(async (req, res) => {
   });
 });
 
+const DELETED_PRODUCT_PLACEHOLDER = { name: { en: "Deleted product", ar: "منتج محذوف" } } as const;
+
+function normalizeOrderItemProduct(item: { product: unknown; quantity: number; price: number }) {
+  const product = item.product;
+  if (product && typeof product === "object" && !Array.isArray(product) && "name" in product) {
+    const p = product as { _id?: unknown; name?: { en?: string; ar?: string }; images?: string[]; price?: number; discountPrice?: number };
+    return {
+      _id: p._id != null ? String(p._id) : undefined,
+      name: p.name && typeof p.name === "object" ? { en: p.name.en ?? "", ar: p.name.ar ?? "" } : DELETED_PRODUCT_PLACEHOLDER.name,
+      images: Array.isArray(p.images) ? p.images : [],
+      ...(p.price !== undefined && { price: p.price }),
+      ...(p.discountPrice !== undefined && { discountPrice: p.discountPrice })
+    };
+  }
+  const id = product != null && typeof product === "object" && "_id" in product
+    ? String((product as { _id: unknown })._id)
+    : product != null ? String(product) : "";
+  return { _id: id, ...DELETED_PRODUCT_PLACEHOLDER, images: [] as string[] };
+}
+
 export const getOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const order = await Order.findById(req.params.id)
     .populate("user", "name email")
-    .populate("items.product", "name price discountPrice images stock");
+    .populate("items.product", "_id name price discountPrice images");
   if (!order) {
     throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
   }
@@ -85,10 +105,16 @@ export const getOrder = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Forbidden", { code: "errors.common.forbidden" });
   }
   const payment = await Payment.findOne({ order: order._id }).lean();
+  const orderObj = order.toObject();
+  const items = Array.isArray(orderObj.items) ? orderObj.items.map((item: { product: unknown; quantity: number; price: number }) => ({
+    ...item,
+    product: normalizeOrderItemProduct(item)
+  })) : orderObj.items;
   sendResponse(res, req.locale, {
     data: {
       order: {
-        ...order.toObject(),
+        ...orderObj,
+        items,
         payment: payment ?? (order.paymentMethod ? { method: order.paymentMethod, status: "UNPAID" } : undefined)
       }
     }

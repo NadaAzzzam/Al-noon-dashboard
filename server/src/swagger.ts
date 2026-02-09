@@ -1390,6 +1390,11 @@ export const swaggerSpec = {
                       heroEnabled: { type: "boolean" },
                       newArrivalsLimit: { type: "integer" },
                       feedbackSectionEnabled: { type: "boolean" },
+                      feedbackDisplayLimit: { type: "integer", description: "Number of feedback items to show (0 = show all)" },
+                      newArrivalsSectionImages: { type: "array", items: { type: "string" }, description: "Section media for New Arrivals block" },
+                      newArrivalsSectionVideos: { type: "array", items: { type: "string" } },
+                      ourCollectionSectionImages: { type: "array", items: { type: "string" }, description: "Section media for Our Collection block" },
+                      ourCollectionSectionVideos: { type: "array", items: { type: "string" } },
                       feedbacks: { type: "array", items: { type: "object" } },
                     },
                   },
@@ -1704,9 +1709,24 @@ export const swaggerSpec = {
           },
           OrderItem: {
             type: "object",
-            description: "Order line item",
+            description: "Order line item. For GET /api/orders/:id, product is always populated (full or minimal if deleted).",
             properties: {
-              product: { type: "string", description: "Product ID or populated product" },
+              product: {
+                description: "Product ID (list) or populated product object (single order: _id, name { en, ar }, images; minimal object if product deleted)",
+                oneOf: [
+                  { type: "string" },
+                  {
+                    type: "object",
+                    properties: {
+                      _id: { type: "string" },
+                      name: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
+                      images: { type: "array", items: { type: "string" } },
+                      price: { type: "number" },
+                      discountPrice: { type: "number", nullable: true },
+                    },
+                  },
+                ],
+              },
               quantity: { type: "integer" },
               price: { type: "number" },
             },
