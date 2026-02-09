@@ -196,23 +196,7 @@ function buildPaths() {
     },
   };
 
-  // --- Products ---
-  const productItemSchema = {
-    type: "object",
-    properties: {
-      _id: { type: "string" },
-      name: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
-      slug: { type: "string" },
-      description: { type: "object" },
-      price: { type: "number" },
-      compareAtPrice: { type: "number", nullable: true },
-      images: { type: "array", items: { type: "string" } },
-      category: { type: "object", nullable: true },
-      status: { type: "string", enum: ["DRAFT", "PUBLISHED"] },
-      stock: { type: "integer" },
-    },
-  };
-
+  // --- Products (data shape: components/schemas/ProductData) ---
   paths["/api/products"] = {
     get: {
       operationId: "listProducts",
@@ -1260,6 +1244,86 @@ export const swaggerSpec = {
               totalPages: { type: "integer" },
             },
           },
+          // --- Product data contracts ---
+          LocalizedString: {
+            type: "object",
+            description: "en/ar localized text",
+            properties: { en: { type: "string" }, ar: { type: "string" } },
+          },
+          ProductCategoryRef: {
+            type: "object",
+            description: "Category when populated (list/detail)",
+            properties: {
+              _id: { type: "string" },
+              name: { $ref: "#/components/schemas/LocalizedString" },
+              status: { type: "string", enum: ["DRAFT", "PUBLISHED"] },
+            },
+          },
+          ProductData: {
+            type: "object",
+            description: "Product document (list item or single product)",
+            properties: {
+              _id: { type: "string" },
+              name: { $ref: "#/components/schemas/LocalizedString" },
+              description: { $ref: "#/components/schemas/LocalizedString", nullable: true },
+              category: {
+                oneOf: [
+                  { type: "string", description: "Category ID when not populated" },
+                  { $ref: "#/components/schemas/ProductCategoryRef" },
+                ],
+              },
+              price: { type: "number" },
+              discountPrice: { type: "number", nullable: true },
+              images: { type: "array", items: { type: "string" } },
+              imageColors: { type: "array", items: { type: "string" } },
+              videos: { type: "array", items: { type: "string" } },
+              stock: { type: "integer" },
+              status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
+              isNewArrival: { type: "boolean" },
+              sizes: { type: "array", items: { type: "string" } },
+              sizeDescriptions: { type: "array", items: { type: "string" } },
+              colors: { type: "array", items: { type: "string" } },
+              details: { $ref: "#/components/schemas/LocalizedString", nullable: true },
+              stylingTip: { $ref: "#/components/schemas/LocalizedString", nullable: true },
+              deletedAt: { type: "string", format: "date-time", nullable: true },
+              createdAt: { type: "string", format: "date-time" },
+              updatedAt: { type: "string", format: "date-time" },
+              averageRating: { type: "number", description: "Present on list when ratings exist", nullable: true },
+              ratingCount: { type: "integer", description: "Present on list", nullable: true },
+              soldQty: { type: "integer", description: "Present on list (units sold)", nullable: true },
+            },
+          },
+          ProductSingleData: {
+            type: "object",
+            description: "Payload for get/create/update/delete/status/stock (single product)",
+            required: ["product"],
+            properties: { product: { $ref: "#/components/schemas/ProductData" } },
+          },
+          InventoryProductsData: {
+            type: "object",
+            description: "Low-stock or out-of-stock list payload",
+            required: ["products"],
+            properties: {
+              products: { type: "array", items: { $ref: "#/components/schemas/ProductData" } },
+              threshold: { type: "integer", description: "Low-stock threshold (low-stock endpoint only)", nullable: true },
+            },
+          },
+          TopSellingItem: {
+            type: "object",
+            description: "Top selling item (productId, name, image, totalQty)",
+            properties: {
+              productId: { type: "string" },
+              name: { $ref: "#/components/schemas/LocalizedString" },
+              image: { type: "string", nullable: true },
+              totalQty: { type: "integer" },
+            },
+          },
+          TopSellingData: {
+            type: "object",
+            description: "Top selling products payload",
+            required: ["topSelling"],
+            properties: { topSelling: { type: "array", items: { $ref: "#/components/schemas/TopSellingItem" } } },
+          },
           Health: {
             type: "object",
             description: "Health check response",
@@ -1400,38 +1464,142 @@ export const swaggerSpec = {
           },
           PaginatedProductsResponse: {
             type: "object",
-            description: "Paginated products list",
+            description: "Full response body returned by list products: success, data (array), pagination. Optional message may be present.",
+            required: ["success", "data", "pagination"],
             properties: {
-              success: { type: "boolean", example: true },
+              success: { type: "boolean", example: true, description: "Always true on 200" },
+              message: { type: "string", nullable: true, description: "Optional i18n message" },
               data: {
-                type: "object",
-                properties: {
-                  products: { type: "array", items: { type: "object" } },
-                  pagination: { $ref: "#/components/schemas/Pagination" },
-                },
+                type: "array",
+                items: { $ref: "#/components/schemas/ProductData" },
+                description: "Products list (full product objects)",
               },
+              pagination: {
+                type: "object",
+                required: ["total", "page", "limit", "totalPages"],
+                properties: {
+                  total: { type: "integer", example: 42 },
+                  page: { type: "integer", example: 1 },
+                  limit: { type: "integer", example: 20 },
+                  totalPages: { type: "integer", example: 3 },
+                },
+                description: "Pagination metadata",
+              },
+            },
+            example: {
+              success: true,
+              data: [
+                {
+                  _id: "507f1f77bcf86cd799439011",
+                  name: { en: "Product name", ar: "اسم المنتج" },
+                  description: { en: "Description", ar: "الوصف" },
+                  category: { _id: "507f1f77bcf86cd799439012", name: { en: "Category", ar: "فئة" }, status: "PUBLISHED" },
+                  price: 99.99,
+                  discountPrice: 79.99,
+                  images: ["/uploads/1.jpg"],
+                  imageColors: [""],
+                  videos: [],
+                  stock: 10,
+                  status: "ACTIVE",
+                  isNewArrival: true,
+                  sizes: ["S", "M", "L"],
+                  sizeDescriptions: [],
+                  colors: ["Black"],
+                  details: null,
+                  stylingTip: null,
+                  deletedAt: null,
+                  createdAt: "2025-01-01T00:00:00.000Z",
+                  updatedAt: "2025-01-01T00:00:00.000Z",
+                  averageRating: 4.5,
+                  ratingCount: 12,
+                  soldQty: 25,
+                },
+              ],
+              pagination: { total: 42, page: 1, limit: 20, totalPages: 3 },
             },
           },
           ProductResponse: {
             type: "object",
-            description: "Single product",
+            description: "Full response body returned by get/create/update/delete/status/stock: success, optional message, data.product (single product).",
+            required: ["success", "data"],
             properties: {
-              success: { type: "boolean", example: true },
+              success: { type: "boolean", example: true, description: "Always true on 200/201" },
+              message: { type: "string", nullable: true, description: "Optional i18n message (e.g. success.product.updated)" },
               data: {
                 type: "object",
-                properties: { product: { type: "object" } },
+                required: ["product"],
+                properties: { product: { $ref: "#/components/schemas/ProductData" } },
+                description: "Single product payload",
+              },
+            },
+            example: {
+              success: true,
+              message: "Product updated successfully",
+              data: {
+                product: {
+                  _id: "507f1f77bcf86cd799439011",
+                  name: { en: "Product name", ar: "اسم المنتج" },
+                  description: { en: "Description", ar: "الوصف" },
+                  category: { _id: "507f1f77bcf86cd799439012", name: { en: "Category", ar: "فئة" }, status: "PUBLISHED" },
+                  price: 99.99,
+                  discountPrice: 79.99,
+                  images: ["/uploads/1.jpg"],
+                  imageColors: [""],
+                  videos: [],
+                  stock: 10,
+                  status: "ACTIVE",
+                  isNewArrival: true,
+                  sizes: ["S", "M", "L"],
+                  sizeDescriptions: [],
+                  colors: ["Black"],
+                  details: null,
+                  stylingTip: null,
+                  deletedAt: null,
+                  createdAt: "2025-01-01T00:00:00.000Z",
+                  updatedAt: "2025-01-01T00:00:00.000Z",
+                },
               },
             },
           },
           RelatedProductsResponse: {
             type: "object",
-            description: "Related products list",
+            description: "Full response body returned by related products: success, data (array of products).",
+            required: ["success", "data"],
             properties: {
-              success: { type: "boolean", example: true },
+              success: { type: "boolean", example: true, description: "Always true on 200" },
+              message: { type: "string", nullable: true, description: "Optional i18n message" },
               data: {
-                type: "object",
-                properties: { products: { type: "array", items: { type: "object" } } },
+                type: "array",
+                items: { $ref: "#/components/schemas/ProductData" },
+                description: "Related products (same category)",
               },
+            },
+            example: {
+              success: true,
+              data: [
+                {
+                  _id: "507f1f77bcf86cd799439013",
+                  name: { en: "Related product", ar: "منتج مرتبط" },
+                  description: { en: "Description", ar: "الوصف" },
+                  category: { _id: "507f1f77bcf86cd799439012", name: { en: "Category", ar: "فئة" }, status: "PUBLISHED" },
+                  price: 89.99,
+                  discountPrice: null,
+                  images: ["/uploads/2.jpg"],
+                  imageColors: [""],
+                  videos: [],
+                  stock: 5,
+                  status: "ACTIVE",
+                  isNewArrival: false,
+                  sizes: [],
+                  sizeDescriptions: [],
+                  colors: [],
+                  details: null,
+                  stylingTip: null,
+                  deletedAt: null,
+                  createdAt: "2025-01-01T00:00:00.000Z",
+                  updatedAt: "2025-01-01T00:00:00.000Z",
+                },
+              ],
             },
           },
           UploadUrlsResponse: {
@@ -1604,13 +1772,11 @@ export const swaggerSpec = {
           },
           InventoryListResponse: {
             type: "object",
-            description: "Products with low or zero stock",
+            description: "Full response: products with low or zero stock (data.products + optional data.threshold)",
+            required: ["success", "data"],
             properties: {
               success: { type: "boolean", example: true },
-              data: {
-                type: "object",
-                properties: { products: { type: "array", items: { type: "object" } } },
-              },
+              data: { $ref: "#/components/schemas/InventoryProductsData" },
             },
           },
           DashboardStatsResponse: {
@@ -1632,13 +1798,11 @@ export const swaggerSpec = {
           },
           TopSellingResponse: {
             type: "object",
-            description: "Top selling products",
+            description: "Full response: top selling products (data.topSelling)",
+            required: ["success", "data"],
             properties: {
               success: { type: "boolean", example: true },
-              data: {
-                type: "object",
-                properties: { topSelling: { type: "array", items: { type: "object" } } },
-              },
+              data: { $ref: "#/components/schemas/TopSellingData" },
             },
           },
           SettingsResponse: {
@@ -1666,64 +1830,150 @@ export const swaggerSpec = {
               },
             },
           },
+          // --- AI data contracts (reusable for data payload) ---
+          AiSettingsData: {
+            type: "object",
+            description: "AI widget settings payload",
+            required: ["enabled", "greeting", "suggestedQuestions"],
+            properties: {
+              enabled: { type: "boolean", description: "Whether AI assistant is enabled" },
+              greeting: {
+                type: "object",
+                required: ["en", "ar"],
+                properties: { en: { type: "string" }, ar: { type: "string" } },
+                description: "Greeting text (en/ar)",
+              },
+              suggestedQuestions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { en: { type: "string" }, ar: { type: "string" } },
+                },
+                description: "Suggested questions for the chat widget",
+              },
+            },
+          },
+          AiProductCard: {
+            type: "object",
+            description: "Product card shown in chat (id, name, image, productUrl)",
+            required: ["id", "name", "image", "productUrl"],
+            properties: {
+              id: { type: "string" },
+              name: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
+              image: { type: "string" },
+              productUrl: { type: "string" },
+            },
+          },
+          AiChatData: {
+            type: "object",
+            description: "AI chat reply payload (sessionId, response text, optional product cards)",
+            required: ["sessionId", "response", "productCards"],
+            properties: {
+              sessionId: { type: "string", description: "Session ID to continue the conversation" },
+              response: { type: "string", description: "Assistant reply text (plain, no [id:xxx] tags)" },
+              productCards: {
+                type: "array",
+                items: { $ref: "#/components/schemas/AiProductCard" },
+                description: "Product cards to display with this reply (if any)",
+              },
+            },
+          },
+          AiSessionListItem: {
+            type: "object",
+            description: "Session summary in list",
+            properties: {
+              id: { type: "string", description: "MongoDB _id" },
+              sessionId: { type: "string" },
+              messageCount: { type: "integer" },
+              customerName: { type: "string", nullable: true },
+              customerEmail: { type: "string", nullable: true },
+              status: { type: "string", enum: ["active", "closed"] },
+              createdAt: { type: "string", format: "date-time" },
+              updatedAt: { type: "string", format: "date-time" },
+            },
+          },
+          AiSessionsData: {
+            type: "object",
+            description: "Paginated sessions list payload",
+            required: ["sessions", "total", "page", "limit"],
+            properties: {
+              sessions: {
+                type: "array",
+                items: { $ref: "#/components/schemas/AiSessionListItem" },
+              },
+              total: { type: "integer", description: "Total session count" },
+              page: { type: "integer" },
+              limit: { type: "integer" },
+            },
+          },
+          AiChatMessage: {
+            type: "object",
+            description: "Single message in a chat session",
+            required: ["role", "content", "timestamp"],
+            properties: {
+              role: { type: "string", enum: ["user", "assistant"] },
+              content: { type: "string" },
+              timestamp: { type: "string", format: "date-time" },
+              productCards: {
+                type: "array",
+                items: { $ref: "#/components/schemas/AiProductCard" },
+                description: "Present only on assistant messages when products are suggested",
+              },
+            },
+          },
+          AiSessionDetailData: {
+            type: "object",
+            description: "Full session with all messages (Admin)",
+            required: ["id", "sessionId", "messages", "status", "createdAt", "updatedAt"],
+            properties: {
+              id: { type: "string", description: "MongoDB _id" },
+              sessionId: { type: "string" },
+              messages: {
+                type: "array",
+                items: { $ref: "#/components/schemas/AiChatMessage" },
+              },
+              customerName: { type: "string", nullable: true },
+              customerEmail: { type: "string", nullable: true },
+              status: { type: "string", enum: ["active", "closed"] },
+              createdAt: { type: "string", format: "date-time" },
+              updatedAt: { type: "string", format: "date-time" },
+            },
+          },
+          // --- AI full response contracts (success + data) ---
           AiSettingsResponse: {
             type: "object",
-            description: "AI settings (enabled, greeting, suggested questions)",
+            description: "Full response: AI settings (enabled, greeting, suggested questions)",
+            required: ["success", "data"],
             properties: {
               success: { type: "boolean", example: true },
-              data: {
-                type: "object",
-                properties: {
-                  enabled: { type: "boolean" },
-                  greeting: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
-                  suggestedQuestions: {
-                    type: "array",
-                    items: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
-                  },
-                },
-              },
+              data: { $ref: "#/components/schemas/AiSettingsData" },
             },
           },
           AiChatResponse: {
             type: "object",
-            description: "AI chat reply",
+            description: "Full response: AI chat reply and sessionId",
+            required: ["success", "data"],
             properties: {
               success: { type: "boolean", example: true },
-              data: {
-                type: "object",
-                properties: {
-                  reply: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
-                  sessionId: { type: "string" },
-                },
-              },
+              data: { $ref: "#/components/schemas/AiChatData" },
             },
           },
           AiSessionsResponse: {
             type: "object",
-            description: "Paginated AI sessions",
+            description: "Full response: paginated AI sessions list",
+            required: ["success", "data"],
             properties: {
               success: { type: "boolean", example: true },
-              data: {
-                type: "object",
-                properties: {
-                  sessions: { type: "array", items: { type: "object" } },
-                  pagination: { $ref: "#/components/schemas/Pagination" },
-                },
-              },
+              data: { $ref: "#/components/schemas/AiSessionsData" },
             },
           },
           AiSessionDetailResponse: {
             type: "object",
-            description: "AI session with messages",
+            description: "Full response: AI session with messages",
+            required: ["success", "data"],
             properties: {
               success: { type: "boolean", example: true },
-              data: {
-                type: "object",
-                properties: {
-                  session: { type: "object" },
-                  messages: { type: "array", items: { type: "object" } },
-                },
-              },
+              data: { $ref: "#/components/schemas/AiSessionDetailData" },
             },
           },
         },
