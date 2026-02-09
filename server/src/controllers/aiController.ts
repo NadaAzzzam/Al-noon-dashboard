@@ -290,6 +290,8 @@ export const postChat = asyncHandler(async (req, res) => {
     assistantText = await callGemini(apiKey, systemPrompt, chatTurns);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "AI request failed";
+    // Log the real cause so you can fix it (e.g. network, quota, blocked region, bad response)
+    console.error("[AI] Gemini request failed:", err instanceof Error ? err.message : err);
     if (msg === "RATE_LIMIT") {
       throw new ApiError(429, "Too many requests. Please try again in a minute.", { code: "errors.ai.rate_limit" });
     }
