@@ -8,7 +8,13 @@ export const listCategories = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
     return sendResponse(res, req.locale, { data: { categories: [] } });
   }
-  const categories = await Category.find().sort({ createdAt: -1 });
+  const statusParam = req.query.status as string | undefined;
+  const filter: Record<string, string> = {};
+  if (statusParam) {
+    // Store FE may send status=PUBLISHED; map to visible
+    filter.status = statusParam === "PUBLISHED" ? "visible" : statusParam;
+  }
+  const categories = await Category.find(filter).sort({ createdAt: -1 }).lean();
   sendResponse(res, req.locale, { data: { categories } });
 });
 

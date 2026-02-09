@@ -91,8 +91,9 @@ function buildPaths() {
         },
       },
       responses: {
-        "200": { description: "Subscribed", ...refSchema("MessageDataResponse") },
+        "201": { description: "Subscribed", ...refSchema("MessageDataResponse") },
         "400": errDesc("Validation error"),
+        "409": { description: "Email already subscribed", ...refSchema("NewsletterConflictResponse") },
       },
     },
   };
@@ -203,14 +204,20 @@ function buildPaths() {
       tags: ["Products"],
       summary: "List products",
       parameters: [
-        { name: "page", in: "query", schema: { type: "integer" } },
-        { name: "limit", in: "query", schema: { type: "integer" } },
-        { name: "category", in: "query", schema: { type: "string" } },
-        { name: "search", in: "query", schema: { type: "string" } },
-        { name: "status", in: "query", schema: { type: "string", enum: ["DRAFT", "PUBLISHED"] } },
+        { name: "page", in: "query", schema: { type: "integer" }, description: "Page number (default 1)" },
+        { name: "limit", in: "query", schema: { type: "integer" }, description: "Items per page (default 20, max 100)" },
+        { name: "category", in: "query", schema: { type: "string" }, description: "Category ID filter" },
+        { name: "search", in: "query", schema: { type: "string" }, description: "Search in name/description" },
+        { name: "status", in: "query", schema: { type: "string", enum: ["ACTIVE", "INACTIVE"] }, description: "Product status (storefront uses ACTIVE)" },
+        { name: "newArrival", in: "query", schema: { type: "string", enum: ["true", "false"] }, description: "Filter by new-arrival flag (home page uses true)" },
+        { name: "availability", in: "query", schema: { type: "string", enum: ["inStock", "outOfStock"] }, description: "Stock filter (inStock | outOfStock only)" },
+        { name: "sort", in: "query", schema: { type: "string", enum: ["newest", "priceAsc", "priceDesc", "nameAsc", "nameDesc", "bestSelling", "highestSelling", "lowSelling"] }, description: "Sort order" },
+        { name: "minPrice", in: "query", schema: { type: "number" }, description: "Min price (EGP)" },
+        { name: "maxPrice", in: "query", schema: { type: "number" }, description: "Max price (EGP)" },
+        { name: "color", in: "query", schema: { type: "string" }, description: "Filter by color (case-insensitive)" },
       ],
       responses: {
-        "200": { description: "Paginated products", ...refSchema("PaginatedProductsResponse") },
+        "200": { description: "Products list: success, data (array), pagination", ...refSchema("PaginatedProductsResponse") },
         "400": errDesc("Validation error"),
       },
     },
@@ -378,9 +385,12 @@ function buildPaths() {
         get: {
           operationId: "listCategories",
           tags: ["Categories"],
-          summary: "List categories",
+          summary: "List categories (optionally filter by status; store may use status=PUBLISHED for visible)",
+          parameters: [
+            { name: "status", in: "query", required: false, schema: { type: "string", enum: ["visible", "hidden", "PUBLISHED"] }, description: "Filter by status; PUBLISHED is alias for visible" },
+          ],
           responses: {
-            "200": { description: "Categories list", ...refSchema("CategoriesResponse") },
+            "200": { description: "Categories list (each category includes status)", ...refSchema("CategoriesResponse") },
           },
         },
         post: {
@@ -469,25 +479,43 @@ function buildPaths() {
           summary: "List orders",
           security: [{ bearerAuth: [] }],
           parameters: [
-            { name: "page", in: "query", schema: { type: "integer" } },
-            { name: "limit", in: "query", schema: { type: "integer" } },
-            { name: "status", in: "query", schema: { type: "string" } },
+            { name: "page", in: "query", schema: { type: "integer" }, description: "Page (default 1)" },
+            { name: "limit", in: "query", schema: { type: "integer" }, description: "Limit (default 20, max 100)" },
+            { name: "status", in: "query", schema: { type: "string", enum: ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"] } },
+            { name: "paymentMethod", in: "query", schema: { type: "string", enum: ["COD", "INSTAPAY"] } },
           ],
           responses: {
-            "200": { description: "Paginated orders", ...refSchema("PaginatedOrdersResponse") },
+            "200": { description: "Success, data (array of orders), pagination", ...refSchema("PaginatedOrdersResponse") },
             "401": errDesc("Unauthorized"),
           },
         },
         post: {
           operationId: "createOrder",
           tags: ["Orders"],
-          summary: "Create order",
-          security: [{ bearerAuth: [] }],
-          requestBody: { content: { "application/json": { schema: { type: "object" } } } },
+          summary: "Create order (authenticated or guest checkout)",
+          security: [],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["items"],
+                  properties: {
+                    items: { type: "array", items: { type: "object", properties: { product: { type: "string" }, quantity: { type: "integer" }, price: { type: "number" } } } },
+                    paymentMethod: { type: "string", enum: ["COD", "INSTAPAY"] },
+                    shippingAddress: { type: "string" },
+                    deliveryFee: { type: "number" },
+                    guestName: { type: "string", description: "Required for guest checkout" },
+                    guestEmail: { type: "string", format: "email", description: "Required for guest checkout" },
+                    guestPhone: { type: "string", description: "Optional for guest checkout" },
+                  },
+                },
+              },
+            },
+          },
           responses: {
-            "201": { description: "Created order", ...refSchema("OrderResponse") },
-            "401": errDesc("Unauthorized"),
-            "400": errDesc("Validation error"),
+            "201": { description: "Success, message, data.order (includes guestName/guestEmail/guestPhone when guest)", ...refSchema("OrderResponse") },
+            "400": errDesc("Validation error (e.g. guest checkout requires guestName and guestEmail)"),
           },
         },
       };
@@ -500,8 +528,9 @@ function buildPaths() {
           security: [{ bearerAuth: [] }],
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
           responses: {
-            "200": { description: "Order", ...refSchema("OrderResponse") },
+            "200": { description: "Success, data.order (with payment; guest orders include guest fields)", ...refSchema("OrderResponse") },
             "401": errDesc("Unauthorized"),
+            "403": errDesc("Forbidden"),
             "404": errDesc("Not found"),
           },
         },
@@ -1226,14 +1255,16 @@ export const swaggerSpec = {
         schemas: {
           ApiError: {
             type: "object",
-            description: "Error response envelope",
+            description: "Error response envelope (4xx/5xx). Message uses x-language / Accept-Language (en | ar).",
+            required: ["success", "message", "data"],
             properties: {
               success: { type: "boolean", example: false },
-              message: { type: "string", description: "Human-readable message (may be translated)" },
-              code: { type: "string", description: "i18n key or error code", nullable: true },
+              message: { type: "string", description: "Human-readable message (translated)" },
+              code: { type: "string", description: "i18n key or error code (e.g. CONFLICT)", nullable: true },
               data: { type: "object", nullable: true, description: "Always null on error" },
               details: { type: "object", description: "Validation or extra details", nullable: true },
             },
+            example: { success: false, message: "Validation error", code: "errors.common.validation_error", data: null },
           },
           Pagination: {
             type: "object",
@@ -1388,11 +1419,24 @@ export const swaggerSpec = {
           },
           MessageDataResponse: {
             type: "object",
-            description: "Success with message and optional data",
+            description: "Success response: success, optional message (translated), optional data",
+            required: ["success"],
             properties: {
               success: { type: "boolean", example: true },
-              message: { type: "string" },
+              message: { type: "string", nullable: true, description: "i18n message (x-language / Accept-Language)" },
               data: { type: "object", nullable: true },
+            },
+          },
+          NewsletterConflictResponse: {
+            type: "object",
+            description: "409 when email is already subscribed; FE can check code or alreadySubscribed",
+            required: ["success", "message", "data", "alreadySubscribed"],
+            properties: {
+              success: { type: "boolean", example: false },
+              message: { type: "string", description: "Translated message" },
+              code: { type: "string", example: "CONFLICT" },
+              data: { type: "object", nullable: true },
+              alreadySubscribed: { type: "boolean", example: true },
             },
           },
           AuthResponse: {
@@ -1615,14 +1659,35 @@ export const swaggerSpec = {
               },
             },
           },
+          CategoryData: {
+            type: "object",
+            description: "Category item (includes status for store filtering)",
+            properties: {
+              _id: { type: "string" },
+              name: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
+              description: { type: "object", nullable: true },
+              status: { type: "string", enum: ["visible", "hidden"], description: "Store may filter by PUBLISHED (alias for visible)" },
+              createdAt: { type: "string", format: "date-time" },
+              updatedAt: { type: "string", format: "date-time" },
+            },
+          },
           CategoriesResponse: {
             type: "object",
-            description: "Categories list",
+            description: "Full response: success, data.categories (array with status)",
+            required: ["success", "data"],
             properties: {
               success: { type: "boolean", example: true },
+              message: { type: "string", nullable: true },
               data: {
                 type: "object",
-                properties: { categories: { type: "array", items: { type: "object" } } },
+                required: ["categories"],
+                properties: {
+                  categories: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/CategoryData" },
+                    description: "Categories (each includes status)",
+                  },
+                },
               },
             },
           },
@@ -1637,28 +1702,67 @@ export const swaggerSpec = {
               },
             },
           },
+          OrderItem: {
+            type: "object",
+            description: "Order line item",
+            properties: {
+              product: { type: "string", description: "Product ID or populated product" },
+              quantity: { type: "integer" },
+              price: { type: "number" },
+            },
+          },
+          OrderData: {
+            type: "object",
+            description: "Order document (user null for guest checkout; guest fields set instead)",
+            properties: {
+              _id: { type: "string" },
+              user: { type: "string", nullable: true, description: "User ID when authenticated; null for guest" },
+              guestName: { type: "string", nullable: true, description: "Guest checkout only" },
+              guestEmail: { type: "string", nullable: true, description: "Guest checkout only" },
+              guestPhone: { type: "string", nullable: true, description: "Guest checkout only" },
+              items: { type: "array", items: { $ref: "#/components/schemas/OrderItem" } },
+              total: { type: "number" },
+              deliveryFee: { type: "number", nullable: true },
+              status: { type: "string", enum: ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"] },
+              paymentMethod: { type: "string", enum: ["COD", "INSTAPAY"], nullable: true },
+              shippingAddress: { type: "string", nullable: true },
+              payment: {
+                type: "object",
+                nullable: true,
+                properties: { method: { type: "string" }, status: { type: "string" }, instaPayProofUrl: { type: "string", nullable: true } },
+              },
+              createdAt: { type: "string", format: "date-time" },
+              updatedAt: { type: "string", format: "date-time" },
+            },
+          },
           PaginatedOrdersResponse: {
             type: "object",
-            description: "Paginated orders list",
+            description: "Full response: success, data (array of orders), top-level pagination",
+            required: ["success", "data", "pagination"],
             properties: {
               success: { type: "boolean", example: true },
+              message: { type: "string", nullable: true },
               data: {
-                type: "object",
-                properties: {
-                  orders: { type: "array", items: { type: "object" } },
-                  pagination: { $ref: "#/components/schemas/Pagination" },
-                },
+                type: "array",
+                items: { $ref: "#/components/schemas/OrderData" },
+                description: "Orders list",
               },
+              pagination: { $ref: "#/components/schemas/Pagination" },
             },
           },
           OrderResponse: {
             type: "object",
-            description: "Single order",
+            description: "Full response: success, optional message, data.order (single order; includes guest fields when guest checkout)",
+            required: ["success", "data"],
             properties: {
               success: { type: "boolean", example: true },
+              message: { type: "string", nullable: true, description: "e.g. success.order.created" },
               data: {
                 type: "object",
-                properties: { order: { type: "object" } },
+                required: ["order"],
+                properties: {
+                  order: { $ref: "#/components/schemas/OrderData" },
+                },
               },
             },
           },

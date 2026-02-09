@@ -7,7 +7,7 @@ import {
   updateOrderStatus
 } from "../controllers/ordersController.js";
 import { attachPaymentProof, confirmPayment } from "../controllers/paymentsController.js";
-import { authenticate, requireRole } from "../middlewares/auth.js";
+import { authenticate, optionalAuthenticate, requireRole } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   orderParamsSchema,
@@ -20,11 +20,14 @@ import { paymentConfirmSchema } from "../validators/payments.js";
 
 const router = Router();
 
+// POST /api/orders: allow guest checkout (optional auth) when body has guestName + guestEmail
+router.post("/", optionalAuthenticate, validate(orderSchema), createOrder);
+
+// All other order routes require authentication
 router.use(authenticate);
 
 router.get("/", validate(orderQuerySchema), listOrders);
 router.get("/:id", validate(orderParamsSchema), getOrder);
-router.post("/", validate(orderSchema), createOrder);
 router.patch("/:id/status", requireRole(["ADMIN"]), validate(orderStatusSchema), updateOrderStatus);
 router.post("/:id/cancel", requireRole(["ADMIN"]), validate(orderParamsSchema), cancelOrder);
 router.post("/:id/payment-proof", requireRole(["ADMIN"]), validate(orderParamsSchema), uploadPaymentProof, attachPaymentProof);

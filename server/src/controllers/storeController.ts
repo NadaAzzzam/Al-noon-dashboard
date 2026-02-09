@@ -3,6 +3,7 @@ import { Subscriber } from "../models/Subscriber.js";
 import { ContactSubmission } from "../models/ContactSubmission.js";
 import { ProductFeedback } from "../models/ProductFeedback.js";
 import { isDbConnected } from "../config/db.js";
+import { t } from "../i18n.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
@@ -177,7 +178,13 @@ export const subscribeNewsletter = asyncHandler(async (req, res) => {
     sendResponse(res, req.locale, { status: 201, message: "success.newsletter.subscribed" });
   } catch (err: unknown) {
     if (err && typeof err === "object" && "code" in err && err.code === 11000) {
-      sendResponse(res, req.locale, { message: "success.newsletter.already_subscribed" });
+      res.status(409).json({
+        success: false,
+        message: t(req.locale, "errors.newsletter.already_subscribed"),
+        code: "CONFLICT",
+        data: null,
+        alreadySubscribed: true
+      });
       return;
     }
     throw err;

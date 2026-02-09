@@ -33,6 +33,28 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction) =
   }
 };
 
+/**
+ * Optional authentication: sets req.auth when a valid token is present;
+ * does not fail when no token or invalid token (req.auth stays undefined).
+ * Use for routes that support both authenticated and guest access (e.g. POST /api/orders).
+ */
+export const optionalAuthenticate = (req: Request, _res: Response, next: NextFunction) => {
+  try {
+    const cookieToken = req.cookies?.[AUTH_COOKIE_NAME];
+    const header = req.headers.authorization;
+    const bearerToken = header?.startsWith("Bearer ") ? header.split(" ")[1] : undefined;
+    const token = cookieToken ?? bearerToken;
+    if (!token) {
+      return next();
+    }
+    const payload = jwt.verify(token, env.jwtSecret) as AuthPayload;
+    req.auth = payload;
+    next();
+  } catch {
+    next();
+  }
+};
+
 export const requireRole = (roles: Array<AuthPayload["role"]>) => (req: Request, _res: Response, next: NextFunction) => {
   if (!req.auth) {
     return next(new ApiError(401, "Unauthorized", { code: "errors.auth.unauthorized" }));

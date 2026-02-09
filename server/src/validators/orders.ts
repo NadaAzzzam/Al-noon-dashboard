@@ -15,7 +15,11 @@ export const orderSchema = z.object({
       .min(1),
     paymentMethod: z.enum(["COD", "INSTAPAY"]).optional(),
     shippingAddress: z.string().optional(),
-    deliveryFee: z.number().min(0).optional()
+    deliveryFee: z.number().min(0).optional(),
+    /** Guest checkout: required when not authenticated */
+    guestName: z.string().min(1).optional(),
+    guestEmail: z.string().email().optional(),
+    guestPhone: z.string().optional()
   })
 });
 

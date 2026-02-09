@@ -84,7 +84,7 @@ export const listProducts = asyncHandler(async (req, res) => {
   const total = await Product.countDocuments(filter);
 
   const useEffectivePriceSort = sort === "priceAsc" || sort === "priceDesc";
-  const useSalesSort = sort === "highestSelling" || sort === "lowSelling";
+  const useSalesSort = sort === "bestSelling" || sort === "highestSelling" || sort === "lowSelling";
   let products: unknown[];
 
   if (useEffectivePriceSort) {
@@ -109,7 +109,7 @@ export const listProducts = asyncHandler(async (req, res) => {
       { $project: { categoryDoc: 0, effectivePrice: 0 } }
     ]);
   } else if (useSalesSort) {
-    const soldSort = sort === "highestSelling" ? -1 : 1;
+    const soldSort = (sort === "highestSelling" || sort === "bestSelling") ? -1 : 1;
     products = await Product.aggregate([
       { $match: filter },
       {
@@ -150,7 +150,6 @@ export const listProducts = asyncHandler(async (req, res) => {
     const sortOption: Record<string, 1 | -1> =
       sort === "nameAsc" ? { "name.en": 1 } :
       sort === "nameDesc" ? { "name.en": -1 } :
-      sort === "bestSelling" ? { createdAt: -1 } :
       { createdAt: -1 };
     products = await Product.find(filter)
       .populate("category", "name status")

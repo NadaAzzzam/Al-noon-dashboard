@@ -9,7 +9,8 @@ export interface OrderItem {
 }
 
 export interface OrderDocument {
-  user: mongoose.Types.ObjectId;
+  /** Set when order is placed by authenticated user; null for guest checkout */
+  user?: mongoose.Types.ObjectId | null;
   items: OrderItem[];
   total: number;
   /** Delivery/shipping fee in EGP. Optional for backwards compatibility. */
@@ -17,6 +18,10 @@ export interface OrderDocument {
   status: OrderStatus;
   paymentMethod?: "COD" | "INSTAPAY";
   shippingAddress?: string;
+  /** Guest checkout contact info (when user is not set) */
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,7 +37,7 @@ const orderItemSchema = new Schema<OrderItem>(
 
 const orderSchema = new Schema<OrderDocument>(
   {
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: false, default: null },
     items: { type: [orderItemSchema], required: true },
     total: { type: Number, required: true },
     deliveryFee: { type: Number, default: 0, min: 0 },
@@ -42,7 +47,10 @@ const orderSchema = new Schema<OrderDocument>(
       default: "PENDING"
     },
     paymentMethod: { type: String, enum: ["COD", "INSTAPAY"] },
-    shippingAddress: { type: String }
+    shippingAddress: { type: String },
+    guestName: { type: String },
+    guestEmail: { type: String },
+    guestPhone: { type: String }
   },
   { timestamps: true }
 );

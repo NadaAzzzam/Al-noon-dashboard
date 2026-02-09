@@ -20,3 +20,10 @@ export const categoryStatusSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({ status: z.enum(["visible", "hidden"]) })
 });
+
+/** Query for list categories (store: filter by status, e.g. PUBLISHED/visible) */
+export const categoryQuerySchema = z.object({
+  query: z.object({
+    status: z.enum(["visible", "hidden", "PUBLISHED"]).optional()
+  })
+});

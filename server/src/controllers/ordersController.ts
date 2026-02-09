@@ -78,7 +78,10 @@ export const getOrder = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
   }
   const isAdmin = req.auth?.role === "ADMIN";
-  if (!isAdmin && order.user._id.toString() !== req.auth?.userId) {
+  const orderUserId = order.user && typeof order.user === "object" && order.user._id
+    ? order.user._id.toString()
+    : (order.user && typeof order.user.toString === "function" ? order.user.toString() : null);
+  if (!isAdmin && orderUserId !== req.auth?.userId) {
     throw new ApiError(403, "Forbidden", { code: "errors.common.forbidden" });
   }
   const payment = await Payment.findOne({ order: order._id }).lean();
@@ -93,25 +96,41 @@ export const getOrder = asyncHandler(async (req, res) => {
 });
 
 export const createOrder = asyncHandler(async (req, res) => {
-  if (!req.auth) {
-    throw new ApiError(401, "Unauthorized", { code: "errors.auth.unauthorized" });
-  }
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const { items, paymentMethod, shippingAddress, deliveryFee } = req.body;
+  const { items, paymentMethod, shippingAddress, deliveryFee, guestName, guestEmail, guestPhone } = req.body;
+
+  const isGuest = !req.auth;
+  if (isGuest) {
+    const name = typeof guestName === "string" ? guestName.trim() : "";
+    const email = typeof guestEmail === "string" ? guestEmail.trim().toLowerCase() : "";
+    if (!name) throw new ApiError(400, "Guest name is required for guest checkout", { code: "errors.order.guest_name_required" });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new ApiError(400, "Valid guest email is required for guest checkout", { code: "errors.order.guest_email_required" });
+    }
+  }
+
   const subtotal = items.reduce(
     (sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price,
     0
   );
   const fee = typeof deliveryFee === "number" && deliveryFee >= 0 ? deliveryFee : 0;
   const total = subtotal + fee;
-  const order = await Order.create({
-    user: req.auth.userId,
+
+  const orderPayload: Record<string, unknown> = {
+    user: req.auth?.userId ?? null,
     items,
     total,
     deliveryFee: fee,
     paymentMethod: paymentMethod || "COD",
     shippingAddress
-  });
+  };
+  if (isGuest) {
+    orderPayload.guestName = String(req.body.guestName ?? "").trim();
+    orderPayload.guestEmail = String(req.body.guestEmail ?? "").trim().toLowerCase();
+    orderPayload.guestPhone = typeof req.body.guestPhone === "string" ? req.body.guestPhone.trim() || undefined : undefined;
+  }
+
+  const order = await Order.create(orderPayload);
   await Payment.create({
     order: order._id,
     method: paymentMethod || "COD",
@@ -129,7 +148,9 @@ export const createOrder = asyncHandler(async (req, res) => {
       .populate("items.product", "name");
     if (!populated) return;
     const user = populated.user as { name?: string; email?: string } | null;
-    const items = (populated.items || []).map((item) => {
+    const customerName = user?.name ?? (populated as { guestName?: string }).guestName ?? "—";
+    const customerEmail = user?.email ?? (populated as { guestEmail?: string }).guestEmail ?? "—";
+    const orderItems = (populated.items || []).map((item) => {
       const product = item.product as unknown as { name?: string } | undefined;
       const name = product && typeof product === "object" && "name" in product ? String(product.name) : "—";
       return `${name} × ${item.quantity} = ${item.quantity * item.price}`;
@@ -138,12 +159,12 @@ export const createOrder = asyncHandler(async (req, res) => {
     const html = `
       <h2>New order received</h2>
       <p><strong>Order ID:</strong> ${order._id}</p>
-      <p><strong>Customer:</strong> ${user?.name ?? "—"} (${user?.email ?? "—"})</p>
+      <p><strong>Customer:</strong> ${customerName} (${customerEmail})</p>
       <p><strong>Payment:</strong> ${order.paymentMethod ?? "COD"}</p>
       <p><strong>Shipping:</strong> ${order.shippingAddress ?? "—"}</p>
       <p><strong>Total:</strong> ${order.total}</p>
       <h3>Items</h3>
-      <ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>
+      <ul>${orderItems.map((i) => `<li>${i}</li>`).join("")}</ul>
     `;
     await sendMail(to, subject, html);
   }).catch(() => {});

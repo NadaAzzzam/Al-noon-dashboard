@@ -23,7 +23,9 @@
     },
     "order": {
       "not_found": "Order not found",
-      "cancel_not_allowed": "Only pending or confirmed orders can be cancelled"
+      "cancel_not_allowed": "Only pending or confirmed orders can be cancelled",
+      "guest_name_required": "Guest name is required for guest checkout",
+      "guest_email_required": "Valid guest email is required for guest checkout"
     },
     "payment": {
       "not_found": "Payment not found for this order",
@@ -47,7 +49,8 @@
       "comment_required": "Comment is required"
     },
     "newsletter": {
-      "not_available": "Newsletter signup is not available"
+      "not_available": "Newsletter signup is not available",
+      "already_subscribed": "This email is already subscribed"
     },
     "upload": {
       "no_image": "No image file uploaded. Please select an image.",
