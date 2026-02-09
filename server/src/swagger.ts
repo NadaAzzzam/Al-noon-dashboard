@@ -70,7 +70,7 @@ function buildPaths() {
         },
       },
       responses: {
-        "200": { description: "Submitted", ...refSchema("MessageDataResponse") },
+        "201": { description: "Contact form submitted", ...refSchema("MessageDataResponse") },
         "400": errDesc("Validation error"),
       },
     },
