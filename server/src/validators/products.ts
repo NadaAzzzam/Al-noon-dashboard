@@ -16,6 +16,8 @@ export const productSchema = z.object({
     status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
     isNewArrival: z.boolean().optional(),
     images: z.array(z.string()).optional(),
+    viewImage: z.string().optional(),
+    hoverImage: z.string().optional(),
     imageColors: z.array(z.string()).optional(),
     videos: z.array(z.string()).optional(),
     detailsEn: z.string().optional(),

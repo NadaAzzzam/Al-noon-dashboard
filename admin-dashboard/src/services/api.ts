@@ -68,6 +68,10 @@ export type Product = {
   price: number;
   discountPrice?: number;
   images?: string[];
+  /** Main image for product card (defaults to images[0]). Always present in API response. */
+  viewImage?: string;
+  /** Image shown on hover (defaults to images[1] or images[0]). Always present in API response. */
+  hoverImage?: string;
   /** Same length as images; imageColors[i] = color name for images[i]. "" = default (all colors). */
   imageColors?: string[];
   stock: number;
@@ -106,6 +110,8 @@ export type ProductPayload = {
   status?: "ACTIVE" | "INACTIVE";
   isNewArrival?: boolean;
   images?: string[];
+  viewImage?: string;
+  hoverImage?: string;
   imageColors?: string[];
   videos?: string[];
   detailsEn?: string;

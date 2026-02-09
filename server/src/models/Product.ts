@@ -12,6 +12,10 @@ export interface ProductDocument {
   price: number;
   discountPrice?: number;
   images: string[];
+  /** Main image for product card/listing (defaults to images[0] if not set). */
+  viewImage?: string;
+  /** Image shown on hover on product card (defaults to images[1] or images[0] if not set). */
+  hoverImage?: string;
   /** Same length as images; imageColors[i] is the color name for images[i]. Empty string = default (all colors). */
   imageColors: string[];
   /** Video paths (uploaded files) or external URLs. Shown alongside images on product detail. */
@@ -43,6 +47,8 @@ const productSchema = new Schema<ProductDocument>(
     price: { type: Number, required: true },
     discountPrice: { type: Number },
     images: { type: [String], default: [] },
+    viewImage: { type: String },
+    hoverImage: { type: String },
     imageColors: { type: [String], default: [] },
     videos: { type: [String], default: [] },
     stock: { type: Number, required: true, default: 0 },

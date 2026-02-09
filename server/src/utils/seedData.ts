@@ -269,7 +269,9 @@ async function seed() {
     imageColors: p.imageColors ?? p.images.map(() => ""),
     sizeDescriptions: p.sizes.map(() => ""),
     details: defaultDetails,
-    stylingTip: defaultStylingTip
+    stylingTip: defaultStylingTip,
+    viewImage: p.images[0] ?? "",
+    hoverImage: (p.images[1] ?? p.images[0]) ?? ""
   });
 
   await Product.deleteMany({});
