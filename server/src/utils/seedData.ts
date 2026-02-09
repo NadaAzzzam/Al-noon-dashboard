@@ -1,8 +1,11 @@
 /**
- * Full data seeder for Al-noon dashboard.
- * Reference: https://sawdah.world/ (Sawdah.eg – Abayas, Capes, Malhafa, modest wear)
- * Seeds: Categories, Cities, Settings (incl. content pages, hero, home collections),
- * Products, Users, Orders, Payments, Contact submissions, Subscribers, Product feedback.
+ * Full data seeder for Al-noon e-commerce dashboard.
+ * Seeds all data needed: Categories, Cities, Settings (store, hero, content pages,
+ * announcementBar, promoBanner, featuredProducts, feedback, orderNotifications, aiAssistant),
+ * Products (with sizeDescriptions, details, stylingTip), Users, Orders, Payments,
+ * Contact submissions, Subscribers, Product feedback, and AI chat sessions.
+ * No required fields are left null.
+ * Run: npm run seed
  */
 
 import mongoose from "mongoose";
@@ -17,6 +20,7 @@ import { ContactSubmission } from "../models/ContactSubmission.js";
 import { Subscriber } from "../models/Subscriber.js";
 import { ProductFeedback } from "../models/ProductFeedback.js";
 import { Payment } from "../models/Payment.js";
+import { ChatSession, type ProductCardInMessage } from "../models/ChatSession.js";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@localhost";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin123";
@@ -56,6 +60,60 @@ const VIDEOS = {
   section2: "https://www.sample-videos.com/video321/mp4/480/big_buck_bunny_480p_1mb.mp4"
 };
 
+const DEFAULT_AI_ASSISTANT = {
+  enabled: false,
+  geminiApiKey: "",
+  greeting: { en: "Hi! How can I help you today?", ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟" },
+  systemPrompt: "",
+  suggestedQuestions: [
+    { en: "What are your shipping options?", ar: "ما خيارات الشحن لديكم؟" },
+    { en: "How can I return an item?", ar: "كيف أستطيع إرجاع منتج؟" },
+    { en: "Show me new arrivals", ar: "أرني الوصول الجديد" },
+    { en: "Do you ship to Cairo?", ar: "بتشحنوا لـ القاهرة؟" },
+    { en: "Show me black abayas", ar: "عايزة أشوف العبايات السودا" }
+  ]
+};
+
+function toProductCard(p: { _id: mongoose.Types.ObjectId; name: { en: string; ar: string }; images: string[] }): ProductCardInMessage {
+  const productId = String(p._id);
+  return {
+    id: productId,
+    name: { en: p.name?.en ?? "", ar: p.name?.ar ?? "" },
+    image: Array.isArray(p.images) && p.images[0] ? p.images[0] : "",
+    productUrl: `/product/${productId}`
+  };
+}
+
+function buildChatSessions(products: { _id: mongoose.Types.ObjectId; name: { en: string; ar: string }; images: string[] }[]) {
+  const now = Date.now();
+  const id = (p: { _id: mongoose.Types.ObjectId }) => String(p._id);
+  const nameEn = (p: { name: { en: string; ar: string } }) => p.name.en || p.name.ar;
+  const p1 = products[0];
+  const p2 = products[1];
+  const p3 = products[2];
+  const newArrivalsContent =
+    products.length >= 3
+      ? `Here are some of our latest pieces you might like:\n\n• **${nameEn(p1)}** [id:${id(p1)}] – elegant and versatile.\n• **${nameEn(p2)}** [id:${id(p2)}] – perfect for layering.\n• **${nameEn(p3)}** [id:${id(p3)}] – soft and breathable.\n\nYou can click on any product to see the image and details.`
+      : products.length >= 1
+        ? `We have this piece you might like: **${nameEn(p1)}** [id:${id(p1)}]. You can click to see the image and full details.`
+        : "Here are some of our latest pieces. Browse our New Arrivals on the homepage for more.";
+  const session2ProductCards = products.slice(0, 3).map(toProductCard);
+  const session4Content = products.length >= 1 ? `Yes! We have the **${nameEn(p1)}** [id:${id(p1)}] – it's one of our favourites. See the image and link below to view full details.` : "We have several abayas in our Abayas collection. Browse the Products page to see all options.";
+  const session4ProductCards = products.length >= 1 ? [toProductCard(p1)] : [];
+  const session6ContentAr = products.length >= 1 ? `أيوه! عندنا **${nameEn(p1)}** [id:${id(p1)}] – من تشكيلتنا الكلاسيكية. الصورة والرابط تحت عشان تشوفي التفاصيل.` : "عندنا تشكيلة عبايات في قسم العبايات. ادخلي على صفحة المنتجات تشوفي كل الخيارات.";
+  const session6ProductCards = products.length >= 1 ? [toProductCard(p1)] : [];
+
+  return [
+    { sessionId: "seed_sess_001_demo", messages: [{ role: "user" as const, content: "What are your shipping options?", timestamp: new Date(now - 3600000) }, { role: "assistant" as const, content: "We deliver across Egypt. Delivery fees vary by city and are shown at checkout. Orders are typically dispatched within 1–2 business days, and delivery usually takes 2–5 business days depending on your location.", timestamp: new Date(now - 3599000) }, { role: "user" as const, content: "Do you ship to Cairo?", timestamp: new Date(now - 3500000) }, { role: "assistant" as const, content: "Yes, we ship to Cairo and all governorates in Egypt. You'll see the delivery fee for your area when you checkout.", timestamp: new Date(now - 3499000) }], customerName: "Sara Ahmed", customerEmail: "sara.ahmed@example.com", status: "closed" as const },
+    { sessionId: "seed_sess_002_demo", messages: [{ role: "user" as const, content: "Show me new arrivals", timestamp: new Date(now - 7200000) }, { role: "assistant" as const, content: newArrivalsContent, timestamp: new Date(now - 7199000), ...(session2ProductCards.length > 0 && { productCards: session2ProductCards }) }], status: "active" as const },
+    { sessionId: "seed_sess_003_demo", messages: [{ role: "user" as const, content: "How can I return an item?", timestamp: new Date(now - 86400000) }, { role: "assistant" as const, content: "Items can be returned within 14 days of delivery if unused, unwashed, and in original packaging. To start a return, contact us with your order number and reason—we'll send you instructions.", timestamp: new Date(now - 86399000) }], customerName: "Nura", status: "closed" as const },
+    { sessionId: "seed_sess_004_demo", messages: [{ role: "user" as const, content: "Do you have a black abaya? I want to see one with image.", timestamp: new Date(now - 1800000) }, { role: "assistant" as const, content: session4Content, timestamp: new Date(now - 1799000), ...(session4ProductCards.length > 0 && { productCards: session4ProductCards }) }], customerName: "Fatma", customerEmail: "fatma@example.com", status: "closed" as const },
+    { sessionId: "seed_sess_005_demo", messages: [{ role: "user" as const, content: "إيه خيارات الشحن؟ بتشحنوا لـ القاهرة؟", timestamp: new Date(now - 5400000) }, { role: "assistant" as const, content: "بنشحن لكل محافظات مصر. رسوم التوصيل بتختلف حسب المدينة وبتتظهر ليكي في صفحة الدفع. أيوه بنشحن لـ القاهرة.", timestamp: new Date(now - 5399000) }], customerName: "منى", status: "closed" as const },
+    { sessionId: "seed_sess_006_demo", messages: [{ role: "user" as const, content: "عايزة أشوف العبايات السودا أو الجديدة", timestamp: new Date(now - 2700000) }, { role: "assistant" as const, content: session6ContentAr, timestamp: new Date(now - 2699000), ...(session6ProductCards.length > 0 && { productCards: session6ProductCards }) }], customerName: "ياسمين", status: "active" as const },
+    { sessionId: "seed_sess_007_demo", messages: [{ role: "user" as const, content: "كيف أستطيع إرجاع منتج؟", timestamp: new Date(now - 10800000) }, { role: "assistant" as const, content: "يمكنك إرجاع المنتجات خلال ١٤ يوماً من الاستلام إذا كانت غير مستخدمة وغير مغسولة وفي الغلاف الأصلي. لبدء الإرجاع، تواصلي معنا برقم الطلب والسبب وسنرسل لك التعليمات.", timestamp: new Date(now - 10799900) }], customerName: "سارة", status: "closed" as const }
+  ];
+}
+
 async function seed() {
   await connectDatabase();
   console.log("Seeding data (reference: Sawdah.eg)...\n");
@@ -76,13 +134,18 @@ async function seed() {
   const cat = (en: string) => categories.find((c) => c.name.en === en)!;
   console.log(`Created ${categories.length} categories.`);
 
-  // ----- Cities (Egypt) -----
+  // ----- Cities (Egypt – all with name en/ar and deliveryFee) -----
   const citiesData = [
     { name: { en: "Cairo", ar: "القاهرة" }, deliveryFee: 35 },
     { name: { en: "Giza", ar: "الجيزة" }, deliveryFee: 35 },
     { name: { en: "Alexandria", ar: "الإسكندرية" }, deliveryFee: 50 },
     { name: { en: "Mansoura", ar: "المنصورة" }, deliveryFee: 45 },
-    { name: { en: "Tanta", ar: "طنطا" }, deliveryFee: 40 }
+    { name: { en: "Tanta", ar: "طنطا" }, deliveryFee: 40 },
+    { name: { en: "Port Said", ar: "بورسعيد" }, deliveryFee: 55 },
+    { name: { en: "Suez", ar: "السويس" }, deliveryFee: 45 },
+    { name: { en: "Luxor", ar: "الأقصر" }, deliveryFee: 60 },
+    { name: { en: "Aswan", ar: "أسوان" }, deliveryFee: 65 },
+    { name: { en: "Ismailia", ar: "الإسماعيلية" }, deliveryFee: 48 }
   ];
   await City.deleteMany({});
   await City.insertMany(citiesData);
@@ -135,9 +198,11 @@ async function seed() {
   const heroImage = "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&q=80";
   await Settings.create({
     storeName: { en: "Al-noon", ar: "النون" },
+    logo: "",
     instaPayNumber: "+20 10 000 0000",
     paymentMethods: { cod: true, instaPay: true },
     lowStockThreshold: 5,
+    googleAnalyticsId: "",
     quickLinks: [
       { label: { en: "Privacy", ar: "الخصوصية" }, url: "/page/privacy" },
       { label: { en: "Return Policy", ar: "سياسة الإرجاع" }, url: "/page/return-policy" },
@@ -168,47 +233,77 @@ async function seed() {
       { title: { en: "Hijab", ar: "حجاب" }, image: IMAGES.hijab1, url: "/products?category=hijab", order: 3 },
       { title: { en: "Malhafa", ar: "ملحفة" }, image: IMAGES.fabric1, url: "/products?category=malhafa", order: 4 }
     ],
+    announcementBar: {
+      text: { en: "Free delivery on orders over 2000 EGP", ar: "توصيل مجاني للطلبات فوق 2000 جنيه" },
+      enabled: true,
+      backgroundColor: "#0f172a"
+    },
+    promoBanner: {
+      enabled: true,
+      image: IMAGES.hero2,
+      title: { en: "New Season Collection", ar: "تشكيلة الموسم الجديد" },
+      subtitle: { en: "Discover our latest modest wear", ar: "اكتشفي أحدث ملابسنا المحتشمة" },
+      ctaLabel: { en: "Shop Now", ar: "تسوق الآن" },
+      ctaUrl: "/products"
+    },
+    featuredProductsEnabled: true,
+    featuredProductsLimit: 8,
+    feedbackSectionEnabled: true,
+    feedbackDisplayLimit: 6,
+    orderNotificationsEnabled: true,
+    orderNotificationEmail: ADMIN_EMAIL,
+    aiAssistant: DEFAULT_AI_ASSISTANT,
     contentPages
   });
-  console.log("Created settings (with content pages, hero, home collections).");
+  console.log("Created settings (store, hero, content pages, announcementBar, promoBanner, aiAssistant, etc.).");
 
   // Product video pool (cycled so each product gets at least one video)
   const productVideoPool = [VIDEOS.product1, VIDEOS.product2, VIDEOS.product3, VIDEOS.product4];
   const productVideos = (i: number) => [productVideoPool[i % productVideoPool.length]];
 
-  // ----- Products (Sawdah-inspired + Hijab/Niqab/Tarha, prices in EGP) -----
+  // ----- Products (all fields set; no nulls) -----
+  const defaultDetails = { en: "Quality fabric. Care as per label.", ar: "قماش عالي الجودة. العناية حسب البطاقة." };
+  const defaultStylingTip = { en: "Pair with our hijabs and accessories for a complete look.", ar: "زينيها مع حجاباتنا وإكسسواراتنا لمظهر كامل." };
+  const fillProduct = (p: { sizes: string[]; images: string[]; imageColors?: string[] } & Record<string, unknown>) => ({
+    ...p,
+    imageColors: p.imageColors ?? p.images.map(() => ""),
+    sizeDescriptions: p.sizes.map(() => ""),
+    details: defaultDetails,
+    stylingTip: defaultStylingTip
+  });
+
   await Product.deleteMany({});
   const productsData = [
     // Abayas
-    { name: { en: "Zipped Hooded Abaya", ar: "عباية زود هود" }, description: { en: "Classic zipped abaya with hood. Comfortable and modest.", ar: "عباية كلاسيكية بزود وهود. مريحة ومحتشمة." }, category: cat("Abayas"), price: 2100, discountPrice: undefined, images: [IMAGES.abaya1], imageColors: [""], videos: productVideos(0), stock: 15, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Brown"] },
-    { name: { en: "Melton Abaya", ar: "عباية ميلتون" }, description: { en: "Elegant melton fabric abaya for winter.", ar: "عباية أنيقة من قماش ميلتون للشتاء." }, category: cat("Abayas"), price: 2100, discountPrice: undefined, images: [IMAGES.abaya2], imageColors: [""], videos: productVideos(1), stock: 12, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Grey"] },
-    { name: { en: "Minimal Ribbed Abaya", ar: "عباية ريب مينيمال" }, description: { en: "Simple ribbed abaya, easy to style.", ar: "عباية ريب بسيطة، سهلة التنسيق." }, category: cat("Abayas"), price: 1450, discountPrice: undefined, images: [IMAGES.abaya1], imageColors: [""], videos: productVideos(2), stock: 20, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Burgundy"] },
-    { name: { en: "Black Zip-Front Abaya", ar: "عباية سوداء زود أمامي" }, description: { en: "Black zip-front abaya, versatile and modern.", ar: "عباية سوداء زود أمامي، عصرية ومتعددة الاستخدام." }, category: cat("Abayas"), price: 1400, discountPrice: 2000, images: [IMAGES.abaya2], imageColors: [""], videos: productVideos(3), stock: 8, status: "ACTIVE" as const, isNewArrival: false, sizes: ["S", "M", "L"], colors: ["Black"] },
-    { name: { en: "Velvet Chemise Abaya", ar: "عباية مخمل شيميز" }, description: { en: "Luxurious velvet chemise-style abaya.", ar: "عباية مخملية على طراز الشيميز." }, category: cat("Abayas"), price: 1050, discountPrice: 2100, images: [IMAGES.abaya1], imageColors: [""], videos: productVideos(4), stock: 10, status: "ACTIVE" as const, isNewArrival: false, sizes: ["M", "L"], colors: ["Black", "Burgundy", "Navy"] },
+    fillProduct({ name: { en: "Zipped Hooded Abaya", ar: "عباية زود هود" }, description: { en: "Classic zipped abaya with hood. Comfortable and modest.", ar: "عباية كلاسيكية بزود وهود. مريحة ومحتشمة." }, category: cat("Abayas"), price: 2100, images: [IMAGES.abaya1], videos: productVideos(0), stock: 15, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Brown"] }),
+    fillProduct({ name: { en: "Melton Abaya", ar: "عباية ميلتون" }, description: { en: "Elegant melton fabric abaya for winter.", ar: "عباية أنيقة من قماش ميلتون للشتاء." }, category: cat("Abayas"), price: 2100, images: [IMAGES.abaya2], videos: productVideos(1), stock: 12, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Grey"] }),
+    fillProduct({ name: { en: "Minimal Ribbed Abaya", ar: "عباية ريب مينيمال" }, description: { en: "Simple ribbed abaya, easy to style.", ar: "عباية ريب بسيطة، سهلة التنسيق." }, category: cat("Abayas"), price: 1450, images: [IMAGES.abaya1], videos: productVideos(2), stock: 20, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Burgundy"] }),
+    fillProduct({ name: { en: "Black Zip-Front Abaya", ar: "عباية سوداء زود أمامي" }, description: { en: "Black zip-front abaya, versatile and modern.", ar: "عباية سوداء زود أمامي، عصرية ومتعددة الاستخدام." }, category: cat("Abayas"), price: 1400, discountPrice: 2000, images: [IMAGES.abaya2], videos: productVideos(3), stock: 8, status: "ACTIVE" as const, isNewArrival: false, sizes: ["S", "M", "L"], colors: ["Black"] }),
+    fillProduct({ name: { en: "Velvet Chemise Abaya", ar: "عباية مخمل شيميز" }, description: { en: "Luxurious velvet chemise-style abaya.", ar: "عباية مخملية على طراز الشيميز." }, category: cat("Abayas"), price: 1050, discountPrice: 2100, images: [IMAGES.abaya1], videos: productVideos(4), stock: 10, status: "ACTIVE" as const, isNewArrival: false, sizes: ["M", "L"], colors: ["Black", "Burgundy", "Navy"] }),
     // Capes
-    { name: { en: "Wool Cape", ar: "كاب صوف" }, description: { en: "Warm wool cape, essential for modest wardrobe.", ar: "كاب صوف دافئ، أساسي للخزانة المحتشمة." }, category: cat("Capes"), price: 950, discountPrice: 1900, images: [IMAGES.cape1], imageColors: [""], videos: productVideos(5), stock: 14, status: "ACTIVE" as const, isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Grey", "Camel"] },
-    { name: { en: "Cape Hasna", ar: "كاب حَسَناء" }, description: { en: "Elegant cape with clean lines.", ar: "كاب أنيق بخطوط نظيفة." }, category: cat("Capes"), price: 2000, discountPrice: 2500, images: [IMAGES.cape2], imageColors: [""], videos: productVideos(6), stock: 6, status: "ACTIVE" as const, isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Navy"] },
+    fillProduct({ name: { en: "Wool Cape", ar: "كاب صوف" }, description: { en: "Warm wool cape, essential for modest wardrobe.", ar: "كاب صوف دافئ، أساسي للخزانة المحتشمة." }, category: cat("Capes"), price: 950, discountPrice: 1900, images: [IMAGES.cape1], videos: productVideos(5), stock: 14, status: "ACTIVE" as const, isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Grey", "Camel"] }),
+    fillProduct({ name: { en: "Cape Hasna", ar: "كاب حَسَناء" }, description: { en: "Elegant cape with clean lines.", ar: "كاب أنيق بخطوط نظيفة." }, category: cat("Capes"), price: 2000, discountPrice: 2500, images: [IMAGES.cape2], videos: productVideos(6), stock: 6, status: "ACTIVE" as const, isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Navy"] }),
     // Malhafa
-    { name: { en: "Classic Malhafa", ar: "ملحفة كلاسيكية" }, description: { en: "Traditional malhafa, cloak-style modest wear.", ar: "ملحفة تقليدية، عباءة محتشمة." }, category: cat("Malhafa"), price: 850, discountPrice: undefined, images: [IMAGES.fabric1], imageColors: [""], videos: productVideos(7), stock: 18, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Brown", "Grey"] },
-    { name: { en: "Embroidered Malhafa", ar: "ملحفة مطرزة" }, description: { en: "Malhafa with subtle embroidery for special occasions.", ar: "ملحفة بتطريز خفيف للمناسبات." }, category: cat("Malhafa"), price: 1200, discountPrice: undefined, images: [IMAGES.fabric2], imageColors: [""], videos: productVideos(8), stock: 7, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Burgundy"] },
+    fillProduct({ name: { en: "Classic Malhafa", ar: "ملحفة كلاسيكية" }, description: { en: "Traditional malhafa, cloak-style modest wear.", ar: "ملحفة تقليدية، عباءة محتشمة." }, category: cat("Malhafa"), price: 850, images: [IMAGES.fabric1], videos: productVideos(7), stock: 18, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Brown", "Grey"] }),
+    fillProduct({ name: { en: "Embroidered Malhafa", ar: "ملحفة مطرزة" }, description: { en: "Malhafa with subtle embroidery for special occasions.", ar: "ملحفة بتطريز خفيف للمناسبات." }, category: cat("Malhafa"), price: 1200, images: [IMAGES.fabric2], videos: productVideos(8), stock: 7, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Burgundy"] }),
     // Hijab
-    { name: { en: "Cotton Jersey Hijab", ar: "حجاب قطني جيرسي" }, description: { en: "Soft cotton jersey hijab, breathable and easy to wear.", ar: "حجاب قطني جيرسي ناعم، مريح وسهل الارتداء." }, category: cat("Hijab"), price: 120, discountPrice: undefined, images: [IMAGES.hijab1, IMAGES.scarf1], imageColors: ["", ""], videos: productVideos(9), stock: 50, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Grey", "Burgundy", "Dusty Pink"] },
-    { name: { en: "Chiffon Hijab", ar: "حجاب شيفون" }, description: { en: "Light chiffon hijab for summer.", ar: "حجاب شيفون خفيف للصيف." }, category: cat("Hijab"), price: 95, discountPrice: undefined, images: [IMAGES.scarf2], imageColors: [""], videos: productVideos(10), stock: 40, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "White", "Nude", "Pink", "Blue"] },
-    { name: { en: "Crinkle Hijab", ar: "حجاب كرينكل" }, description: { en: "Crinkle texture hijab, holds shape well.", ar: "حجاب ب texture كرينكل، يثبت الشكل جيداً." }, category: cat("Hijab"), price: 110, discountPrice: undefined, images: [IMAGES.hijab2], imageColors: [""], videos: productVideos(11), stock: 35, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Grey", "Brown"] },
+    fillProduct({ name: { en: "Cotton Jersey Hijab", ar: "حجاب قطني جيرسي" }, description: { en: "Soft cotton jersey hijab, breathable and easy to wear.", ar: "حجاب قطني جيرسي ناعم، مريح وسهل الارتداء." }, category: cat("Hijab"), price: 120, images: [IMAGES.hijab1, IMAGES.scarf1], imageColors: ["", ""], videos: productVideos(9), stock: 50, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Grey", "Burgundy", "Dusty Pink"] }),
+    fillProduct({ name: { en: "Chiffon Hijab", ar: "حجاب شيفون" }, description: { en: "Light chiffon hijab for summer.", ar: "حجاب شيفون خفيف للصيف." }, category: cat("Hijab"), price: 95, images: [IMAGES.scarf2], videos: productVideos(10), stock: 40, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "White", "Nude", "Pink", "Blue"] }),
+    fillProduct({ name: { en: "Crinkle Hijab", ar: "حجاب كرينكل" }, description: { en: "Crinkle texture hijab, holds shape well.", ar: "حجاب ب texture كرينكل، يثبت الشكل جيداً." }, category: cat("Hijab"), price: 110, images: [IMAGES.hijab2], videos: productVideos(11), stock: 35, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Grey", "Brown"] }),
     // Niqab
-    { name: { en: "Two-Piece Niqab", ar: "نقاب قطعتين" }, description: { en: "Classic two-piece niqab, breathable fabric.", ar: "نقاب كلاسيكي قطعتين، قماش قابل للتنفس." }, category: cat("Niqab"), price: 180, discountPrice: undefined, images: [IMAGES.scarf1], imageColors: [""], videos: productVideos(12), stock: 25, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Brown"] },
-    { name: { en: "Niqab with Magnetic Closure", ar: "نقاب بمغناطيس" }, description: { en: "Niqab with magnetic closure for easy wear.", ar: "نقاب بإغلاق مغناطيسي لارتداء أسهل." }, category: cat("Niqab"), price: 220, discountPrice: undefined, images: [IMAGES.scarf2], imageColors: [""], videos: productVideos(13), stock: 15, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black"] },
-    // Tarha / Veil (طرح)
-    { name: { en: "Silk Tarha", ar: "طرح حرير" }, description: { en: "Light silk tarha (طرح) for hijab styling.", ar: "طرح حرير خفيف لتنسيق الحجاب." }, category: cat("Tarha / Veil"), price: 150, discountPrice: undefined, images: [IMAGES.scarf1], imageColors: [""], videos: productVideos(14), stock: 30, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Burgundy", "Gold"] },
-    { name: { en: "Printed Tarha", ar: "طرح مطبوع" }, description: { en: "Printed tarha for a pop of color.", ar: "طرح مطبوع للمسة لونية." }, category: cat("Tarha / Veil"), price: 130, discountPrice: undefined, images: [IMAGES.scarf2], imageColors: [""], videos: productVideos(15), stock: 22, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Multi", "Floral", "Geometric"] },
+    fillProduct({ name: { en: "Two-Piece Niqab", ar: "نقاب قطعتين" }, description: { en: "Classic two-piece niqab, breathable fabric.", ar: "نقاب كلاسيكي قطعتين، قماش قابل للتنفس." }, category: cat("Niqab"), price: 180, images: [IMAGES.scarf1], videos: productVideos(12), stock: 25, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Brown"] }),
+    fillProduct({ name: { en: "Niqab with Magnetic Closure", ar: "نقاب بمغناطيس" }, description: { en: "Niqab with magnetic closure for easy wear.", ar: "نقاب بإغلاق مغناطيسي لارتداء أسهل." }, category: cat("Niqab"), price: 220, images: [IMAGES.scarf2], videos: productVideos(13), stock: 15, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black"] }),
+    // Tarha / Veil
+    fillProduct({ name: { en: "Silk Tarha", ar: "طرح حرير" }, description: { en: "Light silk tarha (طرح) for hijab styling.", ar: "طرح حرير خفيف لتنسيق الحجاب." }, category: cat("Tarha / Veil"), price: 150, images: [IMAGES.scarf1], videos: productVideos(14), stock: 30, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Burgundy", "Gold"] }),
+    fillProduct({ name: { en: "Printed Tarha", ar: "طرح مطبوع" }, description: { en: "Printed tarha for a pop of color.", ar: "طرح مطبوع للمسة لونية." }, category: cat("Tarha / Veil"), price: 130, images: [IMAGES.scarf2], videos: productVideos(15), stock: 22, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Multi", "Floral", "Geometric"] }),
     // Sets
-    { name: { en: "Black Ribbed Twin Set – Abaya & Cardigan", ar: "توأم ريب أسود – عباية وكارديجان" }, description: { en: "Matching abaya and cardigan set.", ar: "ست عباية وكارديجان متطابقين." }, category: cat("Sets"), price: 1450, discountPrice: 2900, images: [IMAGES.abaya1, IMAGES.cardigan1], imageColors: ["", ""], videos: productVideos(16), stock: 9, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black"] },
-    { name: { en: "Ribbed Kaftan", ar: "كافتان ريب" }, description: { en: "Comfortable ribbed kaftan, easy to layer.", ar: "كافتان ريب مريح، سهل الطبقات." }, category: cat("Sets"), price: 900, discountPrice: 1500, images: [IMAGES.kaftan1], imageColors: [""], videos: productVideos(17), stock: 11, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Navy", "Grey"] },
+    fillProduct({ name: { en: "Black Ribbed Twin Set – Abaya & Cardigan", ar: "توأم ريب أسود – عباية وكارديجان" }, description: { en: "Matching abaya and cardigan set.", ar: "ست عباية وكارديجان متطابقين." }, category: cat("Sets"), price: 1450, discountPrice: 2900, images: [IMAGES.abaya1, IMAGES.cardigan1], imageColors: ["", ""], videos: productVideos(16), stock: 9, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black"] }),
+    fillProduct({ name: { en: "Ribbed Kaftan", ar: "كافتان ريب" }, description: { en: "Comfortable ribbed kaftan, easy to layer.", ar: "كافتان ريب مريح، سهل الطبقات." }, category: cat("Sets"), price: 900, discountPrice: 1500, images: [IMAGES.kaftan1], videos: productVideos(17), stock: 11, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Navy", "Grey"] }),
     // Cardigans & Coats
-    { name: { en: "Velvet Pleated Cardigan", ar: "كارديجان مخمل بليت" }, description: { en: "Velvet pleated cardigan for layering.", ar: "كارديجان مخمل بليت للطبقات." }, category: cat("Cardigans & Coats"), price: 1760, discountPrice: 2200, images: [IMAGES.cardigan1], imageColors: [""], videos: productVideos(18), stock: 5, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Burgundy"] },
-    { name: { en: "Flowy Open Cardigan", ar: "كارديجان مفتوح فضفاض" }, description: { en: "Light, flowy open cardigan.", ar: "كارديجان مفتوح خفيف وفضفاض." }, category: cat("Cardigans & Coats"), price: 1600, discountPrice: undefined, images: [IMAGES.cape2], imageColors: [""], videos: productVideos(19), stock: 13, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Grey", "Navy"] },
-    { name: { en: "Wool Coat", ar: "معطف صوف" }, description: { en: "Warm wool coat for winter.", ar: "معطف صوف دافئ للشتاء." }, category: cat("Cardigans & Coats"), price: 1080, discountPrice: 2700, images: [IMAGES.coat1], imageColors: [""], videos: productVideos(20), stock: 4, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Camel", "Grey"] },
-    { name: { en: "Melton Dress", ar: "فستان ميلتون" }, description: { en: "Elegant melton dress, modest and warm.", ar: "فستان ميلتون أنيق، محتشم ودافئ." }, category: cat("Abayas"), price: 2000, discountPrice: undefined, images: [IMAGES.dress1], imageColors: [""], videos: productVideos(21), stock: 7, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Navy"] }
+    fillProduct({ name: { en: "Velvet Pleated Cardigan", ar: "كارديجان مخمل بليت" }, description: { en: "Velvet pleated cardigan for layering.", ar: "كارديجان مخمل بليت للطبقات." }, category: cat("Cardigans & Coats"), price: 1760, discountPrice: 2200, images: [IMAGES.cardigan1], videos: productVideos(18), stock: 5, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Burgundy"] }),
+    fillProduct({ name: { en: "Flowy Open Cardigan", ar: "كارديجان مفتوح فضفاض" }, description: { en: "Light, flowy open cardigan.", ar: "كارديجان مفتوح خفيف وفضفاض." }, category: cat("Cardigans & Coats"), price: 1600, images: [IMAGES.cape2], videos: productVideos(19), stock: 13, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Grey", "Navy"] }),
+    fillProduct({ name: { en: "Wool Coat", ar: "معطف صوف" }, description: { en: "Warm wool coat for winter.", ar: "معطف صوف دافئ للشتاء." }, category: cat("Cardigans & Coats"), price: 1080, discountPrice: 2700, images: [IMAGES.coat1], videos: productVideos(20), stock: 4, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Camel", "Grey"] }),
+    fillProduct({ name: { en: "Melton Dress", ar: "فستان ميلتون" }, description: { en: "Elegant melton dress, modest and warm.", ar: "فستان ميلتون أنيق، محتشم ودافئ." }, category: cat("Abayas"), price: 2000, images: [IMAGES.dress1], videos: productVideos(21), stock: 7, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Navy"] })
   ];
   const products = await Product.insertMany(productsData);
   console.log(`Created ${products.length} products.`);
@@ -282,14 +377,15 @@ async function seed() {
     console.log(`Created ${paymentsData.length} payments.`);
   }
 
-  // ----- Contact form submissions (Contact Submissions page) -----
+  // ----- Contact form submissions (all fields set; phone never null) -----
   await ContactSubmission.deleteMany({});
   const contactData = [
     { name: "Noura Mohamed", email: "noura.m@example.com", phone: "+20 100 111 2233", comment: "When will the Melton Abaya be back in size M? Thank you." },
     { name: "Heba Ali", email: "heba.ali@example.com", phone: "", comment: "Do you ship to Alexandria? What is the delivery time?" },
     { name: "Aisha Hassan", email: "aisha.h@example.com", phone: "+20 122 333 4455", comment: "I would like to exchange my order #1234 for a different color. How can I do that?" },
     { name: "Yasmin Ibrahim", email: "yasmin@example.com", phone: "+20 155 666 7788", comment: "Great quality! When will you have more Wool Cape in Camel?" },
-    { name: "Layla Ahmed", email: "layla.a@example.com", phone: "", comment: "Do you have a physical store? I would like to try the abayas before buying." }
+    { name: "Layla Ahmed", email: "layla.a@example.com", phone: "", comment: "Do you have a physical store? I would like to try the abayas before buying." },
+    { name: "Dina Mahmoud", email: "dina.m@example.com", phone: "+20 111 222 3344", comment: "Do you offer gift wrapping? I need a present for my sister." }
   ];
   await ContactSubmission.insertMany(contactData);
   console.log(`Created ${contactData.length} contact submissions.`);
@@ -324,7 +420,15 @@ async function seed() {
   await ProductFeedback.insertMany(feedbackData);
   console.log(`Created ${feedbackData.length} product feedback entries.`);
 
-  console.log("\nSeed completed. You can log in with admin@localhost / admin123");
+  // ----- AI chat sessions (sample conversations with product cards) -----
+  await ChatSession.deleteMany({});
+  const productsForChat = products.slice(0, 4).map((p) => ({ _id: p._id, name: p.name, images: p.images }));
+  const chatSessions = buildChatSessions(productsForChat);
+  await ChatSession.insertMany(chatSessions);
+  console.log(`Created ${chatSessions.length} AI chat sessions.`);
+
+  console.log("\nSeed completed. All data seeded with no null required fields.");
+  console.log("Log in with:", ADMIN_EMAIL, "/", ADMIN_PASSWORD);
   await mongoose.disconnect();
   process.exit(0);
 }

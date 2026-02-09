@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "seed:admin": "tsx src/utils/seedAdmin.ts",
     "seed": "tsx src/utils/seedData.ts",
+    "seed:full": "tsx src/utils/seedData.ts",
     "seed:pages": "tsx src/utils/seedPages.ts",
     "seed:ai": "tsx src/utils/seedAi.ts",
     "lint": "eslint . --ext .ts"
