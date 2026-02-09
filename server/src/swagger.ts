@@ -210,11 +210,12 @@ function buildPaths() {
         { name: "search", in: "query", schema: { type: "string" }, description: "Search in name/description" },
         { name: "status", in: "query", schema: { type: "string", enum: ["ACTIVE", "INACTIVE"] }, description: "Product status (storefront uses ACTIVE)" },
         { name: "newArrival", in: "query", schema: { type: "string", enum: ["true", "false"] }, description: "Filter by new-arrival flag (home page uses true)" },
-        { name: "availability", in: "query", schema: { type: "string", enum: ["inStock", "outOfStock"] }, description: "Stock filter (inStock | outOfStock only)" },
-        { name: "sort", in: "query", schema: { type: "string", enum: ["newest", "priceAsc", "priceDesc", "nameAsc", "nameDesc", "bestSelling", "highestSelling", "lowSelling"] }, description: "Sort order" },
+        { name: "availability", in: "query", schema: { type: "string", enum: ["all", "inStock", "outOfStock"], default: "all" }, description: "Stock filter. Get options with labels: GET /api/products/filters/availability" },
+        { name: "sort", in: "query", schema: { type: "string", enum: ["newest", "priceAsc", "priceDesc", "nameAsc", "nameDesc", "bestSelling", "highestSelling", "lowSelling"], default: "newest" }, description: "Sort order. Get options with labels: GET /api/products/filters/sort" },
         { name: "minPrice", in: "query", schema: { type: "number" }, description: "Min price (EGP)" },
         { name: "maxPrice", in: "query", schema: { type: "number" }, description: "Max price (EGP)" },
         { name: "color", in: "query", schema: { type: "string" }, description: "Filter by color (case-insensitive)" },
+        { name: "minRating", in: "query", schema: { type: "number", minimum: 1, maximum: 5 }, description: "Only products with average rating >= this (1–5)" },
       ],
       responses: {
         "200": { description: "Products list: success, data (array), pagination", ...refSchema("PaginatedProductsResponse") },
@@ -232,6 +233,36 @@ function buildPaths() {
         "401": errDesc("Unauthorized"),
         "403": errDesc("Forbidden"),
         "400": errDesc("Validation error"),
+      },
+    },
+  };
+
+  paths["/api/products/filters/availability"] = {
+    get: {
+      operationId: "getAvailabilityFilters",
+      tags: ["Products", "E-commerce filters"],
+      summary: "Get availability filter options",
+      description: "Returns options for the E-commerce availability dropdown. Each item has value (use in GET /api/products?availability=), labelEn and labelAr for UI. No auth required.",
+      responses: {
+        "200": {
+          description: "List of availability options (all, inStock, outOfStock) with value and labels",
+          ...refSchema("AvailabilityFiltersResponse"),
+        },
+      },
+    },
+  };
+
+  paths["/api/products/filters/sort"] = {
+    get: {
+      operationId: "getSortFilters",
+      tags: ["Products", "E-commerce filters"],
+      summary: "Get sort filter options",
+      description: "Returns options for the E-commerce sort dropdown. Each item has value (use in GET /api/products?sort=), labelEn and labelAr for UI. No auth required.",
+      responses: {
+        "200": {
+          description: "List of sort options (newest, priceAsc, priceDesc, nameAsc, nameDesc, bestSelling, highestSelling, lowSelling) with value and labels",
+          ...refSchema("SortFiltersResponse"),
+        },
       },
     },
   };
@@ -1513,9 +1544,83 @@ export const swaggerSpec = {
           },
         },
       },
+      FilterOptionItem: {
+        type: "object",
+        description: "Single filter option for E-commerce dropdowns (availability or sort). Use value in GET /api/products query params.",
+        required: ["value", "labelEn", "labelAr"],
+        properties: {
+          value: { type: "string", description: "Query value (e.g. inStock, newest). Send as ?availability= or ?sort=" },
+          labelEn: { type: "string", description: "Display label (English)" },
+          labelAr: { type: "string", description: "Display label (Arabic)" },
+        },
+        example: { value: "inStock", labelEn: "In stock", labelAr: "متوفر" },
+      },
+      AvailabilityFiltersResponse: {
+        type: "object",
+        description: "Response of GET /api/products/filters/availability. Use data[].value in GET /api/products?availability=.",
+        required: ["success", "data"],
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "array",
+            items: { $ref: "#/components/schemas/FilterOptionItem" },
+            description: "Availability options. value: all | inStock | outOfStock",
+          },
+        },
+        example: {
+          success: true,
+          data: [
+            { value: "all", labelEn: "All", labelAr: "الكل" },
+            { value: "inStock", labelEn: "In stock", labelAr: "متوفر" },
+            { value: "outOfStock", labelEn: "Out of stock", labelAr: "غير متوفر" },
+          ],
+        },
+      },
+      SortFiltersResponse: {
+        type: "object",
+        description: "Response of GET /api/products/filters/sort. Use data[].value in GET /api/products?sort=.",
+        required: ["success", "data"],
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "array",
+            items: { $ref: "#/components/schemas/FilterOptionItem" },
+            description: "Sort options. value: newest | priceAsc | priceDesc | nameAsc | nameDesc | bestSelling | highestSelling | lowSelling",
+          },
+        },
+        example: {
+          success: true,
+          data: [
+            { value: "newest", labelEn: "Newest", labelAr: "الأحدث" },
+            { value: "priceAsc", labelEn: "Price: Low to High", labelAr: "السعر: منخفض إلى عالي" },
+            { value: "priceDesc", labelEn: "Price: High to Low", labelAr: "السعر: عالي إلى منخفض" },
+            { value: "nameAsc", labelEn: "Name A–Z", labelAr: "الاسم أ–ي" },
+            { value: "nameDesc", labelEn: "Name Z–A", labelAr: "الاسم ي–أ" },
+            { value: "bestSelling", labelEn: "Best selling", labelAr: "الأكثر مبيعاً" },
+            { value: "highestSelling", labelEn: "Highest selling", labelAr: "الأعلى مبيعاً" },
+            { value: "lowSelling", labelEn: "Lowest selling", labelAr: "الأقل مبيعاً" },
+          ],
+        },
+      },
+      ProductListAppliedFilters: {
+        type: "object",
+        description: "Query params actually applied by list products (echo of handled filters)",
+        properties: {
+          sort: { type: "string", enum: ["newest", "priceAsc", "priceDesc", "nameAsc", "nameDesc", "bestSelling", "highestSelling", "lowSelling"], description: "Sort applied (default newest)" },
+          availability: { type: "string", enum: ["all", "inStock", "outOfStock"], description: "Stock filter applied (all = no filter)" },
+          category: { type: "string", nullable: true, description: "Category ID when filtered" },
+          search: { type: "string", nullable: true, description: "Search term when provided" },
+          status: { type: "string", enum: ["ACTIVE", "INACTIVE"], nullable: true },
+          newArrival: { type: "boolean", nullable: true, description: "true when filtering new arrivals" },
+          minPrice: { type: "number", nullable: true },
+          maxPrice: { type: "number", nullable: true },
+          color: { type: "string", nullable: true },
+          minRating: { type: "number", nullable: true, description: "1–5 when filtering by min rating" },
+        },
+      },
       PaginatedProductsResponse: {
         type: "object",
-        description: "Full response body returned by list products: success, data (array), pagination. Optional message may be present.",
+        description: "Full response body returned by list products: success, data (array), pagination, appliedFilters (handled query params).",
         required: ["success", "data", "pagination"],
         properties: {
           success: { type: "boolean", example: true, description: "Always true on 200" },
@@ -1523,7 +1628,7 @@ export const swaggerSpec = {
           data: {
             type: "array",
             items: { $ref: "#/components/schemas/ProductData" },
-            description: "Products list (full product objects)",
+            description: "Products list (full product objects with soldQty, averageRating, ratingCount when available)",
           },
           pagination: {
             type: "object",
@@ -1535,6 +1640,10 @@ export const swaggerSpec = {
               totalPages: { type: "integer", example: 3 },
             },
             description: "Pagination metadata",
+          },
+          appliedFilters: {
+            $ref: "#/components/schemas/ProductListAppliedFilters",
+            description: "Query params that were applied (sort, availability, category, search, etc.)",
           },
         },
         example: {
@@ -1567,6 +1676,7 @@ export const swaggerSpec = {
             },
           ],
           pagination: { total: 42, page: 1, limit: 20, totalPages: 3 },
+          appliedFilters: { sort: "newest", availability: "all" },
         },
       },
       ProductResponse: {

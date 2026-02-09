@@ -30,6 +30,37 @@ export type User = {
 
 export type LocalizedString = { en: string; ar: string };
 
+/** Must match backend: newest | priceAsc | priceDesc | nameAsc | nameDesc | bestSelling | highestSelling | lowSelling */
+export type ProductSort =
+  | "newest"
+  | "priceAsc"
+  | "priceDesc"
+  | "nameAsc"
+  | "nameDesc"
+  | "bestSelling"
+  | "highestSelling"
+  | "lowSelling";
+
+/** Stock filter for list products: all | inStock | outOfStock */
+export type ProductAvailability = "all" | "inStock" | "outOfStock";
+
+/** Handled query params returned by list products API */
+export type ProductListAppliedFilters = {
+  sort: ProductSort;
+  availability: ProductAvailability;
+  category?: string;
+  search?: string;
+  status?: "ACTIVE" | "INACTIVE";
+  newArrival?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
+  color?: string;
+  minRating?: number;
+};
+
+/** Option for E-commerce filter dropdowns (from GET /api/products/filters/availability and /filters/sort) */
+export type ProductFilterOption = { value: string; labelEn: string; labelAr: string };
+
 export type Product = {
   _id: string;
   name: LocalizedString;
@@ -407,7 +438,20 @@ export const api = {
   getCustomer: (id: string) => request(`/users/${id}`),
   getCustomerOrders: (id: string) => request(`/users/${id}/orders`),
 
-  listProducts: (params?: { page?: number; limit?: number; search?: string; status?: string; category?: string; newArrival?: boolean; sort?: string; minRating?: number }) => {
+  listProducts: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    category?: string;
+    newArrival?: boolean;
+    availability?: ProductAvailability;
+    sort?: ProductSort;
+    minPrice?: number;
+    maxPrice?: number;
+    color?: string;
+    minRating?: number;
+  }) => {
     const sp = new URLSearchParams();
     if (params?.page != null) sp.set("page", String(params.page));
     if (params?.limit != null) sp.set("limit", String(params.limit));
@@ -415,11 +459,25 @@ export const api = {
     if (params?.status) sp.set("status", params.status);
     if (params?.newArrival === true) sp.set("newArrival", "true");
     if (params?.category) sp.set("category", params.category);
+    if (params?.availability && params.availability !== "all") sp.set("availability", params.availability);
     if (params?.sort) sp.set("sort", params.sort);
+    if (params?.minPrice != null) sp.set("minPrice", String(params.minPrice));
+    if (params?.maxPrice != null) sp.set("maxPrice", String(params.maxPrice));
+    if (params?.color) sp.set("color", params.color);
     if (params?.minRating != null) sp.set("minRating", String(params.minRating));
     const q = sp.toString();
-    return request(`/products${q ? `?${q}` : ""}`);
+    return request(`/products${q ? `?${q}` : ""}`) as Promise<{
+      data: Product[];
+      pagination: { total: number; page: number; limit: number; totalPages: number };
+      appliedFilters?: ProductListAppliedFilters;
+    }>;
   },
+  /** GET /api/products/filters/availability – options for E-commerce availability dropdown */
+  getAvailabilityFilters: () =>
+    request("/products/filters/availability") as Promise<{ data: ProductFilterOption[] }>,
+  /** GET /api/products/filters/sort – options for E-commerce sort dropdown */
+  getSortFilters: () =>
+    request("/products/filters/sort") as Promise<{ data: ProductFilterOption[] }>,
   getProduct: (id: string) => request(`/products/${id}`),
   getRelatedProducts: (id: string, limit?: number) =>
     request(`/products/${id}/related${limit != null ? `?limit=${limit}` : ""}`),

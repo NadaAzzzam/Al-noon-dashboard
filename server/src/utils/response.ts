@@ -14,6 +14,8 @@ export interface SendResponseOptions {
   message?: string;
   status?: number;
   pagination?: PaginationMeta;
+  /** Optional applied/handled query params (e.g. list products: sort, availability) */
+  appliedFilters?: Record<string, unknown>;
 }
 
 /**
@@ -26,7 +28,7 @@ export function sendResponse(
   locale: Locale,
   options: SendResponseOptions = {}
 ): void {
-  const { data, message, status = 200, pagination } = options;
+  const { data, message, status = 200, pagination, appliedFilters } = options;
 
   if (status === 204) {
     res.status(204).send();
@@ -45,6 +47,10 @@ export function sendResponse(
 
   if (pagination) {
     body.pagination = pagination;
+  }
+
+  if (appliedFilters && Object.keys(appliedFilters).length > 0) {
+    body.appliedFilters = appliedFilters;
   }
 
   res.status(status).json(body);

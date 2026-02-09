@@ -8,6 +8,8 @@ import {
   ApiError,
   Category,
   Product,
+  ProductSort,
+  ProductAvailability,
   getProductImageUrl,
 } from "../services/api";
 import { formatPriceEGP } from "../utils/format";
@@ -25,18 +27,21 @@ const ProductsPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [availabilityFilter, setAvailabilityFilter] = useState<ProductAvailability>("all");
   const [newArrivalFilter, setNewArrivalFilter] = useState(false);
-  const [salesFilter, setSalesFilter] = useState<string>("");
+  const [sortFilter, setSortFilter] = useState<ProductSort | "">("");
   const [ratingFilter, setRatingFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, unknown> | null>(null);
 
   const hasFilters = !!(
     search ||
     statusFilter ||
     categoryFilter ||
+    availabilityFilter !== "all" ||
     newArrivalFilter ||
-    salesFilter ||
+    sortFilter ||
     ratingFilter
   );
 
@@ -44,8 +49,9 @@ const ProductsPage = () => {
     setSearch("");
     setStatusFilter("");
     setCategoryFilter("");
+    setAvailabilityFilter("all");
     setNewArrivalFilter(false);
-    setSalesFilter("");
+    setSortFilter("");
     setRatingFilter("");
     setPage(1);
   };
@@ -53,23 +59,20 @@ const ProductsPage = () => {
   const loadProducts = async () => {
     setError(null);
     try {
-      const res = (await api.listProducts({
+      const res = await api.listProducts({
         page,
         limit: PAGE_SIZE,
         search: search || undefined,
         status: statusFilter || undefined,
         category: categoryFilter || undefined,
+        availability: availabilityFilter !== "all" ? availabilityFilter : undefined,
         newArrival: newArrivalFilter || undefined,
-        sort: salesFilter || undefined,
+        sort: sortFilter || undefined,
         minRating: ratingFilter ? Number(ratingFilter) : undefined,
-      })) as {
-        data?: Product[];
-        pagination?: { total: number };
-        products?: Product[];
-        total?: number;
-      };
-      setProducts(res.data ?? res.products ?? []);
-      setTotal(res.pagination?.total ?? res.total ?? 0);
+      });
+      setProducts(res.data ?? []);
+      setTotal(res.pagination?.total ?? 0);
+      setAppliedFilters(res.appliedFilters ?? null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         window.location.href = "/login";
@@ -98,8 +101,9 @@ const ProductsPage = () => {
     search,
     statusFilter,
     categoryFilter,
+    availabilityFilter,
     newArrivalFilter,
-    salesFilter,
+    sortFilter,
     ratingFilter,
   ]);
   useEffect(() => {
@@ -236,6 +240,18 @@ const ProductsPage = () => {
               </option>
             ))}
           </select>
+          <select
+            value={availabilityFilter}
+            onChange={(e) => {
+              setAvailabilityFilter(e.target.value as ProductAvailability);
+              setPage(1);
+            }}
+            title={t("products.availability")}
+          >
+            <option value="all">{t("products.availability_all")}</option>
+            <option value="inStock">{t("products.availability_in_stock")}</option>
+            <option value="outOfStock">{t("products.availability_out_of_stock")}</option>
+          </select>
           <label className="filters-checkbox">
             <input
               type="checkbox"
@@ -248,17 +264,21 @@ const ProductsPage = () => {
             <span>{t("products.new_arrivals_only")}</span>
           </label>
           <select
-            value={salesFilter}
+            value={sortFilter}
             onChange={(e) => {
-              setSalesFilter(e.target.value);
+              setSortFilter((e.target.value || "") as ProductSort | "");
               setPage(1);
             }}
             title={t("products.filter_by_sales")}
           >
             <option value="">{t("products.all_sales")}</option>
-            <option value="highestSelling">
-              {t("products.highest_selling")}
-            </option>
+            <option value="newest">{t("products.sort_newest")}</option>
+            <option value="priceAsc">{t("products.sort_price_asc")}</option>
+            <option value="priceDesc">{t("products.sort_price_desc")}</option>
+            <option value="nameAsc">{t("products.sort_name_asc")}</option>
+            <option value="nameDesc">{t("products.sort_name_desc")}</option>
+            <option value="bestSelling">{t("products.sort_best_selling")}</option>
+            <option value="highestSelling">{t("products.highest_selling")}</option>
             <option value="lowSelling">{t("products.low_sale")}</option>
           </select>
           <select
@@ -280,6 +300,11 @@ const ProductsPage = () => {
             </button>
           )}
         </div>
+        {appliedFilters && Object.keys(appliedFilters).length > 0 && (
+          <p className="applied-filters-hint" style={{ marginTop: 8, fontSize: 12, color: "var(--text-muted, #666)" }}>
+            {t("products.applied_filters", "Applied")}: {Object.entries(appliedFilters).map(([k, v]) => `${k}=${String(v)}`).join(", ")}
+          </p>
+        )}
 
         {products.length > 0 ? (
           <>

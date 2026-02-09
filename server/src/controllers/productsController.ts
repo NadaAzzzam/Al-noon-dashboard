@@ -9,6 +9,33 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { productImagePath, productVideoPath } from "../middlewares/upload.js";
 import { sendResponse } from "../utils/response.js";
 
+/** Options for E-commerce availability filter (value matches list products query). */
+const AVAILABILITY_OPTIONS = [
+  { value: "all", labelEn: "All", labelAr: "الكل" },
+  { value: "inStock", labelEn: "In stock", labelAr: "متوفر" },
+  { value: "outOfStock", labelEn: "Out of stock", labelAr: "غير متوفر" },
+] as const;
+
+/** Options for E-commerce sort (value matches list products query). */
+const SORT_OPTIONS = [
+  { value: "newest", labelEn: "Newest", labelAr: "الأحدث" },
+  { value: "priceAsc", labelEn: "Price: Low to High", labelAr: "السعر: منخفض إلى عالي" },
+  { value: "priceDesc", labelEn: "Price: High to Low", labelAr: "السعر: عالي إلى منخفض" },
+  { value: "nameAsc", labelEn: "Name A–Z", labelAr: "الاسم أ–ي" },
+  { value: "nameDesc", labelEn: "Name Z–A", labelAr: "الاسم ي–أ" },
+  { value: "bestSelling", labelEn: "Best selling", labelAr: "الأكثر مبيعاً" },
+  { value: "highestSelling", labelEn: "Highest selling", labelAr: "الأعلى مبيعاً" },
+  { value: "lowSelling", labelEn: "Lowest selling", labelAr: "الأقل مبيعاً" },
+] as const;
+
+export const getAvailabilityFilters = asyncHandler(async (req, res) => {
+  sendResponse(res, req.locale, { data: [...AVAILABILITY_OPTIONS] });
+});
+
+export const getSortFilters = asyncHandler(async (req, res) => {
+  sendResponse(res, req.locale, { data: [...SORT_OPTIONS] });
+});
+
 export const listProducts = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
     return sendResponse(res, req.locale, {
@@ -82,6 +109,19 @@ export const listProducts = asyncHandler(async (req, res) => {
   }
 
   const total = await Product.countDocuments(filter);
+
+  const appliedFilters: Record<string, unknown> = {
+    sort: sort || "newest",
+    availability: availability === "inStock" || availability === "outOfStock" ? availability : "all"
+  };
+  if (category) appliedFilters.category = category;
+  if (search) appliedFilters.search = search;
+  if (status === "ACTIVE" || status === "INACTIVE") appliedFilters.status = status;
+  if (newArrival === "true") appliedFilters.newArrival = true;
+  if (minPrice != null && !Number.isNaN(minPrice)) appliedFilters.minPrice = minPrice;
+  if (maxPrice != null && !Number.isNaN(maxPrice)) appliedFilters.maxPrice = maxPrice;
+  if (color) appliedFilters.color = color;
+  if (minRating != null && !Number.isNaN(minRating) && minRating >= 1 && minRating <= 5) appliedFilters.minRating = minRating;
 
   const useEffectivePriceSort = sort === "priceAsc" || sort === "priceDesc";
   const useSalesSort = sort === "bestSelling" || sort === "highestSelling" || sort === "lowSelling";
@@ -198,7 +238,8 @@ export const listProducts = asyncHandler(async (req, res) => {
 
   sendResponse(res, req.locale, {
     data: products,
-    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    appliedFilters
   });
 });
 

@@ -2,8 +2,10 @@ import { Router } from "express";
 import {
   createProduct,
   deleteProduct,
+  getAvailabilityFilters,
   getProduct,
   getRelatedProducts,
+  getSortFilters,
   listProducts,
   setProductStatus,
   updateProduct,
@@ -25,6 +27,8 @@ import { stockUpdateSchema } from "../validators/inventory.js";
 const router = Router();
 
 router.get("/", validate(productQuerySchema), listProducts);
+router.get("/filters/availability", getAvailabilityFilters);
+router.get("/filters/sort", getSortFilters);
 router.get("/:id/related", validate(productParamsSchema), getRelatedProducts);
 router.get("/:id", validate(productParamsSchema), getProduct);
 
