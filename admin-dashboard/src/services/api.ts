@@ -221,7 +221,7 @@ export type ContentPage = {
   content: LocalizedString;
 };
 
-export type HomeCollection = { title: LocalizedString; image: string; url: string; order: number };
+export type HomeCollection = { title: LocalizedString; image: string; video?: string; url: string; order: number };
 
 export type HeroConfig = {
   images: string[];
@@ -244,7 +244,7 @@ export type SettingsPayload = Partial<{
   quickLinks: { labelEn: string; labelAr: string; url: string }[];
   socialLinks: { facebook: string; instagram: string };
   newsletterEnabled: boolean;
-  homeCollections: { titleEn: string; titleAr: string; image: string; url: string; order: number }[];
+  homeCollections: { titleEn: string; titleAr: string; image: string; video?: string; url: string; order: number }[];
   hero: { images: string[]; videos: string[]; titleEn: string; titleAr: string; subtitleEn: string; subtitleAr: string; ctaLabelEn: string; ctaLabelAr: string; ctaUrl: string };
   heroEnabled: boolean;
   newArrivalsLimit: number;
@@ -272,7 +272,7 @@ export type SettingsPayload = Partial<{
   };
 }>;
 
-/** Public store config for e-commerce (store name, logo, footer, newsletter, homepage collections). */
+/** Public store config for e-commerce (store name, logo, footer, newsletter, homepage collections, hero, feedback). */
 export type StoreConfig = {
   storeName: LocalizedString;
   logo: string;
@@ -288,6 +288,9 @@ export type StoreConfig = {
   homeCollectionsDisplayLimit: number;
   ourCollectionSectionImages?: string[];
   ourCollectionSectionVideos?: string[];
+  feedbackSectionEnabled: boolean;
+  feedbackDisplayLimit: number;
+  feedbacks: { _id: string; product: { name: LocalizedString }; customerName: string; message: string; rating: number; image?: string }[];
 };
 
 export type Subscriber = { email: string; createdAt: string };

@@ -19,6 +19,7 @@ type CollectionCardForm = {
   titleEn: string;
   titleAr: string;
   image: string;
+  video: string;
   url: string;
   order: number;
 };
@@ -175,6 +176,7 @@ const HomePageSettingsPage = () => {
             c: {
               title?: { en?: string; ar?: string };
               image?: string;
+              video?: string;
               url?: string;
               order?: number;
             },
@@ -183,6 +185,7 @@ const HomePageSettingsPage = () => {
             titleEn: c.title?.en ?? "",
             titleAr: c.title?.ar ?? "",
             image: c.image ?? "",
+            video: c.video ?? "",
             url: c.url ?? "",
             order: (c.order ?? i) as number,
           }),
@@ -436,6 +439,7 @@ const HomePageSettingsPage = () => {
           titleEn: "",
           titleAr: "",
           image: "",
+          video: "",
           url: "",
           order: f.homeCollections.length,
         },
@@ -509,6 +513,7 @@ const HomePageSettingsPage = () => {
           titleEn: c.titleEn.trim(),
           titleAr: c.titleAr.trim(),
           image: c.image.trim(),
+          video: c.video.trim() || undefined,
           url: c.url.trim(),
           order: idx,
         })),
@@ -1484,6 +1489,17 @@ const HomePageSettingsPage = () => {
                               updateCollection(idx, { url: e.target.value })
                             }
                             placeholder="/category/summer"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>{t("settings.collection_video_url")}</label>
+                          <input
+                            type="text"
+                            value={col.video}
+                            onChange={(e) =>
+                              updateCollection(idx, { video: e.target.value })
+                            }
+                            placeholder="https://... or leave empty for image only"
                           />
                         </div>
                         <button

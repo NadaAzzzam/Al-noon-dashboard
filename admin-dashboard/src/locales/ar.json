@@ -475,6 +475,7 @@
     "collection_title_en": "العنوان (إنجليزي)",
     "collection_title_ar": "العنوان (عربي)",
     "collection_link": "رابط URL",
+    "collection_video_url": "رابط الفيديو (اختياري)",
     "add_collection": "إضافة مجموعة",
     "section_footer": "التذييل والمتجر",
     "footer_hint": "الروابط السريعة وروابط السوشيال وتفعيل النشرة تستخدم في تذييل موقع المتجر. لصفحات السياسات استخدم روابط مثل /page/privacy، /page/return-policy، /page/shipping-policy، /page/about، /page/contact.",

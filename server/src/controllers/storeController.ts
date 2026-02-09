@@ -23,7 +23,7 @@ const storeDefaults = {
   quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
-  homeCollections: [] as { title: { en: string; ar: string }; image: string; url: string; order: number }[],
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; video?: string; url: string; order: number }[],
   hero: heroDefault,
   heroEnabled: true,
   newArrivalsLimit: 8,
@@ -32,16 +32,19 @@ const storeDefaults = {
   homeCollectionsDisplayLimit: 0,
   ourCollectionSectionImages: [] as string[],
   ourCollectionSectionVideos: [] as string[],
-  feedbackSectionEnabled: false,
+  feedbackSectionEnabled: true,
   feedbackDisplayLimit: 6,
   feedbacks: [] as { _id: string; product: { name: { en: string; ar: string } }; customerName: string; message: string; rating: number; image?: string }[]
 };
+
+/** Max hero images to return for storefront (e.g. for slider). */
+const HERO_IMAGES_LIMIT = 3;
 
 function normalizeHero(hero: { image?: string; images?: string[]; videos?: string[] } | null | undefined) {
   if (!hero) return heroDefault;
   const images = Array.isArray(hero.images) ? hero.images : (hero.image ? [hero.image] : []);
   const videos = Array.isArray(hero.videos) ? hero.videos : [];
-  return { ...hero, images, videos };
+  return { ...hero, images: images.slice(0, HERO_IMAGES_LIMIT), videos };
 }
 
 /** Public: used by e-commerce storefront for footer, header, newsletter. */

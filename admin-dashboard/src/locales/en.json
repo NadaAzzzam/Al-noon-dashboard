@@ -476,6 +476,7 @@
     "collection_title_en": "Title (EN)",
     "collection_title_ar": "Title (AR)",
     "collection_link": "Link URL",
+    "collection_video_url": "Video URL (optional)",
     "add_collection": "Add collection",
     "section_footer": "Footer & storefront",
     "footer_hint": "Quick links, social URLs, and newsletter toggle are used on your e-commerce site footer. For policy pages use URLs like /page/privacy, /page/return-policy, /page/shipping-policy, /page/about, /page/contact.",
