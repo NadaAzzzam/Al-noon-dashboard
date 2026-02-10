@@ -9,11 +9,14 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { productImagePath, productVideoPath } from "../middlewares/upload.js";
 import { sendResponse } from "../utils/response.js";
 
-/** Ensure product response has viewImage and hoverImage (from explicit fields or derived from images[]). */
-function withViewHoverImages<T extends { images?: string[]; viewImage?: string; hoverImage?: string }>(p: T): T & { viewImage: string; hoverImage: string } {
+/** Product response shape: viewImage (main), optional hoverImage, optional video. Exported for store home API. */
+export function withViewHoverVideo<T extends { images?: string[]; videos?: string[]; viewImage?: string; hoverImage?: string }>(
+  p: T
+): T & { viewImage: string; hoverImage?: string; video?: string } {
   const viewImage = p.viewImage ?? p.images?.[0] ?? "";
-  const hoverImage = p.hoverImage ?? p.images?.[1] ?? p.images?.[0] ?? "";
-  return { ...p, viewImage, hoverImage };
+  const hoverImage = p.hoverImage ?? p.images?.[1];
+  const video = (p as { videos?: string[] }).videos?.[0];
+  return { ...p, viewImage, hoverImage: hoverImage ?? undefined, video: video ?? undefined };
 }
 
 /** Options for E-commerce availability filter (value matches list products query). */
@@ -243,7 +246,7 @@ export const listProducts = asyncHandler(async (req, res) => {
     });
   }
 
-  const data = (products as Record<string, unknown>[]).map((p) => withViewHoverImages(p as { images?: string[]; viewImage?: string; hoverImage?: string }));
+  const data = (products as Record<string, unknown>[]).map((p) => withViewHoverVideo(p as { images?: string[]; viewImage?: string; hoverImage?: string }));
   sendResponse(res, req.locale, {
     data,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
@@ -261,7 +264,7 @@ export const getProduct = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { data: { product: withViewHoverImages(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
+  sendResponse(res, req.locale, { data: { product: withViewHoverVideo(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
 });
 
 export const getRelatedProducts = asyncHandler(async (req, res) => {
@@ -287,7 +290,7 @@ export const getRelatedProducts = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
-  const data = (products as Record<string, unknown>[]).map((p) => withViewHoverImages(p as { images?: string[]; viewImage?: string; hoverImage?: string }));
+  const data = (products as Record<string, unknown>[]).map((p) => withViewHoverVideo(p as { images?: string[]; viewImage?: string; hoverImage?: string }));
   sendResponse(res, req.locale, { data });
 });
 
@@ -336,7 +339,7 @@ export const createProduct = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
   const product = await Product.create(mapBodyToProduct(req.body));
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { status: 201, message: "success.product.created", data: { product: withViewHoverImages(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
+  sendResponse(res, req.locale, { status: 201, message: "success.product.created", data: { product: withViewHoverVideo(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -350,7 +353,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { message: "success.product.updated", data: { product: withViewHoverImages(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
+  sendResponse(res, req.locale, { message: "success.product.updated", data: { product: withViewHoverVideo(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
 });
 
 export const deleteProduct = asyncHandler(async (req, res) => {
@@ -364,7 +367,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { message: "success.product.deleted", data: { product: withViewHoverImages(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
+  sendResponse(res, req.locale, { message: "success.product.deleted", data: { product: withViewHoverVideo(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
 });
 
 export const setProductStatus = asyncHandler(async (req, res) => {
@@ -378,7 +381,7 @@ export const setProductStatus = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { message: "success.product.status_updated", data: { product: withViewHoverImages(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
+  sendResponse(res, req.locale, { message: "success.product.status_updated", data: { product: withViewHoverVideo(productObj as { images?: string[]; viewImage?: string; hoverImage?: string }) } });
 });
 
 export const uploadProductImages = asyncHandler(async (req: Request, res) => {

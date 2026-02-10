@@ -2,7 +2,9 @@ import { Settings } from "../models/Settings.js";
 import { Subscriber } from "../models/Subscriber.js";
 import { ContactSubmission } from "../models/ContactSubmission.js";
 import { ProductFeedback } from "../models/ProductFeedback.js";
+import { Product } from "../models/Product.js";
 import { isDbConnected } from "../config/db.js";
+import { withViewHoverVideo } from "./productsController.js";
 import { t } from "../i18n.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -116,6 +118,94 @@ export const getStore = asyncHandler(async (req, res) => {
         feedbackSectionEnabled,
         feedbackDisplayLimit,
         feedbacks
+      }
+    }
+  });
+});
+
+/** Public: single home page API – returns all sections (store meta, hero, newArrivals products, collections, feedbacks). */
+export const getStoreHome = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) {
+    return sendResponse(res, req.locale, {
+      data: {
+        home: {
+          store: { storeName: storeDefaults.storeName, logo: storeDefaults.logo, quickLinks: storeDefaults.quickLinks, socialLinks: storeDefaults.socialLinks, newsletterEnabled: storeDefaults.newsletterEnabled },
+          hero: heroDefault,
+          heroEnabled: storeDefaults.heroEnabled,
+          newArrivals: [],
+          homeCollections: storeDefaults.homeCollections,
+          feedbackSectionEnabled: storeDefaults.feedbackSectionEnabled,
+          feedbackDisplayLimit: storeDefaults.feedbackDisplayLimit,
+          feedbacks: storeDefaults.feedbacks,
+          announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: "#0f172a" },
+          promoBanner: { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" }
+        }
+      }
+    });
+  }
+  const settings = await Settings.findOne().lean();
+  const s = settings ?? null;
+  const homeCollections = (s?.homeCollections ?? storeDefaults.homeCollections).sort((a, b) => a.order - b.order);
+  const displayLimit = s?.homeCollectionsDisplayLimit ?? storeDefaults.homeCollectionsDisplayLimit;
+  const collectionsToShow = displayLimit > 0 ? homeCollections.slice(0, displayLimit) : homeCollections;
+  const hero = normalizeHero(s?.hero as { image?: string; images?: string[]; videos?: string[] } | null);
+  const feedbackSectionEnabled = (s as { feedbackSectionEnabled?: boolean })?.feedbackSectionEnabled ?? storeDefaults.feedbackSectionEnabled;
+  const feedbackDisplayLimit = (s as { feedbackDisplayLimit?: number })?.feedbackDisplayLimit ?? storeDefaults.feedbackDisplayLimit;
+  const newArrivalsLimit = Math.max(1, Math.min(24, s?.newArrivalsLimit ?? storeDefaults.newArrivalsLimit));
+
+  let feedbacks = storeDefaults.feedbacks;
+  if (feedbackSectionEnabled) {
+    const limit = feedbackDisplayLimit > 0 ? feedbackDisplayLimit : 50;
+    const list = await ProductFeedback.find({ approved: true })
+      .sort({ order: 1, createdAt: -1 })
+      .limit(limit)
+      .populate("product", "name")
+      .lean();
+    feedbacks = list.map((f: unknown) => {
+      const item = f as { _id: unknown; product: unknown; customerName: string; message: string; rating: number; image?: string };
+      const prod = item.product as { name?: { en: string; ar: string } } | null | undefined;
+      return {
+        _id: String(item._id),
+        product: prod?.name ? { name: prod.name } : { name: { en: "", ar: "" } },
+        customerName: item.customerName,
+        message: item.message,
+        rating: item.rating,
+        image: item.image || undefined
+      };
+    });
+  }
+
+  const newArrivalProducts = await Product.find({ isNewArrival: true, status: "ACTIVE", deletedAt: null })
+    .populate("category", "name status")
+    .sort({ createdAt: -1 })
+    .limit(newArrivalsLimit)
+    .lean();
+  const newArrivals = (newArrivalProducts as Record<string, unknown>[]).map((p) =>
+    withViewHoverVideo(p as { images?: string[]; videos?: string[]; viewImage?: string; hoverImage?: string })
+  );
+
+  const announcementBar = (s as { announcementBar?: { text: { en: string; ar: string }; enabled: boolean; backgroundColor: string } })?.announcementBar ?? { text: { en: "", ar: "" }, enabled: false, backgroundColor: "#0f172a" };
+  const promoBanner = (s as { promoBanner?: { enabled: boolean; image: string; title: { en: string; ar: string }; subtitle: { en: string; ar: string }; ctaLabel: { en: string; ar: string }; ctaUrl: string } })?.promoBanner ?? { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" };
+
+  sendResponse(res, req.locale, {
+    data: {
+      home: {
+        store: {
+          storeName: s?.storeName ?? storeDefaults.storeName,
+          logo: s?.logo ?? storeDefaults.logo,
+          quickLinks: s?.quickLinks ?? storeDefaults.quickLinks,
+          socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
+          newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled
+        },
+        hero,
+        heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
+        newArrivals,
+        homeCollections: collectionsToShow,
+        feedbackSectionEnabled,
+        feedbackDisplayLimit,
+        feedbacks,
+        announcementBar,
+        promoBanner
       }
     }
   });
