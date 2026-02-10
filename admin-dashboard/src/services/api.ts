@@ -1,5 +1,8 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
+/** Default logo path used when no custom logo is set (storefront always shows this). */
+export const DEFAULT_LOGO_PATH = "/uploads/logos/default-logo.png";
+
 /** Base URL for static uploads (logos). Use with logo path: getUploadsBaseUrl() + settings.logo */
 export function getUploadsBaseUrl(): string {
   const base = import.meta.env.VITE_API_URL;
@@ -61,6 +64,15 @@ export type ProductListAppliedFilters = {
 /** Option for E-commerce filter dropdowns (from GET /api/products/filters/availability and /filters/sort) */
 export type ProductFilterOption = { value: string; labelEn: string; labelAr: string };
 
+/** Single media asset in product.media (image | video | gif). */
+export type ProductMediaItem = { type: "image" | "video" | "gif"; url: string; alt?: string; durationSeconds?: number };
+/** Product media: default (required), optional hover, optional previewVideo. */
+export type ProductMedia = {
+  default: ProductMediaItem;
+  hover?: ProductMediaItem;
+  previewVideo?: ProductMediaItem;
+};
+
 export type Product = {
   _id: string;
   name: LocalizedString;
@@ -68,10 +80,8 @@ export type Product = {
   price: number;
   discountPrice?: number;
   images?: string[];
-  /** Main image for product card (defaults to images[0]). Always present in API response. */
-  viewImage?: string;
-  /** Image shown on hover (defaults to images[1] or images[0]). Always present in API response. */
-  hoverImage?: string;
+  /** Structured media: default, hover, previewVideo (API response only). */
+  media?: ProductMedia;
   /** Same length as images; imageColors[i] = color name for images[i]. "" = default (all colors). */
   imageColors?: string[];
   stock: number;
@@ -96,6 +106,11 @@ export type Product = {
   /** Number of users who rated this product (approved feedback). Set by list products API. */
   ratingCount?: number;
 };
+
+/** Default image URL for a product (media.default.url or first image). */
+export function getProductDefaultImageUrl(product: Product): string {
+  return product.media?.default?.url ?? product.images?.[0] ?? "";
+}
 
 /** Payload for create/update product (API accepts nameEn, nameAr, etc.) */
 export type ProductPayload = {

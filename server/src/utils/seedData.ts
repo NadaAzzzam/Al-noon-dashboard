@@ -4,10 +4,13 @@
  * announcementBar, promoBanner, featuredProducts, feedback, orderNotifications, aiAssistant),
  * Products (with sizeDescriptions, details, stylingTip), Users, Orders, Payments,
  * Contact submissions, Subscribers, Product feedback, and AI chat sessions.
- * No required fields are left null.
+ * Product images are loaded from server/seed-images/ only (no external image links).
  * Run: npm run seed
  */
 
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import mongoose from "mongoose";
 import { connectDatabase } from "../config/db.js";
 import { Category } from "../models/Category.js";
@@ -22,32 +25,92 @@ import { ProductFeedback } from "../models/ProductFeedback.js";
 import { Payment } from "../models/Payment.js";
 import { ChatSession, type ProductCardInMessage } from "../models/ChatSession.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@localhost";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin123";
 
-// Unsplash (free to use) – scarf / fabric / modest wear style images
-const IMAGES = {
-  abaya1: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&q=80",
-  abaya2: "https://images.unsplash.com/photo-1595776613215-fe04b78de7d0?w=400&q=80",
-  cape1: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=400&q=80",
-  cape2: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&q=80",
-  hijab1: "https://images.unsplash.com/photo-1529634801-b0e0b2e4b2c3?w=400&q=80",
-  hijab2: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80",
-  scarf1: "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=400&q=80",
-  scarf2: "https://images.unsplash.com/photo-1558171813-4c088753af8f?w=400&q=80",
-  fabric1: "https://images.unsplash.com/photo-1558769132-cb1aea913ec9?w=400&q=80",
-  fabric2: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=400&q=80",
-  dress1: "https://images.unsplash.com/photo-1595776613215-fe04b78de7d0?w=400&q=80",
-  coat1: "https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=400&q=80",
-  kaftan1: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&q=80",
-  cardigan1: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&q=80",
-  // Extra for hero and section media (higher res where useful)
-  hero2: "https://images.unsplash.com/photo-1595776613215-fe04b78de7d0?w=1200&q=80",
-  hero3: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=1200&q=80",
-  section1: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80",
-  section2: "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=800&q=80",
-  section3: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80"
-};
+const SEED_IMAGE_KEYS = [
+  "abaya1", "abaya2", "cape1", "cape2", "hijab1", "hijab2", "scarf1", "scarf2",
+  "fabric1", "fabric2", "dress1", "coat1", "kaftan1", "cardigan1",
+  "hero1", "hero2", "hero3", "section1", "section2", "section3"
+] as const;
+/** Pairs used for default (first) and hover (second) images. If hover file is missing, seeder copies default so both URLs exist. */
+const SEED_IMAGE_DEFAULT_HOVER_PAIRS: [string, string][] = [
+  ["abaya1", "abaya2"], ["cape1", "cape2"], ["hijab1", "hijab2"], ["scarf1", "scarf2"],
+  ["fabric1", "fabric2"], ["cardigan1", "coat1"], ["dress1", "abaya2"], ["kaftan1", "fabric1"]
+];
+const SEED_IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".webp"];
+
+type SeedImagesResult = { IMAGES: Record<string, string>; paymentProofUrl: string };
+
+/** Load product/hero images from server/seed-images (local only). Copies files to uploads/products and returns paths.
+ * For default/hover pairs: if only the default file exists, copies it as the hover file so both URLs are available. */
+function loadSeedImages(): SeedImagesResult {
+  const serverRoot = path.resolve(__dirname, "../..");
+  const seedImagesDir = path.join(serverRoot, "seed-images");
+  const uploadsProductsDir = path.join(serverRoot, "uploads", "products");
+  const uploadsPaymentProofDir = path.join(serverRoot, "uploads", "payment-proof");
+
+  if (!fs.existsSync(uploadsProductsDir)) fs.mkdirSync(uploadsProductsDir, { recursive: true });
+  if (!fs.existsSync(uploadsPaymentProofDir)) fs.mkdirSync(uploadsPaymentProofDir, { recursive: true });
+
+  const IMAGES: Record<string, string> = {};
+  let firstCopied = "";
+
+  function copyOne(key: string, destSubdir: string, destPrefix: string): string {
+    for (const ext of SEED_IMAGE_EXTS) {
+      const src = path.join(seedImagesDir, `${key}${ext}`);
+      if (fs.existsSync(src)) {
+        const base = `${destPrefix}${key}${ext}`;
+        const dest = path.join(destSubdir, base);
+        fs.copyFileSync(src, dest);
+        const url = destSubdir === uploadsProductsDir ? `/uploads/products/${base}` : `/uploads/payment-proof/${base}`;
+        if (!firstCopied && destSubdir === uploadsProductsDir) firstCopied = url;
+        return url;
+      }
+    }
+    return "";
+  }
+
+  for (const key of SEED_IMAGE_KEYS) {
+    const url = copyOne(key, uploadsProductsDir, "seed-");
+    if (url) IMAGES[key] = url;
+  }
+
+  // Seed default/hover pairs: if hover key has no file but default does, copy default file as hover so both URLs exist
+  for (const [defaultKey, hoverKey] of SEED_IMAGE_DEFAULT_HOVER_PAIRS) {
+    if (IMAGES[hoverKey]) continue;
+    const defaultUrl = IMAGES[defaultKey];
+    if (!defaultUrl) continue;
+    const defaultPath = path.join(uploadsProductsDir, path.basename(defaultUrl));
+    if (fs.existsSync(defaultPath)) {
+      const ext = path.extname(defaultPath);
+      const base = `seed-${hoverKey}${ext}`;
+      const dest = path.join(uploadsProductsDir, base);
+      fs.copyFileSync(defaultPath, dest);
+      IMAGES[hoverKey] = `/uploads/products/${base}`;
+    }
+  }
+
+  const placeholderUrl = copyOne("placeholder", uploadsProductsDir, "seed-");
+  if (placeholderUrl && !firstCopied) firstCopied = placeholderUrl;
+  for (const key of SEED_IMAGE_KEYS) {
+    if (!IMAGES[key]) IMAGES[key] = placeholderUrl || firstCopied || "";
+  }
+  for (const [, hoverKey] of SEED_IMAGE_DEFAULT_HOVER_PAIRS) {
+    if (!IMAGES[hoverKey]) IMAGES[hoverKey] = placeholderUrl || firstCopied || "";
+  }
+
+  const paymentProofUrl = copyOne("payment-proof", uploadsPaymentProofDir, "seed-");
+  if (Object.keys(IMAGES).length === 0 && !firstCopied) {
+    console.warn("No images found in server/seed-images. Add .jpg/.png files (e.g. abaya1.jpg, placeholder.png). See server/seed-images/README.md.");
+  }
+  return { IMAGES, paymentProofUrl };
+}
+
+export { loadSeedImages };
 
 // Free demo/product-style videos (direct MP4, work in <video src="">). Replace with your own uploads later.
 const VIDEOS = {
@@ -117,6 +180,9 @@ function buildChatSessions(products: { _id: mongoose.Types.ObjectId; name: { en:
 async function seed() {
   await connectDatabase();
   console.log("Seeding data (reference: Sawdah.eg)...\n");
+
+  const { IMAGES, paymentProofUrl } = loadSeedImages();
+  const heroImage = IMAGES.hero1 || IMAGES.hero2 || IMAGES.hero3 || IMAGES.abaya1 || "";
 
   // ----- Categories (Sawdah-style + Hijab, Niqab, Tarha) -----
   const categoriesData = [
@@ -195,10 +261,9 @@ async function seed() {
       }
     }
   ];
-  const heroImage = "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&q=80";
   await Settings.create({
     storeName: { en: "Al-noon", ar: "النون" },
-    logo: "",
+    logo: "/uploads/logos/default-logo.png",
     instaPayNumber: "+20 10 000 0000",
     paymentMethods: { cod: true, instaPay: true },
     lowStockThreshold: 5,
@@ -228,10 +293,10 @@ async function seed() {
     ourCollectionSectionImages: [IMAGES.section2, IMAGES.section3, IMAGES.cape1, IMAGES.fabric1],
     ourCollectionSectionVideos: [VIDEOS.section1],
     homeCollections: [
-      { title: { en: "Abayas", ar: "عبايات" }, image: IMAGES.abaya1, url: "/products?category=abayas", order: 1 },
-      { title: { en: "Capes", ar: "كابات" }, image: IMAGES.cape1, url: "/products?category=capes", order: 2 },
-      { title: { en: "Hijab", ar: "حجاب" }, image: IMAGES.hijab1, url: "/products?category=hijab", order: 3 },
-      { title: { en: "Malhafa", ar: "ملحفة" }, image: IMAGES.fabric1, url: "/products?category=malhafa", order: 4 }
+      { title: { en: "Abayas", ar: "عبايات" }, image: IMAGES.abaya1, hoverImage: IMAGES.abaya2, video: VIDEOS.product1, url: "/products?category=abayas", order: 1 },
+      { title: { en: "Capes", ar: "كابات" }, image: IMAGES.cape1, hoverImage: IMAGES.cape2, video: VIDEOS.product2, url: "/products?category=capes", order: 2 },
+      { title: { en: "Hijab", ar: "حجاب" }, image: IMAGES.hijab1, hoverImage: IMAGES.hijab2, video: VIDEOS.product3, url: "/products?category=hijab", order: 3 },
+      { title: { en: "Malhafa", ar: "ملحفة" }, image: IMAGES.fabric1, hoverImage: IMAGES.fabric2, video: VIDEOS.section1, url: "/products?category=malhafa", order: 4 }
     ],
     announcementBar: {
       text: { en: "Free delivery on orders over 2000 EGP", ar: "توصيل مجاني للطلبات فوق 2000 جنيه" },
@@ -275,37 +340,39 @@ async function seed() {
   });
 
   await Product.deleteMany({});
+  // Each product uses two different images: images[0] = default (viewImage), images[1] = hover (hoverImage).
+  // fillProduct sets viewImage = images[0], hoverImage = images[1] ?? images[0]; APIs use buildProductMedia so default and hover differ.
   const productsData = [
-    // Abayas
-    fillProduct({ name: { en: "Zipped Hooded Abaya", ar: "عباية زود هود" }, description: { en: "Classic zipped abaya with hood. Comfortable and modest.", ar: "عباية كلاسيكية بزود وهود. مريحة ومحتشمة." }, category: cat("Abayas"), price: 2100, images: [IMAGES.abaya1], videos: productVideos(0), stock: 15, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Brown"] }),
-    fillProduct({ name: { en: "Melton Abaya", ar: "عباية ميلتون" }, description: { en: "Elegant melton fabric abaya for winter.", ar: "عباية أنيقة من قماش ميلتون للشتاء." }, category: cat("Abayas"), price: 2100, images: [IMAGES.abaya2], videos: productVideos(1), stock: 12, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Grey"] }),
-    fillProduct({ name: { en: "Minimal Ribbed Abaya", ar: "عباية ريب مينيمال" }, description: { en: "Simple ribbed abaya, easy to style.", ar: "عباية ريب بسيطة، سهلة التنسيق." }, category: cat("Abayas"), price: 1450, images: [IMAGES.abaya1], videos: productVideos(2), stock: 20, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Burgundy"] }),
-    fillProduct({ name: { en: "Black Zip-Front Abaya", ar: "عباية سوداء زود أمامي" }, description: { en: "Black zip-front abaya, versatile and modern.", ar: "عباية سوداء زود أمامي، عصرية ومتعددة الاستخدام." }, category: cat("Abayas"), price: 1400, discountPrice: 2000, images: [IMAGES.abaya2], videos: productVideos(3), stock: 8, status: "ACTIVE" as const, isNewArrival: false, sizes: ["S", "M", "L"], colors: ["Black"] }),
-    fillProduct({ name: { en: "Velvet Chemise Abaya", ar: "عباية مخمل شيميز" }, description: { en: "Luxurious velvet chemise-style abaya.", ar: "عباية مخملية على طراز الشيميز." }, category: cat("Abayas"), price: 1050, discountPrice: 2100, images: [IMAGES.abaya1], videos: productVideos(4), stock: 10, status: "ACTIVE" as const, isNewArrival: false, sizes: ["M", "L"], colors: ["Black", "Burgundy", "Navy"] }),
-    // Capes
-    fillProduct({ name: { en: "Wool Cape", ar: "كاب صوف" }, description: { en: "Warm wool cape, essential for modest wardrobe.", ar: "كاب صوف دافئ، أساسي للخزانة المحتشمة." }, category: cat("Capes"), price: 950, discountPrice: 1900, images: [IMAGES.cape1], videos: productVideos(5), stock: 14, status: "ACTIVE" as const, isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Grey", "Camel"] }),
-    fillProduct({ name: { en: "Cape Hasna", ar: "كاب حَسَناء" }, description: { en: "Elegant cape with clean lines.", ar: "كاب أنيق بخطوط نظيفة." }, category: cat("Capes"), price: 2000, discountPrice: 2500, images: [IMAGES.cape2], videos: productVideos(6), stock: 6, status: "ACTIVE" as const, isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Navy"] }),
-    // Malhafa
-    fillProduct({ name: { en: "Classic Malhafa", ar: "ملحفة كلاسيكية" }, description: { en: "Traditional malhafa, cloak-style modest wear.", ar: "ملحفة تقليدية، عباءة محتشمة." }, category: cat("Malhafa"), price: 850, images: [IMAGES.fabric1], videos: productVideos(7), stock: 18, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Brown", "Grey"] }),
-    fillProduct({ name: { en: "Embroidered Malhafa", ar: "ملحفة مطرزة" }, description: { en: "Malhafa with subtle embroidery for special occasions.", ar: "ملحفة بتطريز خفيف للمناسبات." }, category: cat("Malhafa"), price: 1200, images: [IMAGES.fabric2], videos: productVideos(8), stock: 7, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Burgundy"] }),
-    // Hijab
+    // Abayas (abaya1 / abaya2)
+    fillProduct({ name: { en: "Zipped Hooded Abaya", ar: "عباية زود هود" }, description: { en: "Classic zipped abaya with hood. Comfortable and modest.", ar: "عباية كلاسيكية بزود وهود. مريحة ومحتشمة." }, category: cat("Abayas"), price: 2100, images: [IMAGES.abaya1, IMAGES.abaya2], videos: productVideos(0), stock: 15, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Brown"] }),
+    fillProduct({ name: { en: "Melton Abaya", ar: "عباية ميلتون" }, description: { en: "Elegant melton fabric abaya for winter.", ar: "عباية أنيقة من قماش ميلتون للشتاء." }, category: cat("Abayas"), price: 2100, images: [IMAGES.abaya2, IMAGES.abaya1], videos: productVideos(1), stock: 12, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Grey"] }),
+    fillProduct({ name: { en: "Minimal Ribbed Abaya", ar: "عباية ريب مينيمال" }, description: { en: "Simple ribbed abaya, easy to style.", ar: "عباية ريب بسيطة، سهلة التنسيق." }, category: cat("Abayas"), price: 1450, images: [IMAGES.abaya1, IMAGES.abaya2], videos: productVideos(2), stock: 20, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Burgundy"] }),
+    fillProduct({ name: { en: "Black Zip-Front Abaya", ar: "عباية سوداء زود أمامي" }, description: { en: "Black zip-front abaya, versatile and modern.", ar: "عباية سوداء زود أمامي، عصرية ومتعددة الاستخدام." }, category: cat("Abayas"), price: 1400, discountPrice: 2000, images: [IMAGES.abaya2, IMAGES.abaya1], videos: productVideos(3), stock: 8, status: "ACTIVE" as const, isNewArrival: false, sizes: ["S", "M", "L"], colors: ["Black"] }),
+    fillProduct({ name: { en: "Velvet Chemise Abaya", ar: "عباية مخمل شيميز" }, description: { en: "Luxurious velvet chemise-style abaya.", ar: "عباية مخملية على طراز الشيميز." }, category: cat("Abayas"), price: 1050, discountPrice: 2100, images: [IMAGES.abaya1, IMAGES.abaya2], videos: productVideos(4), stock: 10, status: "ACTIVE" as const, isNewArrival: false, sizes: ["M", "L"], colors: ["Black", "Burgundy", "Navy"] }),
+    // Capes (cape1 / cape2)
+    fillProduct({ name: { en: "Wool Cape", ar: "كاب صوف" }, description: { en: "Warm wool cape, essential for modest wardrobe.", ar: "كاب صوف دافئ، أساسي للخزانة المحتشمة." }, category: cat("Capes"), price: 950, discountPrice: 1900, images: [IMAGES.cape1, IMAGES.cape2], videos: productVideos(5), stock: 14, status: "ACTIVE" as const, isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Grey", "Camel"] }),
+    fillProduct({ name: { en: "Cape Hasna", ar: "كاب حَسَناء" }, description: { en: "Elegant cape with clean lines.", ar: "كاب أنيق بخطوط نظيفة." }, category: cat("Capes"), price: 2000, discountPrice: 2500, images: [IMAGES.cape2, IMAGES.cape1], videos: productVideos(6), stock: 6, status: "ACTIVE" as const, isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Navy"] }),
+    // Malhafa (fabric1 / fabric2)
+    fillProduct({ name: { en: "Classic Malhafa", ar: "ملحفة كلاسيكية" }, description: { en: "Traditional malhafa, cloak-style modest wear.", ar: "ملحفة تقليدية، عباءة محتشمة." }, category: cat("Malhafa"), price: 850, images: [IMAGES.fabric1, IMAGES.fabric2], videos: productVideos(7), stock: 18, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Brown", "Grey"] }),
+    fillProduct({ name: { en: "Embroidered Malhafa", ar: "ملحفة مطرزة" }, description: { en: "Malhafa with subtle embroidery for special occasions.", ar: "ملحفة بتطريز خفيف للمناسبات." }, category: cat("Malhafa"), price: 1200, images: [IMAGES.fabric2, IMAGES.fabric1], videos: productVideos(8), stock: 7, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Burgundy"] }),
+    // Hijab (hijab1/hijab2/scarf1/scarf2 – always two different)
     fillProduct({ name: { en: "Cotton Jersey Hijab", ar: "حجاب قطني جيرسي" }, description: { en: "Soft cotton jersey hijab, breathable and easy to wear.", ar: "حجاب قطني جيرسي ناعم، مريح وسهل الارتداء." }, category: cat("Hijab"), price: 120, images: [IMAGES.hijab1, IMAGES.scarf1], imageColors: ["", ""], videos: productVideos(9), stock: 50, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Grey", "Burgundy", "Dusty Pink"] }),
-    fillProduct({ name: { en: "Chiffon Hijab", ar: "حجاب شيفون" }, description: { en: "Light chiffon hijab for summer.", ar: "حجاب شيفون خفيف للصيف." }, category: cat("Hijab"), price: 95, images: [IMAGES.scarf2], videos: productVideos(10), stock: 40, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "White", "Nude", "Pink", "Blue"] }),
-    fillProduct({ name: { en: "Crinkle Hijab", ar: "حجاب كرينكل" }, description: { en: "Crinkle texture hijab, holds shape well.", ar: "حجاب ب texture كرينكل، يثبت الشكل جيداً." }, category: cat("Hijab"), price: 110, images: [IMAGES.hijab2], videos: productVideos(11), stock: 35, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Grey", "Brown"] }),
-    // Niqab
-    fillProduct({ name: { en: "Two-Piece Niqab", ar: "نقاب قطعتين" }, description: { en: "Classic two-piece niqab, breathable fabric.", ar: "نقاب كلاسيكي قطعتين، قماش قابل للتنفس." }, category: cat("Niqab"), price: 180, images: [IMAGES.scarf1], videos: productVideos(12), stock: 25, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Brown"] }),
-    fillProduct({ name: { en: "Niqab with Magnetic Closure", ar: "نقاب بمغناطيس" }, description: { en: "Niqab with magnetic closure for easy wear.", ar: "نقاب بإغلاق مغناطيسي لارتداء أسهل." }, category: cat("Niqab"), price: 220, images: [IMAGES.scarf2], videos: productVideos(13), stock: 15, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black"] }),
-    // Tarha / Veil
-    fillProduct({ name: { en: "Silk Tarha", ar: "طرح حرير" }, description: { en: "Light silk tarha (طرح) for hijab styling.", ar: "طرح حرير خفيف لتنسيق الحجاب." }, category: cat("Tarha / Veil"), price: 150, images: [IMAGES.scarf1], videos: productVideos(14), stock: 30, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Burgundy", "Gold"] }),
-    fillProduct({ name: { en: "Printed Tarha", ar: "طرح مطبوع" }, description: { en: "Printed tarha for a pop of color.", ar: "طرح مطبوع للمسة لونية." }, category: cat("Tarha / Veil"), price: 130, images: [IMAGES.scarf2], videos: productVideos(15), stock: 22, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Multi", "Floral", "Geometric"] }),
-    // Sets
+    fillProduct({ name: { en: "Chiffon Hijab", ar: "حجاب شيفون" }, description: { en: "Light chiffon hijab for summer.", ar: "حجاب شيفون خفيف للصيف." }, category: cat("Hijab"), price: 95, images: [IMAGES.scarf2, IMAGES.hijab1], videos: productVideos(10), stock: 40, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "White", "Nude", "Pink", "Blue"] }),
+    fillProduct({ name: { en: "Crinkle Hijab", ar: "حجاب كرينكل" }, description: { en: "Crinkle texture hijab, holds shape well.", ar: "حجاب ب texture كرينكل، يثبت الشكل جيداً." }, category: cat("Hijab"), price: 110, images: [IMAGES.hijab2, IMAGES.scarf2], videos: productVideos(11), stock: 35, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Grey", "Brown"] }),
+    // Niqab (scarf1 / scarf2)
+    fillProduct({ name: { en: "Two-Piece Niqab", ar: "نقاب قطعتين" }, description: { en: "Classic two-piece niqab, breathable fabric.", ar: "نقاب كلاسيكي قطعتين، قماش قابل للتنفس." }, category: cat("Niqab"), price: 180, images: [IMAGES.scarf1, IMAGES.scarf2], videos: productVideos(12), stock: 25, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Brown"] }),
+    fillProduct({ name: { en: "Niqab with Magnetic Closure", ar: "نقاب بمغناطيس" }, description: { en: "Niqab with magnetic closure for easy wear.", ar: "نقاب بإغلاق مغناطيسي لارتداء أسهل." }, category: cat("Niqab"), price: 220, images: [IMAGES.scarf2, IMAGES.scarf1], videos: productVideos(13), stock: 15, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black"] }),
+    // Tarha / Veil (scarf1 / scarf2)
+    fillProduct({ name: { en: "Silk Tarha", ar: "طرح حرير" }, description: { en: "Light silk tarha (طرح) for hijab styling.", ar: "طرح حرير خفيف لتنسيق الحجاب." }, category: cat("Tarha / Veil"), price: 150, images: [IMAGES.scarf1, IMAGES.scarf2], videos: productVideos(14), stock: 30, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Black", "Navy", "Burgundy", "Gold"] }),
+    fillProduct({ name: { en: "Printed Tarha", ar: "طرح مطبوع" }, description: { en: "Printed tarha for a pop of color.", ar: "طرح مطبوع للمسة لونية." }, category: cat("Tarha / Veil"), price: 130, images: [IMAGES.scarf2, IMAGES.scarf1], videos: productVideos(15), stock: 22, status: "ACTIVE" as const, sizes: ["One Size"], colors: ["Multi", "Floral", "Geometric"] }),
+    // Sets (abaya+cardigan already has two; kaftan uses kaftan1 + fabric1)
     fillProduct({ name: { en: "Black Ribbed Twin Set – Abaya & Cardigan", ar: "توأم ريب أسود – عباية وكارديجان" }, description: { en: "Matching abaya and cardigan set.", ar: "ست عباية وكارديجان متطابقين." }, category: cat("Sets"), price: 1450, discountPrice: 2900, images: [IMAGES.abaya1, IMAGES.cardigan1], imageColors: ["", ""], videos: productVideos(16), stock: 9, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black"] }),
-    fillProduct({ name: { en: "Ribbed Kaftan", ar: "كافتان ريب" }, description: { en: "Comfortable ribbed kaftan, easy to layer.", ar: "كافتان ريب مريح، سهل الطبقات." }, category: cat("Sets"), price: 900, discountPrice: 1500, images: [IMAGES.kaftan1], videos: productVideos(17), stock: 11, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Navy", "Grey"] }),
-    // Cardigans & Coats
-    fillProduct({ name: { en: "Velvet Pleated Cardigan", ar: "كارديجان مخمل بليت" }, description: { en: "Velvet pleated cardigan for layering.", ar: "كارديجان مخمل بليت للطبقات." }, category: cat("Cardigans & Coats"), price: 1760, discountPrice: 2200, images: [IMAGES.cardigan1], videos: productVideos(18), stock: 5, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Burgundy"] }),
-    fillProduct({ name: { en: "Flowy Open Cardigan", ar: "كارديجان مفتوح فضفاض" }, description: { en: "Light, flowy open cardigan.", ar: "كارديجان مفتوح خفيف وفضفاض." }, category: cat("Cardigans & Coats"), price: 1600, images: [IMAGES.cape2], videos: productVideos(19), stock: 13, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Grey", "Navy"] }),
-    fillProduct({ name: { en: "Wool Coat", ar: "معطف صوف" }, description: { en: "Warm wool coat for winter.", ar: "معطف صوف دافئ للشتاء." }, category: cat("Cardigans & Coats"), price: 1080, discountPrice: 2700, images: [IMAGES.coat1], videos: productVideos(20), stock: 4, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Camel", "Grey"] }),
-    fillProduct({ name: { en: "Melton Dress", ar: "فستان ميلتون" }, description: { en: "Elegant melton dress, modest and warm.", ar: "فستان ميلتون أنيق، محتشم ودافئ." }, category: cat("Abayas"), price: 2000, images: [IMAGES.dress1], videos: productVideos(21), stock: 7, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Navy"] })
+    fillProduct({ name: { en: "Ribbed Kaftan", ar: "كافتان ريب" }, description: { en: "Comfortable ribbed kaftan, easy to layer.", ar: "كافتان ريب مريح، سهل الطبقات." }, category: cat("Sets"), price: 900, discountPrice: 1500, images: [IMAGES.kaftan1, IMAGES.fabric1], videos: productVideos(17), stock: 11, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Navy", "Grey"] }),
+    // Cardigans & Coats (cardigan1/coat1/cape2 – mix so default ≠ hover)
+    fillProduct({ name: { en: "Velvet Pleated Cardigan", ar: "كارديجان مخمل بليت" }, description: { en: "Velvet pleated cardigan for layering.", ar: "كارديجان مخمل بليت للطبقات." }, category: cat("Cardigans & Coats"), price: 1760, discountPrice: 2200, images: [IMAGES.cardigan1, IMAGES.coat1], videos: productVideos(18), stock: 5, status: "ACTIVE" as const, isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Burgundy"] }),
+    fillProduct({ name: { en: "Flowy Open Cardigan", ar: "كارديجان مفتوح فضفاض" }, description: { en: "Light, flowy open cardigan.", ar: "كارديجان مفتوح خفيف وفضفاض." }, category: cat("Cardigans & Coats"), price: 1600, images: [IMAGES.cape2, IMAGES.cardigan1], videos: productVideos(19), stock: 13, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Grey", "Navy"] }),
+    fillProduct({ name: { en: "Wool Coat", ar: "معطف صوف" }, description: { en: "Warm wool coat for winter.", ar: "معطف صوف دافئ للشتاء." }, category: cat("Cardigans & Coats"), price: 1080, discountPrice: 2700, images: [IMAGES.coat1, IMAGES.cardigan1], videos: productVideos(20), stock: 4, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Camel", "Grey"] }),
+    fillProduct({ name: { en: "Melton Dress", ar: "فستان ميلتون" }, description: { en: "Elegant melton dress, modest and warm.", ar: "فستان ميلتون أنيق، محتشم ودافئ." }, category: cat("Abayas"), price: 2000, images: [IMAGES.dress1, IMAGES.abaya2], videos: productVideos(21), stock: 7, status: "ACTIVE" as const, sizes: ["S", "M", "L"], colors: ["Black", "Navy"] })
   ];
   const products = await Product.insertMany(productsData);
   console.log(`Created ${products.length} products.`);
@@ -372,7 +439,7 @@ async function seed() {
         ...(isInstaPay && status === "PAID" && index === 1
           ? { approvedAt: new Date(), approvedBy: admin!._id }
           : {}),
-        ...(isInstaUnpaidWithProof ? { instaPayProofUrl: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=600&q=80" } : {})
+        ...(isInstaUnpaidWithProof && paymentProofUrl ? { instaPayProofUrl: paymentProofUrl } : {})
       };
     });
     await Payment.insertMany(paymentsData);

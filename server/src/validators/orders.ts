@@ -2,6 +2,16 @@ import { z } from "zod";
 
 const orderStatusEnum = z.enum(["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"]);
 
+/** Structured address schema (Shopify-style) – Egypt only */
+const structuredAddressSchema = z.object({
+  address: z.string().min(1),
+  apartment: z.string().optional().default(""),
+  city: z.string().min(1),
+  governorate: z.string().min(1),
+  postalCode: z.string().optional().default(""),
+  country: z.string().optional().default("Egypt")
+});
+
 export const orderSchema = z.object({
   body: z.object({
     items: z
@@ -14,12 +24,23 @@ export const orderSchema = z.object({
       )
       .min(1),
     paymentMethod: z.enum(["COD", "INSTAPAY"]).optional(),
-    shippingAddress: z.string().optional(),
+    // Backward compat: accepts flat string OR structured object
+    shippingAddress: z.union([z.string(), structuredAddressSchema]).optional(),
     deliveryFee: z.number().min(0).optional(),
     /** Guest checkout: required when not authenticated */
     guestName: z.string().min(1).optional(),
     guestEmail: z.string().email().optional(),
-    guestPhone: z.string().optional()
+    guestPhone: z.string().optional(),
+    // New Shopify-style checkout fields
+    email: z.string().email().optional(),
+    firstName: z.string().min(1).optional(),
+    lastName: z.string().min(1).optional(),
+    phone: z.string().optional(),
+    billingAddress: structuredAddressSchema.nullable().optional(),
+    specialInstructions: z.string().optional(),
+    shippingMethod: z.string().optional().default("standard"),
+    emailNews: z.boolean().optional().default(false),
+    textNews: z.boolean().optional().default(false)
   })
 });
 

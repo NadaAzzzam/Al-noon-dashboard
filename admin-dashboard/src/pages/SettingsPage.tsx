@@ -1,7 +1,13 @@
 import { useRef } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, Settings, getUploadsBaseUrl } from "../services/api";
+import {
+  api,
+  ApiError,
+  Settings,
+  getUploadsBaseUrl,
+  DEFAULT_LOGO_PATH,
+} from "../services/api";
 
 type QuickLinkForm = { labelEn: string; labelAr: string; url: string };
 
@@ -42,14 +48,20 @@ const SettingsPage = () => {
   const [saved, setSaved] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [testEmailLoading, setTestEmailLoading] = useState(false);
-  const [testEmailMessage, setTestEmailMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [testEmailMessage, setTestEmailMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api
       .getSettings()
       .then((res: unknown) => {
-        const body = res as { data?: { settings: Settings }; settings?: Settings };
+        const body = res as {
+          data?: { settings: Settings };
+          settings?: Settings;
+        };
         const d = body.data?.settings ?? body.settings;
         if (!d) return;
         const sn = d.storeName;
@@ -142,7 +154,9 @@ const SettingsPage = () => {
     }
   };
 
-  const logoFullUrl = form.logo ? getUploadsBaseUrl() + form.logo : null;
+  const effectiveLogoPath =
+    form.logo && form.logo.trim() !== "" ? form.logo : DEFAULT_LOGO_PATH;
+  const logoFullUrl = getUploadsBaseUrl() + effectiveLogoPath;
 
   return (
     <div className="settings-page settings-page-full-width">
@@ -208,24 +222,24 @@ const SettingsPage = () => {
                 {logoUploading && (
                   <span className="badge">{t("common.loading")}</span>
                 )}
-                {logoFullUrl && (
-                  <div
+                <div
+                  style={{
+                    marginTop: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <img
+                    src={logoFullUrl}
+                    alt="Logo"
                     style={{
-                      marginTop: 8,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
+                      maxHeight: 48,
+                      maxWidth: 120,
+                      objectFit: "contain",
                     }}
-                  >
-                    <img
-                      src={logoFullUrl}
-                      alt="Logo"
-                      style={{
-                        maxHeight: 48,
-                        maxWidth: 120,
-                        objectFit: "contain",
-                      }}
-                    />
+                  />
+                  {form.logo && form.logo.trim() !== "" && (
                     <button
                       type="button"
                       className="button secondary"
@@ -233,9 +247,9 @@ const SettingsPage = () => {
                     >
                       {t("settings.remove_logo")}
                     </button>
-                  </div>
-                )}
-                {!form.logo && !logoUploading && (
+                  )}
+                </div>
+                {!logoUploading && (
                   <p className="settings-hint" style={{ marginTop: 4 }}>
                     {t("settings.logo_hint")}
                   </p>
@@ -461,7 +475,10 @@ const SettingsPage = () => {
                   type="checkbox"
                   checked={form.orderNotificationsEnabled}
                   onChange={(e) =>
-                    setForm({ ...form, orderNotificationsEnabled: e.target.checked })
+                    setForm({
+                      ...form,
+                      orderNotificationsEnabled: e.target.checked,
+                    })
                   }
                 />
                 <span>{t("settings.order_notifications_enabled")}</span>
@@ -477,7 +494,9 @@ const SettingsPage = () => {
                   onChange={(e) =>
                     setForm({ ...form, orderNotificationEmail: e.target.value })
                   }
-                  placeholder={t("settings.order_notification_email_placeholder")}
+                  placeholder={t(
+                    "settings.order_notification_email_placeholder",
+                  )}
                 />
                 <p className="settings-hint">
                   {t("settings.order_notification_email_hint")}
@@ -493,23 +512,34 @@ const SettingsPage = () => {
                     setTestEmailLoading(true);
                     try {
                       await api.sendTestOrderEmail();
-                      setTestEmailMessage({ type: "success", text: t("settings.test_order_email_sent") });
+                      setTestEmailMessage({
+                        type: "success",
+                        text: t("settings.test_order_email_sent"),
+                      });
                     } catch (err) {
-                      const msg = err instanceof ApiError ? err.message : t("settings.test_order_email_failed");
+                      const msg =
+                        err instanceof ApiError
+                          ? err.message
+                          : t("settings.test_order_email_failed");
                       setTestEmailMessage({ type: "error", text: msg });
                     } finally {
                       setTestEmailLoading(false);
                     }
                   }}
                 >
-                  {testEmailLoading ? "..." : t("settings.test_order_email_button")}
+                  {testEmailLoading
+                    ? "..."
+                    : t("settings.test_order_email_button")}
                 </button>
                 {testEmailMessage && (
                   <p
                     className="settings-hint"
                     style={{
                       marginTop: 8,
-                      color: testEmailMessage.type === "success" ? "var(--color-success, green)" : "var(--color-error, #c00)"
+                      color:
+                        testEmailMessage.type === "success"
+                          ? "var(--color-success, green)"
+                          : "var(--color-error, #c00)",
                     }}
                   >
                     {testEmailMessage.text}

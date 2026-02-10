@@ -13,6 +13,7 @@ import { Settings } from "../models/Settings.js";
 import { ChatSession, type ProductCardInMessage } from "../models/ChatSession.js";
 import { Product } from "../models/Product.js";
 import { Category } from "../models/Category.js";
+import { loadSeedImages } from "./seedData.js";
 
 const defaultAiAssistant = {
   enabled: false,
@@ -31,12 +32,15 @@ const defaultAiAssistant = {
   ]
 };
 
-// Unsplash images for demo products (same style as seedData)
-const DEMO_IMAGES = {
-  abaya: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=400&q=80",
-  cape: "https://images.unsplash.com/photo-1544022613-e87ca75a784a?w=400&q=80",
-  hijab: "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=400&q=80"
-};
+// Local seed images only (from server/seed-images, same as seedData)
+function getDemoImages(): { abaya: string; cape: string; hijab: string } {
+  const { IMAGES } = loadSeedImages();
+  return {
+    abaya: IMAGES.abaya1 || IMAGES.abaya2 || IMAGES.placeholder || "",
+    cape: IMAGES.cape1 || IMAGES.cape2 || IMAGES.placeholder || "",
+    hijab: IMAGES.hijab1 || IMAGES.hijab2 || IMAGES.scarf1 || IMAGES.placeholder || ""
+  };
+}
 
 /** Get up to 4 products that have at least one image (for use in chat samples). */
 async function getProductsWithImages(limit: number): Promise<{ _id: mongoose.Types.ObjectId; name: { en: string; ar: string }; images: string[] }[]> {
@@ -66,14 +70,15 @@ async function ensureDemoProductsWithImages(): Promise<{ _id: mongoose.Types.Obj
     category = first;
   }
   const categoryId = (category as { _id: mongoose.Types.ObjectId })._id;
+  const DEMO_IMAGES = getDemoImages();
   const demoProducts = [
     {
       name: { en: "Classic Black Abaya", ar: "عباية سوداء كلاسيكية" },
       description: { en: "Elegant black abaya, perfect for every occasion.", ar: "عباية سوداء أنيقة مناسبة لكل مناسبة." },
       category: categoryId,
       price: 1200,
-      images: [DEMO_IMAGES.abaya],
-      imageColors: [""],
+      images: DEMO_IMAGES.abaya ? [DEMO_IMAGES.abaya] : [],
+      imageColors: DEMO_IMAGES.abaya ? [""] : [],
       videos: [],
       stock: 10,
       status: "ACTIVE" as const,
@@ -87,8 +92,8 @@ async function ensureDemoProductsWithImages(): Promise<{ _id: mongoose.Types.Obj
       description: { en: "Warm wool cape for modest layering.", ar: "كاب صوف دافئ للطبقات المحتشمة." },
       category: categoryId,
       price: 950,
-      images: [DEMO_IMAGES.cape],
-      imageColors: [""],
+      images: DEMO_IMAGES.cape ? [DEMO_IMAGES.cape] : [],
+      imageColors: DEMO_IMAGES.cape ? [""] : [],
       videos: [],
       stock: 8,
       status: "ACTIVE" as const,
@@ -102,8 +107,8 @@ async function ensureDemoProductsWithImages(): Promise<{ _id: mongoose.Types.Obj
       description: { en: "Soft cotton jersey hijab, breathable.", ar: "حجاب قطني جيرسي ناعم وقابل للتنفس." },
       category: categoryId,
       price: 120,
-      images: [DEMO_IMAGES.hijab],
-      imageColors: [""],
+      images: DEMO_IMAGES.hijab ? [DEMO_IMAGES.hijab] : [],
+      imageColors: DEMO_IMAGES.hijab ? [""] : [],
       videos: [],
       stock: 30,
       status: "ACTIVE" as const,

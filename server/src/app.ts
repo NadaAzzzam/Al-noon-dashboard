@@ -23,6 +23,7 @@ import contactRoutes from "./routes/contactRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import reportsRoutes from "./routes/reportsRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
+import checkoutRoutes from "./routes/checkoutRoutes.js";
 import { swaggerSpec } from "./swagger.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
@@ -45,6 +46,11 @@ const uploadsPromoDir = path.join(uploadsDir, "promo");
 const uploadsFeedbackDir = path.join(uploadsDir, "feedback");
 const uploadsPaymentProofDir = path.join(uploadsDir, "payment-proof");
 if (!fs.existsSync(uploadsLogosDir)) fs.mkdirSync(uploadsLogosDir, { recursive: true });
+const defaultLogoSource = path.resolve(__dirname, "../default-assets/default-logo.png");
+const defaultLogoDest = path.join(uploadsLogosDir, "default-logo.png");
+if (fs.existsSync(defaultLogoSource) && !fs.existsSync(defaultLogoDest)) {
+  fs.copyFileSync(defaultLogoSource, defaultLogoDest);
+}
 if (!fs.existsSync(uploadsProductsDir)) fs.mkdirSync(uploadsProductsDir, { recursive: true });
 if (!fs.existsSync(uploadsProductVideosDir)) fs.mkdirSync(uploadsProductVideosDir, { recursive: true });
 if (!fs.existsSync(uploadsCollectionsDir)) fs.mkdirSync(uploadsCollectionsDir, { recursive: true });
@@ -164,6 +170,7 @@ export const createApp = () => {
   app.use("/api/feedback", feedbackRoutes);
   app.use("/api/reports", reportsRoutes);
   app.use("/api/ai", aiRoutes);
+  app.use("/api", checkoutRoutes);
 
   const clientBuildPath = path.resolve(__dirname, "../../admin-dashboard/dist");
   app.use(express.static(clientBuildPath));

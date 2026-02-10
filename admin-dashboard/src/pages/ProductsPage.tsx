@@ -11,6 +11,7 @@ import {
   ProductSort,
   ProductAvailability,
   getProductImageUrl,
+  getProductDefaultImageUrl,
 } from "../services/api";
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
@@ -326,22 +327,22 @@ const ProductsPage = () => {
                 {products.map((product) => (
                   <tr key={product._id}>
                     <td>
-                      {product.images?.[0] ? (
+                      {getProductDefaultImageUrl(product) ? (
                         <img
-                          src={getProductImageUrl(product.images[0])}
+                          src={getProductImageUrl(getProductDefaultImageUrl(product))}
                           alt=""
                           className="inventory-product-img table-image-clickable"
                           role="button"
                           tabIndex={0}
                           onClick={() =>
                             setImagePopupSrc(
-                              getProductImageUrl(product.images![0]),
+                              getProductImageUrl(getProductDefaultImageUrl(product)),
                             )
                           }
                           onKeyDown={(e) =>
                             e.key === "Enter" &&
                             setImagePopupSrc(
-                              getProductImageUrl(product.images![0]),
+                              getProductImageUrl(getProductDefaultImageUrl(product)),
                             )
                           }
                         />

@@ -197,7 +197,7 @@ function buildPaths() {
     },
   };
 
-  // --- Products (data shape: components/schemas/ProductData) ---
+  // --- Products (list: ProductListItem; single: ProductData) ---
   paths["/api/products"] = {
     get: {
       operationId: "listProducts",
@@ -524,6 +524,7 @@ function buildPaths() {
       operationId: "createOrder",
       tags: ["Orders"],
       summary: "Create order (authenticated or guest checkout)",
+      description: "Accepts both old flat fields (guestName, guestEmail, shippingAddress as string) and new Shopify-style structured fields. When new structured fields are present they take priority. Backward compatible.",
       security: [],
       requestBody: {
         content: {
@@ -534,19 +535,34 @@ function buildPaths() {
               properties: {
                 items: { type: "array", items: { type: "object", properties: { product: { type: "string" }, quantity: { type: "integer" }, price: { type: "number" } } } },
                 paymentMethod: { type: "string", enum: ["COD", "INSTAPAY"] },
-                shippingAddress: { type: "string" },
+                shippingAddress: {
+                  description: "Flat string (legacy) OR structured address object",
+                  oneOf: [
+                    { type: "string" },
+                    { $ref: "#/components/schemas/StructuredAddress" }
+                  ]
+                },
                 deliveryFee: { type: "number" },
-                guestName: { type: "string", description: "Required for guest checkout" },
-                guestEmail: { type: "string", format: "email", description: "Required for guest checkout" },
-                guestPhone: { type: "string", description: "Optional for guest checkout" },
+                guestName: { type: "string", description: "Legacy: required for guest checkout if firstName/lastName not provided" },
+                guestEmail: { type: "string", format: "email", description: "Legacy: required for guest checkout if email not provided" },
+                guestPhone: { type: "string", description: "Legacy: optional for guest checkout" },
+                email: { type: "string", format: "email", description: "Customer contact email" },
+                firstName: { type: "string", description: "Customer first name" },
+                lastName: { type: "string", description: "Customer last name" },
+                phone: { type: "string", description: "Customer phone number" },
+                billingAddress: { description: "null = same as shipping", nullable: true, allOf: [{ $ref: "#/components/schemas/StructuredAddress" }] },
+                specialInstructions: { type: "string", description: "Order notes from customer" },
+                shippingMethod: { type: "string", description: "e.g. 'standard', 'express'", default: "standard" },
+                emailNews: { type: "boolean", description: "Opted into email marketing", default: false },
+                textNews: { type: "boolean", description: "Opted into SMS marketing", default: false },
               },
             },
           },
         },
       },
       responses: {
-        "201": { description: "Success, message, data.order (includes guestName/guestEmail/guestPhone when guest)", ...refSchema("OrderResponse") },
-        "400": errDesc("Validation error (e.g. guest checkout requires guestName and guestEmail)"),
+        "201": { description: "Success, message, data.order (includes both legacy guest fields and new structured fields)", ...refSchema("OrderResponse") },
+        "400": errDesc("Validation error (e.g. guest checkout requires guestName/guestEmail or firstName/lastName/email)"),
       },
     },
   };
@@ -646,6 +662,57 @@ function buildPaths() {
         "401": errDesc("Unauthorized"),
         "403": errDesc("Forbidden"),
         "404": errDesc("Not found"),
+      },
+    },
+  };
+
+  // --- Checkout (public) ---
+  paths["/api/shipping-methods"] = {
+    get: {
+      operationId: "listShippingMethods",
+      tags: ["Checkout"],
+      summary: "List available shipping methods",
+      description: "Returns available shipping methods with bilingual names and estimated delivery days. Prices are determined by the city delivery fee.",
+      security: [],
+      responses: {
+        "200": {
+          description: "Array of shipping methods",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              data: {
+                type: "array",
+                items: { $ref: "#/components/schemas/ShippingMethod" },
+              },
+            },
+          }),
+        },
+      },
+    },
+  };
+
+  paths["/api/governorates"] = {
+    get: {
+      operationId: "listGovernorates",
+      tags: ["Checkout"],
+      summary: "List Egyptian governorates",
+      description: "Returns all 27 Egyptian governorates with bilingual names. Egypt only — no country selection needed.",
+      security: [],
+      responses: {
+        "200": {
+          description: "Array of governorates",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              data: {
+                type: "array",
+                items: { $ref: "#/components/schemas/Governorate" },
+              },
+            },
+          }),
+        },
       },
     },
   };
@@ -1323,9 +1390,30 @@ export const swaggerSpec = {
           status: { type: "string", enum: ["DRAFT", "PUBLISHED"] },
         },
       },
-      ProductData: {
+      ProductMediaItem: {
         type: "object",
-        description: "Product document (list item or single product)",
+        description: "Single media asset (image, video, or gif) – generic and reusable",
+        required: ["type", "url"],
+        properties: {
+          type: { type: "string", enum: ["image", "video", "gif"], description: "Explicit type for frontend rendering" },
+          url: { type: "string", description: "Asset URL" },
+          alt: { type: "string", description: "Optional alt text (accessibility)", nullable: true },
+          durationSeconds: { type: "number", description: "Optional video duration", nullable: true },
+        },
+      },
+      ProductMedia: {
+        type: "object",
+        description: "Product media: default (required), optional hover, optional preview video",
+        required: ["default"],
+        properties: {
+          default: { $ref: "#/components/schemas/ProductMediaItem", description: "Shown by default (card and detail)" },
+          hover: { $ref: "#/components/schemas/ProductMediaItem", description: "Shown on hover (e.g. product card)", nullable: true },
+          previewVideo: { $ref: "#/components/schemas/ProductMediaItem", description: "Optional preview video (e.g. product detail)", nullable: true },
+        },
+      },
+      ProductListItem: {
+        type: "object",
+        description: "Product in list responses (GET /products, GET /products/:id/related, store newArrivals). Has media only; images, videos, imageColors are omitted.",
         properties: {
           _id: { type: "string" },
           name: { $ref: "#/components/schemas/LocalizedString" },
@@ -1338,9 +1426,7 @@ export const swaggerSpec = {
           },
           price: { type: "number" },
           discountPrice: { type: "number", nullable: true },
-          images: { type: "array", items: { type: "string" } },
-          imageColors: { type: "array", items: { type: "string" } },
-          videos: { type: "array", items: { type: "string" } },
+          media: { $ref: "#/components/schemas/ProductMedia", description: "Structured media: default, hover, previewVideo" },
           stock: { type: "integer" },
           status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
           isNewArrival: { type: "boolean" },
@@ -1352,9 +1438,44 @@ export const swaggerSpec = {
           deletedAt: { type: "string", format: "date-time", nullable: true },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
-          averageRating: { type: "number", description: "Present on list when ratings exist", nullable: true },
+          averageRating: { type: "number", description: "Present when ratings exist", nullable: true },
           ratingCount: { type: "integer", description: "Present on list", nullable: true },
-          soldQty: { type: "integer", description: "Present on list (units sold)", nullable: true },
+          soldQty: { type: "integer", description: "Units sold", nullable: true },
+        },
+      },
+      ProductData: {
+        type: "object",
+        description: "Full product (single product: GET /products/:id, create/update/delete/status). Includes media + images, videos, imageColors for detail/admin.",
+        properties: {
+          _id: { type: "string" },
+          name: { $ref: "#/components/schemas/LocalizedString" },
+          description: { $ref: "#/components/schemas/LocalizedString", nullable: true },
+          category: {
+            oneOf: [
+              { type: "string", description: "Category ID when not populated" },
+              { $ref: "#/components/schemas/ProductCategoryRef" },
+            ],
+          },
+          price: { type: "number" },
+          discountPrice: { type: "number", nullable: true },
+          media: { $ref: "#/components/schemas/ProductMedia", description: "Structured media: default, hover, previewVideo" },
+          images: { type: "array", items: { type: "string" }, description: "Full gallery (only on single-product responses)" },
+          imageColors: { type: "array", items: { type: "string" }, description: "Color per image; only on single-product responses" },
+          videos: { type: "array", items: { type: "string" }, description: "Video URLs; only on single-product responses" },
+          stock: { type: "integer" },
+          status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
+          isNewArrival: { type: "boolean" },
+          sizes: { type: "array", items: { type: "string" } },
+          sizeDescriptions: { type: "array", items: { type: "string" } },
+          colors: { type: "array", items: { type: "string" } },
+          details: { $ref: "#/components/schemas/LocalizedString", nullable: true },
+          stylingTip: { $ref: "#/components/schemas/LocalizedString", nullable: true },
+          deletedAt: { type: "string", format: "date-time", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          averageRating: { type: "number", description: "Present when ratings exist", nullable: true },
+          ratingCount: { type: "integer", description: "Present on list", nullable: true },
+          soldQty: { type: "integer", description: "Units sold", nullable: true },
         },
       },
       ProductSingleData: {
@@ -1404,7 +1525,7 @@ export const swaggerSpec = {
       },
       StoreResponse: {
         type: "object",
-        description: "Store settings for storefront",
+        description: "Store settings for storefront (GET /api/store). Includes newArrivals (ProductListItem[] with media only).",
         properties: {
           success: { type: "boolean", example: true },
           data: {
@@ -1422,12 +1543,14 @@ export const swaggerSpec = {
                   hero: { type: "object" },
                   heroEnabled: { type: "boolean" },
                   newArrivalsLimit: { type: "integer" },
-                  feedbackSectionEnabled: { type: "boolean" },
-                  feedbackDisplayLimit: { type: "integer", description: "Number of feedback items to show (0 = show all)" },
+                  newArrivals: { type: "array", items: { $ref: "#/components/schemas/ProductListItem" }, description: "New-arrival products (media only)" },
                   newArrivalsSectionImages: { type: "array", items: { type: "string" }, description: "Section media for New Arrivals block" },
                   newArrivalsSectionVideos: { type: "array", items: { type: "string" } },
+                  homeCollectionsDisplayLimit: { type: "integer" },
                   ourCollectionSectionImages: { type: "array", items: { type: "string" }, description: "Section media for Our Collection block" },
                   ourCollectionSectionVideos: { type: "array", items: { type: "string" } },
+                  feedbackSectionEnabled: { type: "boolean" },
+                  feedbackDisplayLimit: { type: "integer", description: "Number of feedback items to show (0 = show all)" },
                   feedbacks: { type: "array", items: { type: "object" } },
                 },
               },
@@ -1620,15 +1743,15 @@ export const swaggerSpec = {
       },
       PaginatedProductsResponse: {
         type: "object",
-        description: "Full response body returned by list products: success, data (array), pagination, appliedFilters (handled query params).",
+        description: "Full response body returned by list products: success, data (array of ProductListItem), pagination, appliedFilters.",
         required: ["success", "data", "pagination"],
         properties: {
           success: { type: "boolean", example: true, description: "Always true on 200" },
           message: { type: "string", nullable: true, description: "Optional i18n message" },
           data: {
             type: "array",
-            items: { $ref: "#/components/schemas/ProductData" },
-            description: "Products list (full product objects with soldQty, averageRating, ratingCount when available)",
+            items: { $ref: "#/components/schemas/ProductListItem" },
+            description: "Products list (media only; no images/videos/imageColors)",
           },
           pagination: {
             type: "object",
@@ -1656,9 +1779,7 @@ export const swaggerSpec = {
               category: { _id: "507f1f77bcf86cd799439012", name: { en: "Category", ar: "فئة" }, status: "PUBLISHED" },
               price: 99.99,
               discountPrice: 79.99,
-              images: ["/uploads/1.jpg"],
-              imageColors: [""],
-              videos: [],
+              media: { default: { type: "image", url: "/uploads/1.jpg" }, hover: { type: "image", url: "/uploads/2.jpg" } },
               stock: 10,
               status: "ACTIVE",
               isNewArrival: true,
@@ -1704,9 +1825,10 @@ export const swaggerSpec = {
               category: { _id: "507f1f77bcf86cd799439012", name: { en: "Category", ar: "فئة" }, status: "PUBLISHED" },
               price: 99.99,
               discountPrice: 79.99,
-              images: ["/uploads/1.jpg"],
-              imageColors: [""],
-              videos: [],
+              media: { default: { type: "image", url: "/uploads/1.jpg" }, hover: { type: "image", url: "/uploads/2.jpg" }, previewVideo: { type: "video", url: "/uploads/video.mp4" } },
+              images: ["/uploads/1.jpg", "/uploads/2.jpg"],
+              imageColors: ["", ""],
+              videos: ["/uploads/video.mp4"],
               stock: 10,
               status: "ACTIVE",
               isNewArrival: true,
@@ -1724,15 +1846,15 @@ export const swaggerSpec = {
       },
       RelatedProductsResponse: {
         type: "object",
-        description: "Full response body returned by related products: success, data (array of products).",
+        description: "Full response body returned by related products: success, data (array of ProductListItem).",
         required: ["success", "data"],
         properties: {
           success: { type: "boolean", example: true, description: "Always true on 200" },
           message: { type: "string", nullable: true, description: "Optional i18n message" },
           data: {
             type: "array",
-            items: { $ref: "#/components/schemas/ProductData" },
-            description: "Related products (same category)",
+            items: { $ref: "#/components/schemas/ProductListItem" },
+            description: "Related products (same category); media only",
           },
         },
         example: {
@@ -1745,9 +1867,7 @@ export const swaggerSpec = {
               category: { _id: "507f1f77bcf86cd799439012", name: { en: "Category", ar: "فئة" }, status: "PUBLISHED" },
               price: 89.99,
               discountPrice: null,
-              images: ["/uploads/2.jpg"],
-              imageColors: [""],
-              videos: [],
+              media: { default: { type: "image", url: "/uploads/2.jpg" } },
               stock: 5,
               status: "ACTIVE",
               isNewArrival: false,
@@ -1843,21 +1963,50 @@ export const swaggerSpec = {
           price: { type: "number" },
         },
       },
+      StructuredAddress: {
+        type: "object",
+        description: "Shopify-style structured address (Egypt only)",
+        properties: {
+          address: { type: "string", description: "Street address", example: "735 Clarendon Street" },
+          apartment: { type: "string", description: "Apartment, suite, etc.", example: "Apt 4B" },
+          city: { type: "string", description: "City name", example: "Cairo" },
+          governorate: { type: "string", description: "Egyptian governorate", example: "Cairo" },
+          postalCode: { type: "string", description: "Postal code", example: "11511" },
+          country: { type: "string", description: "Always Egypt", default: "Egypt", example: "Egypt" },
+        },
+        required: ["address", "city", "governorate"],
+      },
       OrderData: {
         type: "object",
-        description: "Order document (user null for guest checkout; guest fields set instead)",
+        description: "Order document (user null for guest checkout; guest fields set instead). Includes both legacy flat fields and new Shopify-style structured fields.",
         properties: {
           _id: { type: "string" },
           user: { type: "string", nullable: true, description: "User ID when authenticated; null for guest" },
-          guestName: { type: "string", nullable: true, description: "Guest checkout only" },
-          guestEmail: { type: "string", nullable: true, description: "Guest checkout only" },
-          guestPhone: { type: "string", nullable: true, description: "Guest checkout only" },
+          guestName: { type: "string", nullable: true, description: "Legacy: guest checkout name (auto-derived from firstName+lastName when new fields used)" },
+          guestEmail: { type: "string", nullable: true, description: "Legacy: guest checkout email" },
+          guestPhone: { type: "string", nullable: true, description: "Legacy: guest checkout phone" },
           items: { type: "array", items: { $ref: "#/components/schemas/OrderItem" } },
           total: { type: "number" },
           deliveryFee: { type: "number", nullable: true },
           status: { type: "string", enum: ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"] },
           paymentMethod: { type: "string", enum: ["COD", "INSTAPAY"], nullable: true },
-          shippingAddress: { type: "string", nullable: true },
+          shippingAddress: {
+            description: "Flat string (legacy orders) OR structured address object (new orders)",
+            nullable: true,
+            oneOf: [
+              { type: "string" },
+              { $ref: "#/components/schemas/StructuredAddress" }
+            ]
+          },
+          email: { type: "string", nullable: true, description: "Customer contact email" },
+          firstName: { type: "string", nullable: true, description: "Customer first name" },
+          lastName: { type: "string", nullable: true, description: "Customer last name" },
+          phone: { type: "string", nullable: true, description: "Customer phone number" },
+          billingAddress: { nullable: true, description: "null = same as shipping", allOf: [{ $ref: "#/components/schemas/StructuredAddress" }] },
+          specialInstructions: { type: "string", nullable: true, description: "Order notes from customer" },
+          shippingMethod: { type: "string", nullable: true, description: "e.g. 'standard'", default: "standard" },
+          emailNews: { type: "boolean", description: "Opted into email marketing", default: false },
+          textNews: { type: "boolean", description: "Opted into SMS marketing", default: false },
           payment: {
             type: "object",
             nullable: true,
@@ -2210,6 +2359,34 @@ export const swaggerSpec = {
         properties: {
           success: { type: "boolean", example: true },
           data: { $ref: "#/components/schemas/AiSessionDetailData" },
+        },
+      },
+      // --- Checkout schemas ---
+      ShippingMethod: {
+        type: "object",
+        description: "Available shipping method",
+        properties: {
+          id: { type: "string", example: "standard" },
+          name: {
+            type: "object",
+            properties: { en: { type: "string", example: "Standard" }, ar: { type: "string", example: "عادي" } },
+          },
+          description: {
+            type: "object",
+            properties: { en: { type: "string", example: "Delivery in 3–5 business days" }, ar: { type: "string", example: "التوصيل خلال ٣-٥ أيام عمل" } },
+          },
+          estimatedDays: { type: "string", example: "3-5" },
+        },
+      },
+      Governorate: {
+        type: "object",
+        description: "Egyptian governorate (Egypt only)",
+        properties: {
+          id: { type: "string", example: "cairo" },
+          name: {
+            type: "object",
+            properties: { en: { type: "string", example: "Cairo" }, ar: { type: "string", example: "القاهرة" } },
+          },
         },
       },
     },

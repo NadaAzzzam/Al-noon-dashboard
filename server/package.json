@@ -12,6 +12,7 @@
     "seed:full": "tsx src/utils/seedData.ts",
     "seed:pages": "tsx src/utils/seedPages.ts",
     "seed:ai": "tsx src/utils/seedAi.ts",
+    "download-seed-images": "tsx scripts/downloadSeedImages.ts",
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {

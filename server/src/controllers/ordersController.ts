@@ -121,16 +121,42 @@ export const getOrder = asyncHandler(async (req, res) => {
   });
 });
 
+/** Format a structured address for display in emails / fallback text */
+function formatAddress(addr: unknown): string {
+  if (!addr) return "—";
+  if (typeof addr === "string") return addr || "—";
+  const a = addr as { address?: string; apartment?: string; city?: string; governorate?: string; postalCode?: string };
+  const parts = [a.address, a.apartment, a.city, a.governorate, a.postalCode].filter(Boolean);
+  return parts.join(", ") + ", Egypt";
+}
+
 export const createOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const { items, paymentMethod, shippingAddress, deliveryFee, guestName, guestEmail, guestPhone } = req.body;
+  const {
+    items, paymentMethod, shippingAddress, deliveryFee,
+    guestName, guestEmail, guestPhone,
+    // New structured checkout fields
+    email: bodyEmail, firstName, lastName, phone,
+    billingAddress, specialInstructions, shippingMethod,
+    emailNews, textNews
+  } = req.body;
 
   const isGuest = !req.auth;
+
+  // Backward compat: if new fields present, derive guestName/guestEmail/guestPhone from them
+  const hasNewFields = !!(firstName || lastName || bodyEmail);
+
   if (isGuest) {
-    const name = typeof guestName === "string" ? guestName.trim() : "";
-    const email = typeof guestEmail === "string" ? guestEmail.trim().toLowerCase() : "";
+    // Allow new structured fields to satisfy guest requirement
+    const name = hasNewFields
+      ? [firstName, lastName].filter(Boolean).join(" ").trim()
+      : typeof guestName === "string" ? guestName.trim() : "";
+    const emailVal = hasNewFields
+      ? (typeof bodyEmail === "string" ? bodyEmail.trim().toLowerCase() : "")
+      : (typeof guestEmail === "string" ? guestEmail.trim().toLowerCase() : "");
+
     if (!name) throw new ApiError(400, "Guest name is required for guest checkout", { code: "errors.order.guest_name_required" });
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
       throw new ApiError(400, "Valid guest email is required for guest checkout", { code: "errors.order.guest_email_required" });
     }
   }
@@ -150,11 +176,30 @@ export const createOrder = asyncHandler(async (req, res) => {
     paymentMethod: paymentMethod || "COD",
     shippingAddress
   };
+
+  // Always populate backward-compat guest fields (derived from new fields or original)
   if (isGuest) {
-    orderPayload.guestName = String(req.body.guestName ?? "").trim();
-    orderPayload.guestEmail = String(req.body.guestEmail ?? "").trim().toLowerCase();
-    orderPayload.guestPhone = typeof req.body.guestPhone === "string" ? req.body.guestPhone.trim() || undefined : undefined;
+    if (hasNewFields) {
+      orderPayload.guestName = [firstName, lastName].filter(Boolean).join(" ").trim();
+      orderPayload.guestEmail = (bodyEmail ?? "").trim().toLowerCase();
+      orderPayload.guestPhone = phone ? String(phone).trim() : (typeof guestPhone === "string" ? guestPhone.trim() || undefined : undefined);
+    } else {
+      orderPayload.guestName = String(req.body.guestName ?? "").trim();
+      orderPayload.guestEmail = String(req.body.guestEmail ?? "").trim().toLowerCase();
+      orderPayload.guestPhone = typeof req.body.guestPhone === "string" ? req.body.guestPhone.trim() || undefined : undefined;
+    }
   }
+
+  // New structured fields (always save when provided)
+  if (bodyEmail !== undefined) orderPayload.email = String(bodyEmail).trim().toLowerCase();
+  if (firstName !== undefined) orderPayload.firstName = String(firstName).trim();
+  if (lastName !== undefined) orderPayload.lastName = String(lastName).trim();
+  if (phone !== undefined) orderPayload.phone = String(phone).trim();
+  if (billingAddress !== undefined) orderPayload.billingAddress = billingAddress;
+  if (specialInstructions !== undefined) orderPayload.specialInstructions = String(specialInstructions).trim();
+  if (shippingMethod !== undefined) orderPayload.shippingMethod = shippingMethod;
+  if (emailNews !== undefined) orderPayload.emailNews = !!emailNews;
+  if (textNews !== undefined) orderPayload.textNews = !!textNews;
 
   const order = await Order.create(orderPayload);
   await Payment.create({
@@ -163,7 +208,63 @@ export const createOrder = asyncHandler(async (req, res) => {
     status: paymentMethod === "INSTAPAY" ? "UNPAID" : "UNPAID"
   });
 
-  // Notify admin by email if enabled (fire-and-forget)
+  // --- Send confirmation email to customer (fire-and-forget) ---
+  const customerEmailAddr = (order as unknown as { email?: string }).email
+    || (order as unknown as { guestEmail?: string }).guestEmail
+    || null;
+  if (customerEmailAddr && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmailAddr)) {
+    Order.findById(order._id)
+      .populate("items.product", "name images price discountPrice")
+      .lean()
+      .then(async (populated) => {
+        if (!populated) return;
+        const pop = populated as Record<string, unknown>;
+        const custName = [pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "Customer";
+        const itemsHtml = ((pop.items as Array<{ product: unknown; quantity: number; price: number }>) || []).map((item) => {
+          const prod = item.product as { name?: { en?: string; ar?: string }; images?: string[] } | null;
+          const prodName = prod?.name?.en || prod?.name?.ar || "Product";
+          const imgTag = prod?.images?.[0] ? `<img src="${env.clientUrl || ""}/${prod.images[0]}" width="50" height="50" style="object-fit:cover;border-radius:4px;" alt="" />` : "";
+          return `<tr>
+            <td style="padding:8px;border-bottom:1px solid #eee;">${imgTag}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;">${prodName}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${(item.quantity * item.price).toLocaleString()} EGP</td>
+          </tr>`;
+        }).join("");
+
+        const subtotalVal = (pop.total as number) - ((pop.deliveryFee as number) || 0);
+        const shippingDisplay = formatAddress(pop.shippingAddress);
+        const subject = `Order Confirmation #${order._id}`;
+        const html = `
+          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+            <h2 style="color:#333;">Thank you for your order, ${custName}!</h2>
+            <p>Your order <strong>#${order._id}</strong> has been placed successfully.</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+              <thead><tr style="background:#f5f5f5;">
+                <th style="padding:8px;text-align:left;"></th>
+                <th style="padding:8px;text-align:left;">Product</th>
+                <th style="padding:8px;text-align:center;">Qty</th>
+                <th style="padding:8px;text-align:right;">Price</th>
+              </tr></thead>
+              <tbody>${itemsHtml}</tbody>
+            </table>
+            <table style="width:100%;margin:8px 0;">
+              <tr><td style="padding:4px 8px;">Subtotal</td><td style="text-align:right;padding:4px 8px;">${subtotalVal.toLocaleString()} EGP</td></tr>
+              <tr><td style="padding:4px 8px;">Shipping</td><td style="text-align:right;padding:4px 8px;">${((pop.deliveryFee as number) || 0).toLocaleString()} EGP</td></tr>
+              <tr style="font-weight:bold;font-size:1.1em;"><td style="padding:4px 8px;">Total</td><td style="text-align:right;padding:4px 8px;">${(pop.total as number).toLocaleString()} EGP</td></tr>
+            </table>
+            <hr style="border:none;border-top:1px solid #eee;margin:16px 0;" />
+            <p><strong>Shipping Address:</strong> ${shippingDisplay}</p>
+            <p><strong>Payment Method:</strong> ${order.paymentMethod ?? "COD"}</p>
+            ${(pop.specialInstructions as string) ? `<p><strong>Notes:</strong> ${pop.specialInstructions}</p>` : ""}
+            <p style="color:#888;font-size:0.9em;margin-top:24px;">If you have any questions, just reply to this email.</p>
+          </div>
+        `;
+        await sendMail(customerEmailAddr, subject, html);
+      }).catch(() => {});
+  }
+
+  // --- Notify admin by email if enabled (fire-and-forget) ---
   Settings.findOne().lean().then(async (settingsRow) => {
     const settings = settingsRow as { orderNotificationsEnabled?: boolean; orderNotificationEmail?: string } | null;
     if (!settings?.orderNotificationsEnabled) return;
@@ -174,20 +275,23 @@ export const createOrder = asyncHandler(async (req, res) => {
       .populate("items.product", "name");
     if (!populated) return;
     const user = populated.user as { name?: string; email?: string } | null;
-    const customerName = user?.name ?? (populated as { guestName?: string }).guestName ?? "—";
-    const customerEmail = user?.email ?? (populated as { guestEmail?: string }).guestEmail ?? "—";
+    const pop = populated as unknown as Record<string, unknown>;
+    const customerName = user?.name
+      ?? ([pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "—");
+    const custEmail = user?.email ?? (pop.email as string) ?? (pop.guestEmail as string) ?? "—";
     const orderItems = (populated.items || []).map((item) => {
       const product = item.product as unknown as { name?: string } | undefined;
       const name = product && typeof product === "object" && "name" in product ? String(product.name) : "—";
       return `${name} × ${item.quantity} = ${item.quantity * item.price}`;
     });
     const subject = `New order #${order._id}`;
+    const shippingDisplay = formatAddress(populated.shippingAddress);
     const html = `
       <h2>New order received</h2>
       <p><strong>Order ID:</strong> ${order._id}</p>
-      <p><strong>Customer:</strong> ${customerName} (${customerEmail})</p>
+      <p><strong>Customer:</strong> ${customerName} (${custEmail})</p>
       <p><strong>Payment:</strong> ${order.paymentMethod ?? "COD"}</p>
-      <p><strong>Shipping:</strong> ${order.shippingAddress ?? "—"}</p>
+      <p><strong>Shipping:</strong> ${shippingDisplay}</p>
       <p><strong>Total:</strong> ${order.total}</p>
       <h3>Items</h3>
       <ul>${orderItems.map((i) => `<li>${i}</li>`).join("")}</ul>

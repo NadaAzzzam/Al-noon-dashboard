@@ -4,7 +4,8 @@ import { ContactSubmission } from "../models/ContactSubmission.js";
 import { ProductFeedback } from "../models/ProductFeedback.js";
 import { Product } from "../models/Product.js";
 import { isDbConnected } from "../config/db.js";
-import { withViewHoverVideo } from "./productsController.js";
+import { withProductMedia } from "../types/productMedia.js";
+import type { ProductMedia } from "../types/productMedia.js";
 import { t } from "../i18n.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -19,16 +20,20 @@ const heroDefault = {
   ctaUrl: ""
 };
 
+/** Default logo path (always used when no custom logo is set). */
+export const DEFAULT_LOGO_PATH = "/uploads/logos/default-logo.png";
+
 const storeDefaults = {
   storeName: { en: "Al-noon", ar: "النون" },
-  logo: "",
+  logo: DEFAULT_LOGO_PATH,
   quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
-  homeCollections: [] as { title: { en: string; ar: string }; image: string; video?: string; url: string; order: number }[],
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number }[],
   hero: heroDefault,
   heroEnabled: true,
   newArrivalsLimit: 8,
+  newArrivals: [] as unknown[],
   newArrivalsSectionImages: [] as string[],
   newArrivalsSectionVideos: [] as string[],
   homeCollectionsDisplayLimit: 0,
@@ -36,11 +41,85 @@ const storeDefaults = {
   ourCollectionSectionVideos: [] as string[],
   feedbackSectionEnabled: true,
   feedbackDisplayLimit: 6,
-  feedbacks: [] as { _id: string; product: { name: { en: string; ar: string } }; customerName: string; message: string; rating: number; image?: string }[]
+  feedbacks: [] as { product: { name: { en: string; ar: string } }; customerName: string; message: string; rating: number; image?: string }[]
 };
 
 /** Max hero images to return for storefront (e.g. for slider). */
 const HERO_IMAGES_LIMIT = 3;
+
+/** Store-facing product (newArrivals): only fields needed for listing cards. No __v, createdAt, updatedAt, isNewArrival, stock, status, sizeDescriptions, details, stylingTip. */
+function toStoreProductShape(p: Record<string, unknown>): {
+  _id: unknown;
+  name: unknown;
+  description: unknown;
+  category: { _id: unknown; name: unknown };
+  price: number;
+  discountPrice?: number;
+  media: ProductMedia;
+  sizes: string[];
+  colors: string[];
+} {
+  const category = p.category as { _id?: unknown; name?: unknown } | null | undefined;
+  return {
+    _id: p._id,
+    name: p.name,
+    description: p.description,
+    category: category
+      ? { _id: category._id, name: category.name }
+      : { _id: null, name: { en: "", ar: "" } },
+    price: Number(p.price) ?? 0,
+    ...(p.discountPrice != null && p.discountPrice !== "" ? { discountPrice: Number(p.discountPrice) } : {}),
+    media: p.media as ProductMedia,
+    sizes: Array.isArray(p.sizes) ? (p.sizes as string[]) : [],
+    colors: Array.isArray(p.colors) ? (p.colors as string[]) : []
+  };
+}
+
+/** Store-facing home collection: title, default image, optional hover image, optional video, url, order (no _id). */
+function toStoreCollectionShape(c: { title?: unknown; image?: string; hoverImage?: string; video?: string; url?: string; order?: number }): {
+  title: unknown;
+  image: string;
+  hoverImage?: string;
+  video?: string;
+  url: string;
+  order: number;
+} {
+  const out: { title: unknown; image: string; hoverImage?: string; video?: string; url: string; order: number } = {
+    title: c.title ?? { en: "", ar: "" },
+    image: typeof c.image === "string" ? c.image : "",
+    url: typeof c.url === "string" ? c.url : "",
+    order: typeof c.order === "number" ? c.order : 0
+  };
+  if (typeof c.hoverImage === "string" && c.hoverImage.trim() !== "") out.hoverImage = c.hoverImage.trim();
+  if (typeof c.video === "string" && c.video.trim() !== "") out.video = c.video.trim();
+  return out;
+}
+
+/** Store-facing quick link: only label and url (no _id). */
+function toStoreQuickLinkShape(q: { label?: unknown; url?: string }): { label: unknown; url: string } {
+  return {
+    label: q.label ?? { en: "", ar: "" },
+    url: typeof q.url === "string" ? q.url : ""
+  };
+}
+
+/** Store-facing feedback: only product name, customerName, message, rating, image (no _id). */
+function toStoreFeedbackShape(f: { product?: { name?: unknown }; customerName?: string; message?: string; rating?: number; image?: string }): {
+  product: { name: unknown };
+  customerName: string;
+  message: string;
+  rating: number;
+  image?: string;
+} {
+  const prod = f.product as { name?: unknown } | null | undefined;
+  return {
+    product: prod?.name ? { name: prod.name } : { name: { en: "", ar: "" } },
+    customerName: typeof f.customerName === "string" ? f.customerName : "",
+    message: typeof f.message === "string" ? f.message : "",
+    rating: typeof f.rating === "number" ? f.rating : 0,
+    ...(f.image ? { image: f.image } : {})
+  };
+}
 
 function normalizeHero(hero: { image?: string; images?: string[]; videos?: string[] } | null | undefined) {
   if (!hero) return heroDefault;
@@ -84,32 +163,36 @@ export const getStore = asyncHandler(async (req, res) => {
       .limit(limit)
       .populate("product", "name")
       .lean();
-    feedbacks = list.map((f: unknown) => {
-      const item = f as { _id: unknown; product: unknown; customerName: string; message: string; rating: number; image?: string };
-      const prod = item.product as { name?: { en: string; ar: string } } | null | undefined;
-      return {
-        _id: String(item._id),
-        product: prod?.name ? { name: prod.name } : { name: { en: "", ar: "" } },
-        customerName: item.customerName,
-        message: item.message,
-        rating: item.rating,
-        image: item.image || undefined
-      };
-    });
+    feedbacks = list.map((f: unknown) => toStoreFeedbackShape(f as { product?: { name?: unknown }; customerName?: string; message?: string; rating?: number; image?: string }));
   }
+
+  const newArrivalsLimit = Math.max(1, Math.min(24, s?.newArrivalsLimit ?? storeDefaults.newArrivalsLimit));
+  const newArrivalProducts = await Product.find({ isNewArrival: true, status: "ACTIVE", deletedAt: null })
+    .populate("category", "name status")
+    .sort({ createdAt: -1 })
+    .limit(newArrivalsLimit)
+    .lean();
+  const newArrivals = (newArrivalProducts as Record<string, unknown>[]).map((p) => {
+    const withMedia = withProductMedia(p as { images?: string[]; videos?: string[]; viewImage?: string; hoverImage?: string }, { forList: true });
+    return toStoreProductShape(withMedia as Record<string, unknown>);
+  });
+
+  const quickLinks = (s?.quickLinks ?? storeDefaults.quickLinks).map((q) => toStoreQuickLinkShape(q));
+  const homeCollectionsStripped = collectionsToShow.map((c) => toStoreCollectionShape(c));
 
   sendResponse(res, req.locale, {
     data: {
       store: {
         storeName: s?.storeName ?? storeDefaults.storeName,
-        logo: s?.logo ?? storeDefaults.logo,
-        quickLinks: s?.quickLinks ?? storeDefaults.quickLinks,
+        logo: (s?.logo && s.logo.trim() !== "") ? s.logo : DEFAULT_LOGO_PATH,
+        quickLinks,
         socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
         newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled,
-        homeCollections: collectionsToShow,
+        homeCollections: homeCollectionsStripped,
         hero,
         heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
         newArrivalsLimit: s?.newArrivalsLimit ?? storeDefaults.newArrivalsLimit,
+        newArrivals,
         newArrivalsSectionImages: newArrivalsImages,
         newArrivalsSectionVideos: newArrivalsVideos,
         homeCollectionsDisplayLimit: displayLimit,
@@ -161,18 +244,7 @@ export const getStoreHome = asyncHandler(async (req, res) => {
       .limit(limit)
       .populate("product", "name")
       .lean();
-    feedbacks = list.map((f: unknown) => {
-      const item = f as { _id: unknown; product: unknown; customerName: string; message: string; rating: number; image?: string };
-      const prod = item.product as { name?: { en: string; ar: string } } | null | undefined;
-      return {
-        _id: String(item._id),
-        product: prod?.name ? { name: prod.name } : { name: { en: "", ar: "" } },
-        customerName: item.customerName,
-        message: item.message,
-        rating: item.rating,
-        image: item.image || undefined
-      };
-    });
+    feedbacks = list.map((f: unknown) => toStoreFeedbackShape(f as { product?: { name?: unknown }; customerName?: string; message?: string; rating?: number; image?: string }));
   }
 
   const newArrivalProducts = await Product.find({ isNewArrival: true, status: "ACTIVE", deletedAt: null })
@@ -180,27 +252,31 @@ export const getStoreHome = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(newArrivalsLimit)
     .lean();
-  const newArrivals = (newArrivalProducts as Record<string, unknown>[]).map((p) =>
-    withViewHoverVideo(p as { images?: string[]; videos?: string[]; viewImage?: string; hoverImage?: string })
-  );
+  const newArrivals = (newArrivalProducts as Record<string, unknown>[]).map((p) => {
+    const withMedia = withProductMedia(p as { images?: string[]; videos?: string[]; viewImage?: string; hoverImage?: string }, { forList: true });
+    return toStoreProductShape(withMedia as Record<string, unknown>);
+  });
 
   const announcementBar = (s as { announcementBar?: { text: { en: string; ar: string }; enabled: boolean; backgroundColor: string } })?.announcementBar ?? { text: { en: "", ar: "" }, enabled: false, backgroundColor: "#0f172a" };
   const promoBanner = (s as { promoBanner?: { enabled: boolean; image: string; title: { en: string; ar: string }; subtitle: { en: string; ar: string }; ctaLabel: { en: string; ar: string }; ctaUrl: string } })?.promoBanner ?? { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" };
+
+  const quickLinks = (s?.quickLinks ?? storeDefaults.quickLinks).map((q) => toStoreQuickLinkShape(q));
+  const homeCollectionsStripped = collectionsToShow.map((c) => toStoreCollectionShape(c));
 
   sendResponse(res, req.locale, {
     data: {
       home: {
         store: {
           storeName: s?.storeName ?? storeDefaults.storeName,
-          logo: s?.logo ?? storeDefaults.logo,
-          quickLinks: s?.quickLinks ?? storeDefaults.quickLinks,
+          logo: (s?.logo && s.logo.trim() !== "") ? s.logo : DEFAULT_LOGO_PATH,
+          quickLinks,
           socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
           newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled
         },
         hero,
         heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
         newArrivals,
-        homeCollections: collectionsToShow,
+        homeCollections: homeCollectionsStripped,
         feedbackSectionEnabled,
         feedbackDisplayLimit,
         feedbacks,

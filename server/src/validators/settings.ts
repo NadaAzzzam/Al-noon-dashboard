@@ -28,6 +28,7 @@ export const updateSettingsSchema = z.object({
       titleEn: z.string(),
       titleAr: z.string(),
       image: z.string(),
+      hoverImage: z.string().optional(),
       video: z.string().optional(),
       url: z.string(),
       order: z.number().int().min(0)

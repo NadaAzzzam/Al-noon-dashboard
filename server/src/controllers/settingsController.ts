@@ -26,7 +26,7 @@ const defaults = {
   quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
-  homeCollections: [] as { title: { en: string; ar: string }; image: string; url: string; order: number }[],
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number }[],
   hero: heroDefault,
   heroEnabled: true,
   newArrivalsLimit: 8,
@@ -132,12 +132,13 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.newsletterEnabled !== undefined) toSet.newsletterEnabled = Boolean(updates.newsletterEnabled);
   if (updates.homeCollections !== undefined && Array.isArray(updates.homeCollections)) {
     const items = updates.homeCollections
-      .map((item: { titleEn?: string; titleAr?: string; image?: string; video?: string; url?: string; order?: number }, idx: number) => ({
+      .map((item: { titleEn?: string; titleAr?: string; image?: string; hoverImage?: string; video?: string; url?: string; order?: number }, idx: number) => ({
         title: {
           en: String(item.titleEn ?? "").trim(),
           ar: String(item.titleAr ?? "").trim()
         },
         image: String(item.image ?? "").trim(),
+        hoverImage: String(item.hoverImage ?? "").trim() || undefined,
         video: String(item.video ?? "").trim() || undefined,
         url: String(item.url ?? "").trim(),
         order: typeof item.order === "number" ? item.order : idx
