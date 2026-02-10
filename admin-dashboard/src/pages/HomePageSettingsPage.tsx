@@ -3,6 +3,41 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError, Settings, getUploadsBaseUrl } from "../services/api";
 
+/** Default announcement bar background: CSS color or gradient. */
+const DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND =
+  "linear-gradient(90deg, #1a1a2e, #16213e, #0f3460, #16213e, #1a1a2e)";
+
+const HEX_6 = /^#[0-9A-Fa-f]{6}$/;
+const HEX_3 = /^#[0-9A-Fa-f]{3}$/;
+/** Extract first hex from a gradient string for color picker display. */
+function firstHexFromBackground(bg: string): string {
+  const match = bg.match(/#[0-9A-Fa-f]{6}/);
+  return match ? match[0] : "#1a1a2e";
+}
+/** Value for the color picker: must be 6-digit hex. */
+function pickerHexFromBackground(bg: string): string {
+  if (HEX_6.test(bg)) return bg;
+  if (HEX_3.test(bg)) return "#" + bg.slice(1).replace(/(.)/g, "$1$1");
+  return firstHexFromBackground(bg);
+}
+/** Normalize solid color to 6-digit hex for stored value. */
+function normalizeToHex(s: string): string {
+  const t = s.trim();
+  if (HEX_6.test(t)) return t;
+  if (HEX_3.test(t)) return "#" + t.slice(1).replace(/(.)/g, "$1$1");
+  const rgb = t.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+  if (rgb) {
+    const r = Math.max(0, Math.min(255, parseInt(rgb[1], 10)));
+    const g = Math.max(0, Math.min(255, parseInt(rgb[2], 10)));
+    const b = Math.max(0, Math.min(255, parseInt(rgb[3], 10)));
+    return "#" + [r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("");
+  }
+  return t;
+}
+function isGradient(bg: string): boolean {
+  return bg.trim().toLowerCase().includes("gradient");
+}
+
 type HeroForm = {
   images: string[];
   videos: string[];
@@ -72,7 +107,7 @@ const HomePageSettingsPage = () => {
       textEn: "",
       textAr: "",
       enabled: false,
-      backgroundColor: "#0f172a",
+      backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND,
     },
     hero: {
       images: [],
@@ -195,7 +230,7 @@ const HomePageSettingsPage = () => {
             textEn: ab?.text?.en ?? "",
             textAr: ab?.text?.ar ?? "",
             enabled: ab?.enabled ?? false,
-            backgroundColor: ab?.backgroundColor ?? "#0f172a",
+            backgroundColor: ab?.backgroundColor ?? DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND,
           },
           hero: {
             images: h?.images ?? [],
@@ -474,7 +509,10 @@ const HomePageSettingsPage = () => {
           textEn: form.announcementBar.textEn.trim(),
           textAr: form.announcementBar.textAr.trim(),
           enabled: form.announcementBar.enabled,
-          backgroundColor: form.announcementBar.backgroundColor.trim(),
+          backgroundColor: (() => {
+            const bg = form.announcementBar.backgroundColor.trim();
+            return isGradient(bg) ? bg : normalizeToHex(bg);
+          })(),
         },
         hero: {
           images: form.hero.images,
@@ -700,11 +738,14 @@ const HomePageSettingsPage = () => {
               </div>
             </div>
             <div className="form-group form-group-narrow">
-              <label>{t("settings.announcement_bg_color")}</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label>{t("settings.announcement_bg")}</label>
+              <p className="settings-hint" style={{ marginTop: 4, marginBottom: 8 }}>
+                {t("settings.announcement_bg_hint")}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <input
                   type="color"
-                  value={form.announcementBar.backgroundColor}
+                  value={pickerHexFromBackground(form.announcementBar.backgroundColor)}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
@@ -714,11 +755,14 @@ const HomePageSettingsPage = () => {
                       },
                     }))
                   }
+                  title={t("settings.announcement_picker_tooltip")}
                   style={{
-                    width: 40,
-                    height: 36,
+                    width: 44,
+                    height: 40,
                     padding: 2,
                     cursor: "pointer",
+                    border: "1px solid var(--border-color, #ccc)",
+                    borderRadius: 4,
                   }}
                 />
                 <input
@@ -733,10 +777,32 @@ const HomePageSettingsPage = () => {
                       },
                     }))
                   }
-                  placeholder="#0f172a"
-                  style={{ width: 100 }}
+                  placeholder="#1a1a2e or linear-gradient(...)"
+                  style={{ flex: 1, minWidth: 200 }}
                 />
               </div>
+              {isGradient(form.announcementBar.backgroundColor) && (
+                <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        announcementBar: {
+                          ...f.announcementBar,
+                          backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND,
+                        },
+                      }))
+                    }
+                    style={{ padding: "6px 12px", fontSize: 13 }}
+                  >
+                    {t("settings.announcement_gradient_preset")}
+                  </button>
+                </div>
+              )}
+              <p className="settings-hint" style={{ marginTop: 6, fontSize: 12 }}>
+                {t("settings.announcement_bg_hex_note")}
+              </p>
             </div>
           </div>
         </section>

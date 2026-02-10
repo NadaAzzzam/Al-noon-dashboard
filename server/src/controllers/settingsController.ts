@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
-import { Settings } from "../models/Settings.js";
+import { Settings, DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND } from "../models/Settings.js";
 import { isDbConnected } from "../config/db.js";
 import { env } from "../config/env.js";
 import { ApiError } from "../utils/apiError.js";
@@ -36,7 +36,7 @@ const defaults = {
   homeCollectionsDisplayLimit: 0,
   ourCollectionSectionImages: [] as string[],
   ourCollectionSectionVideos: [] as string[],
-  announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: "#0f172a" },
+  announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND },
   promoBanner: { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" },
   featuredProductsEnabled: false,
   featuredProductsLimit: 8,
@@ -200,7 +200,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
     toSet.announcementBar = {
       text: { en: String(ab.textEn ?? "").trim(), ar: String(ab.textAr ?? "").trim() },
       enabled: Boolean(ab.enabled),
-      backgroundColor: String(ab.backgroundColor ?? "#0f172a").trim()
+      backgroundColor: String(ab.backgroundColor ?? DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND).trim()
     };
   }
   if (updates.promoBanner !== undefined && typeof updates.promoBanner === "object") {

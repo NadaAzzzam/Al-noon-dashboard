@@ -5,6 +5,10 @@ export interface LocalizedString {
   ar: string;
 }
 
+/** Default announcement bar background: CSS color or gradient (e.g. linear-gradient). */
+export const DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND =
+  "linear-gradient(90deg, #1a1a2e, #16213e, #0f3460, #16213e, #1a1a2e)";
+
 export interface SettingsDocument {
   storeName: LocalizedString;
   logo?: string;
@@ -42,7 +46,7 @@ export interface SettingsDocument {
   /** Section media for "Our Collection" block on home page. */
   ourCollectionSectionImages: string[];
   ourCollectionSectionVideos: string[];
-  /** Announcement bar text shown at top of storefront. */
+  /** Announcement bar text shown at top of storefront. backgroundColor: CSS color or gradient (e.g. linear-gradient). */
   announcementBar: { text: LocalizedString; enabled: boolean; backgroundColor: string };
   /** Promotional banner for sales / seasonal campaigns. */
   promoBanner: {
@@ -122,7 +126,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     announcementBar: {
       text: { type: localizedSchema, default: () => ({ en: "", ar: "" }) },
       enabled: { type: Boolean, default: false },
-      backgroundColor: { type: String, default: "#0f172a" }
+      backgroundColor: { type: String, default: () => DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND }
     },
     promoBanner: {
       enabled: { type: Boolean, default: false },

@@ -16,7 +16,7 @@ import mongoose from "mongoose";
 import { connectDatabase } from "../config/db.js";
 import { Category } from "../models/Category.js";
 import { City } from "../models/City.js";
-import { Settings } from "../models/Settings.js";
+import { Settings, DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND } from "../models/Settings.js";
 import { Product } from "../models/Product.js";
 import { User } from "../models/User.js";
 import { Order } from "../models/Order.js";
@@ -359,9 +359,12 @@ async function seed() {
       { title: { en: "Malhafa", ar: "ملحفة" }, image: IMAGES.fabric1, hoverImage: IMAGES.fabric2, video: localVideoUrl || "", url: "/products?category=malhafa", order: 4, categoryId: cat("Malhafa")._id }
     ],
     announcementBar: {
-      text: { en: "Free delivery on orders over 2000 EGP", ar: "توصيل مجاني للطلبات فوق 2000 جنيه" },
+      text: {
+        en: "✨ Free Shipping on Orders Over 500 EGP — Al-noon  •  🌙 Ramadan Kareem  •  🎉 Free Shipping on Orders Over 500 EGP — Al-noon  •  🌙 Ramadan Kareem  •  ",
+        ar: "✨ Free Shipping on Orders Over 500 EGP — Al-noon  •  🌙 Ramadan Kareem  •  🎉 Free Shipping on Orders Over 500 EGP — Al-noon  •  🌙 Ramadan Kareem  •  "
+      },
       enabled: true,
-      backgroundColor: "#0f172a"
+      backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND
     },
     promoBanner: {
       enabled: true,

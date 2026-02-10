@@ -163,13 +163,21 @@ export function withProductMedia<T extends ProductMediaSource>(
 ): Omit<T, "viewImage" | "hoverImage" | "video"> & { media: ProductMedia } {
   const media = buildProductMedia(product, opts?.color);
   const result = { ...product, media } as T & { media: ProductMedia };
-  delete (result as Record<string, unknown>).viewImage;
-  delete (result as Record<string, unknown>).hoverImage;
-  delete (result as Record<string, unknown>).video;
+  const resultRecord = result as unknown as Record<string, unknown>;
+  delete resultRecord.viewImage;
+  delete resultRecord.hoverImage;
+  delete resultRecord.video;
+
+  // Filter images array by color if color parameter is provided
+  if (opts?.color) {
+    const filteredImages = filterImagesByColor(product.images, product.imageColors, opts.color);
+    resultRecord.images = filteredImages;
+  }
+
   if (opts?.forList) {
-    delete (result as Record<string, unknown>).images;
-    delete (result as Record<string, unknown>).videos;
-    delete (result as Record<string, unknown>).imageColors;
+    delete resultRecord.images;
+    delete resultRecord.videos;
+    delete resultRecord.imageColors;
   }
   return result as Omit<T, "viewImage" | "hoverImage" | "video"> & { media: ProductMedia };
 }

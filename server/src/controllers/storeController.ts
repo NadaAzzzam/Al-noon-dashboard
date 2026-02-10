@@ -1,4 +1,4 @@
-import { Settings } from "../models/Settings.js";
+import { Settings, DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND } from "../models/Settings.js";
 import { Subscriber } from "../models/Subscriber.js";
 import { ContactSubmission } from "../models/ContactSubmission.js";
 import { ProductFeedback } from "../models/ProductFeedback.js";
@@ -111,15 +111,20 @@ function toStoreQuickLinkShape(q: { label?: unknown; url?: string }): { label: u
 
 /** Store-facing feedback: only product name, customerName, message, rating, image (no _id). */
 function toStoreFeedbackShape(f: { product?: { name?: unknown }; customerName?: string; message?: string; rating?: number; image?: string }): {
-  product: { name: unknown };
+  product: { name: { en: string; ar: string } };
   customerName: string;
   message: string;
   rating: number;
   image?: string;
 } {
   const prod = f.product as { name?: unknown } | null | undefined;
+  const nameRaw = prod?.name;
+  const name: { en: string; ar: string } =
+    nameRaw != null && typeof nameRaw === "object" && "en" in nameRaw && "ar" in nameRaw
+      ? { en: String((nameRaw as { en?: unknown }).en ?? ""), ar: String((nameRaw as { ar?: unknown }).ar ?? "") }
+      : { en: "", ar: "" };
   return {
-    product: prod?.name ? { name: prod.name } : { name: { en: "", ar: "" } },
+    product: { name },
     customerName: typeof f.customerName === "string" ? f.customerName : "",
     message: typeof f.message === "string" ? f.message : "",
     rating: typeof f.rating === "number" ? f.rating : 0,
@@ -226,7 +231,7 @@ export const getStoreHome = asyncHandler(async (req, res) => {
           feedbackSectionEnabled: storeDefaults.feedbackSectionEnabled,
           feedbackDisplayLimit: storeDefaults.feedbackDisplayLimit,
           feedbacks: storeDefaults.feedbacks,
-          announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: "#0f172a" },
+          announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND },
           promoBanner: { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" }
         }
       }
@@ -263,7 +268,7 @@ export const getStoreHome = asyncHandler(async (req, res) => {
     return toStoreProductShape(withMedia as Record<string, unknown>);
   });
 
-  const announcementBar = (s as { announcementBar?: { text: { en: string; ar: string }; enabled: boolean; backgroundColor: string } })?.announcementBar ?? { text: { en: "", ar: "" }, enabled: false, backgroundColor: "#0f172a" };
+  const announcementBar = (s as { announcementBar?: { text: { en: string; ar: string }; enabled: boolean; backgroundColor: string } })?.announcementBar ?? { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND };
   const promoBanner = (s as { promoBanner?: { enabled: boolean; image: string; title: { en: string; ar: string }; subtitle: { en: string; ar: string }; ctaLabel: { en: string; ar: string }; ctaUrl: string } })?.promoBanner ?? { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" };
 
   const quickLinks = (s?.quickLinks ?? storeDefaults.quickLinks).map((q) => toStoreQuickLinkShape(q));
