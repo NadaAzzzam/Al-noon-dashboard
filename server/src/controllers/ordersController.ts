@@ -53,13 +53,13 @@ export const listOrders = asyncHandler(async (req, res) => {
       ...ord,
       payment: pay
         ? {
-            method: (pay as { method: string }).method,
-            status: (pay as { status: string }).status,
-            instaPayProofUrl: (pay as { instaPayProofUrl?: string }).instaPayProofUrl
-          }
+          method: (pay as { method: string }).method,
+          status: (pay as { status: string }).status,
+          instaPayProofUrl: (pay as { instaPayProofUrl?: string }).instaPayProofUrl
+        }
         : ord.paymentMethod
-        ? { method: ord.paymentMethod, status: "UNPAID" as const }
-        : undefined
+          ? { method: ord.paymentMethod, status: "UNPAID" as const }
+          : undefined
     };
   });
 
@@ -261,7 +261,7 @@ export const createOrder = asyncHandler(async (req, res) => {
           </div>
         `;
         await sendMail(customerEmailAddr, subject, html);
-      }).catch(() => {});
+      }).catch(() => { });
   }
 
   // --- Notify admin by email if enabled (fire-and-forget) ---
@@ -297,7 +297,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       <ul>${orderItems.map((i) => `<li>${i}</li>`).join("")}</ul>
     `;
     await sendMail(to, subject, html);
-  }).catch(() => {});
+  }).catch(() => { });
 
   sendResponse(res, req.locale, { status: 201, message: "success.order.created", data: { order } });
 });

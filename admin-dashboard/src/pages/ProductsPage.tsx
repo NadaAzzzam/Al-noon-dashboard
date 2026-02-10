@@ -28,13 +28,17 @@ const ProductsPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [availabilityFilter, setAvailabilityFilter] = useState<ProductAvailability>("all");
+  const [availabilityFilter, setAvailabilityFilter] =
+    useState<ProductAvailability>("all");
   const [newArrivalFilter, setNewArrivalFilter] = useState(false);
   const [sortFilter, setSortFilter] = useState<ProductSort | "">("");
   const [ratingFilter, setRatingFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
-  const [appliedFilters, setAppliedFilters] = useState<Record<string, unknown> | null>(null);
+  const [appliedFilters, setAppliedFilters] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   const hasFilters = !!(
     search ||
@@ -66,7 +70,8 @@ const ProductsPage = () => {
         search: search || undefined,
         status: statusFilter || undefined,
         category: categoryFilter || undefined,
-        availability: availabilityFilter !== "all" ? availabilityFilter : undefined,
+        availability:
+          availabilityFilter !== "all" ? availabilityFilter : undefined,
         newArrival: newArrivalFilter || undefined,
         sort: sortFilter || undefined,
         minRating: ratingFilter ? Number(ratingFilter) : undefined,
@@ -250,8 +255,12 @@ const ProductsPage = () => {
             title={t("products.availability")}
           >
             <option value="all">{t("products.availability_all")}</option>
-            <option value="inStock">{t("products.availability_in_stock")}</option>
-            <option value="outOfStock">{t("products.availability_out_of_stock")}</option>
+            <option value="inStock">
+              {t("products.availability_in_stock")}
+            </option>
+            <option value="outOfStock">
+              {t("products.availability_out_of_stock")}
+            </option>
           </select>
           <label className="filters-checkbox">
             <input
@@ -278,8 +287,12 @@ const ProductsPage = () => {
             <option value="priceDesc">{t("products.sort_price_desc")}</option>
             <option value="nameAsc">{t("products.sort_name_asc")}</option>
             <option value="nameDesc">{t("products.sort_name_desc")}</option>
-            <option value="bestSelling">{t("products.sort_best_selling")}</option>
-            <option value="highestSelling">{t("products.highest_selling")}</option>
+            <option value="bestSelling">
+              {t("products.sort_best_selling")}
+            </option>
+            <option value="highestSelling">
+              {t("products.highest_selling")}
+            </option>
             <option value="lowSelling">{t("products.low_sale")}</option>
           </select>
           <select
@@ -302,8 +315,18 @@ const ProductsPage = () => {
           )}
         </div>
         {appliedFilters && Object.keys(appliedFilters).length > 0 && (
-          <p className="applied-filters-hint" style={{ marginTop: 8, fontSize: 12, color: "var(--text-muted, #666)" }}>
-            {t("products.applied_filters", "Applied")}: {Object.entries(appliedFilters).map(([k, v]) => `${k}=${String(v)}`).join(", ")}
+          <p
+            className="applied-filters-hint"
+            style={{
+              marginTop: 8,
+              fontSize: 12,
+              color: "var(--text-muted, #666)",
+            }}
+          >
+            {t("products.applied_filters", "Applied")}:{" "}
+            {Object.entries(appliedFilters)
+              .map(([k, v]) => `${k}=${String(v)}`)
+              .join(", ")}
           </p>
         )}
 
@@ -329,20 +352,26 @@ const ProductsPage = () => {
                     <td>
                       {getProductDefaultImageUrl(product) ? (
                         <img
-                          src={getProductImageUrl(getProductDefaultImageUrl(product))}
+                          src={getProductImageUrl(
+                            getProductDefaultImageUrl(product),
+                          )}
                           alt=""
                           className="inventory-product-img table-image-clickable"
                           role="button"
                           tabIndex={0}
                           onClick={() =>
                             setImagePopupSrc(
-                              getProductImageUrl(getProductDefaultImageUrl(product)),
+                              getProductImageUrl(
+                                getProductDefaultImageUrl(product),
+                              ),
                             )
                           }
                           onKeyDown={(e) =>
                             e.key === "Enter" &&
                             setImagePopupSrc(
-                              getProductImageUrl(getProductDefaultImageUrl(product)),
+                              getProductImageUrl(
+                                getProductDefaultImageUrl(product),
+                              ),
                             )
                           }
                         />

@@ -253,9 +253,9 @@ export const updateSettings = asyncHandler(async (req, res) => {
       systemPrompt: String(ai.systemPrompt ?? "").trim(),
       suggestedQuestions: Array.isArray(ai.suggestedQuestions)
         ? ai.suggestedQuestions.map((q: { en?: string; ar?: string }) => ({
-            en: String(q.en ?? "").trim(),
-            ar: String(q.ar ?? "").trim()
-          })).filter((q: { en: string; ar: string }) => q.en || q.ar)
+          en: String(q.en ?? "").trim(),
+          ar: String(q.ar ?? "").trim()
+        })).filter((q: { en: string; ar: string }) => q.en || q.ar)
         : []
     };
   }
