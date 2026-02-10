@@ -31,7 +31,8 @@ export const updateSettingsSchema = z.object({
       hoverImage: z.string().optional(),
       video: z.string().optional(),
       url: z.string(),
-      order: z.number().int().min(0)
+      order: z.number().int().min(0),
+      categoryId: z.string().optional()
     })).optional(),
     hero: z.object({
       images: z.array(z.string()).optional(),

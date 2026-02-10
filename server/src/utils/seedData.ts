@@ -353,10 +353,10 @@ async function seed() {
     ourCollectionSectionImages: [IMAGES.section2, IMAGES.section3, IMAGES.cape1, IMAGES.fabric1],
     ourCollectionSectionVideos: localVideoUrl ? [localVideoUrl] : [],
     homeCollections: [
-      { title: { en: "Abayas", ar: "عبايات" }, image: IMAGES.abaya1, hoverImage: IMAGES.abaya2, video: localVideoUrl || "", url: "/products?category=abayas", order: 1 },
-      { title: { en: "Capes", ar: "كابات" }, image: IMAGES.cape1, hoverImage: IMAGES.cape2, video: localVideoUrl || "", url: "/products?category=capes", order: 2 },
-      { title: { en: "Hijab", ar: "حجاب" }, image: IMAGES.hijab1, hoverImage: IMAGES.hijab2, video: localVideoUrl || "", url: "/products?category=hijab", order: 3 },
-      { title: { en: "Malhafa", ar: "ملحفة" }, image: IMAGES.fabric1, hoverImage: IMAGES.fabric2, video: localVideoUrl || "", url: "/products?category=malhafa", order: 4 }
+      { title: { en: "Abayas", ar: "عبايات" }, image: IMAGES.abaya1, hoverImage: IMAGES.abaya2, video: localVideoUrl || "", url: "/products?category=abayas", order: 1, categoryId: cat("Abayas")._id },
+      { title: { en: "Capes", ar: "كابات" }, image: IMAGES.cape1, hoverImage: IMAGES.cape2, video: localVideoUrl || "", url: "/products?category=capes", order: 2, categoryId: cat("Capes")._id },
+      { title: { en: "Hijab", ar: "حجاب" }, image: IMAGES.hijab1, hoverImage: IMAGES.hijab2, video: localVideoUrl || "", url: "/products?category=hijab", order: 3, categoryId: cat("Hijab")._id },
+      { title: { en: "Malhafa", ar: "ملحفة" }, image: IMAGES.fabric1, hoverImage: IMAGES.fabric2, video: localVideoUrl || "", url: "/products?category=malhafa", order: 4, categoryId: cat("Malhafa")._id }
     ],
     announcementBar: {
       text: { en: "Free delivery on orders over 2000 EGP", ar: "توصيل مجاني للطلبات فوق 2000 جنيه" },

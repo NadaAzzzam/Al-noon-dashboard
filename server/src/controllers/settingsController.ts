@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 import { Settings } from "../models/Settings.js";
 import { isDbConnected } from "../config/db.js";
 import { env } from "../config/env.js";
@@ -26,7 +27,7 @@ const defaults = {
   quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
-  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number }[],
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: string }[],
   hero: heroDefault,
   heroEnabled: true,
   newArrivalsLimit: 8,
@@ -132,17 +133,24 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.newsletterEnabled !== undefined) toSet.newsletterEnabled = Boolean(updates.newsletterEnabled);
   if (updates.homeCollections !== undefined && Array.isArray(updates.homeCollections)) {
     const items = updates.homeCollections
-      .map((item: { titleEn?: string; titleAr?: string; image?: string; hoverImage?: string; video?: string; url?: string; order?: number }, idx: number) => ({
-        title: {
-          en: String(item.titleEn ?? "").trim(),
-          ar: String(item.titleAr ?? "").trim()
-        },
-        image: String(item.image ?? "").trim(),
-        hoverImage: String(item.hoverImage ?? "").trim() || undefined,
-        video: String(item.video ?? "").trim() || undefined,
-        url: String(item.url ?? "").trim(),
-        order: typeof item.order === "number" ? item.order : idx
-      }))
+      .map((item: { titleEn?: string; titleAr?: string; image?: string; hoverImage?: string; video?: string; url?: string; order?: number; categoryId?: string }, idx: number) => {
+        const entry: { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: mongoose.Types.ObjectId } = {
+          title: {
+            en: String(item.titleEn ?? "").trim(),
+            ar: String(item.titleAr ?? "").trim()
+          },
+          image: String(item.image ?? "").trim(),
+          hoverImage: String(item.hoverImage ?? "").trim() || undefined,
+          video: String(item.video ?? "").trim() || undefined,
+          url: String(item.url ?? "").trim(),
+          order: typeof item.order === "number" ? item.order : idx
+        };
+        const catId = item.categoryId;
+        if (catId != null && String(catId).trim() !== "" && mongoose.isValidObjectId(catId)) {
+          entry.categoryId = new mongoose.Types.ObjectId(catId);
+        }
+        return entry;
+      })
       .filter((item: { image: string; url: string }) => item.image || item.url);
     toSet.homeCollections = items.sort((a: { order: number }, b: { order: number }) => a.order - b.order);
   }

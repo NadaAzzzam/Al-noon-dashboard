@@ -29,7 +29,7 @@ const storeDefaults = {
   quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
-  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number }[],
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: string }[],
   hero: heroDefault,
   heroEnabled: true,
   newArrivalsLimit: 8,
@@ -75,16 +75,17 @@ function toStoreProductShape(p: Record<string, unknown>): {
   };
 }
 
-/** Store-facing home collection: title, default image, optional hover image, optional video, url, order (no _id). */
-function toStoreCollectionShape(c: { title?: unknown; image?: string; hoverImage?: string; video?: string; url?: string; order?: number }): {
+/** Store-facing home collection: title, default image, optional hover image, optional video, url, order, optional categoryId. */
+function toStoreCollectionShape(c: { title?: unknown; image?: string; hoverImage?: string; video?: string; url?: string; order?: number; categoryId?: unknown }): {
   title: unknown;
   image: string;
   hoverImage?: string;
   video?: string;
   url: string;
   order: number;
+  categoryId?: string;
 } {
-  const out: { title: unknown; image: string; hoverImage?: string; video?: string; url: string; order: number } = {
+  const out: { title: unknown; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: string } = {
     title: c.title ?? { en: "", ar: "" },
     image: typeof c.image === "string" ? c.image : "",
     url: typeof c.url === "string" ? c.url : "",
@@ -92,6 +93,11 @@ function toStoreCollectionShape(c: { title?: unknown; image?: string; hoverImage
   };
   if (typeof c.hoverImage === "string" && c.hoverImage.trim() !== "") out.hoverImage = c.hoverImage.trim();
   if (typeof c.video === "string" && c.video.trim() !== "") out.video = c.video.trim();
+  const catId = c.categoryId;
+  if (catId != null && catId !== "") {
+    const idStr = typeof catId === "string" ? catId : (catId as { toString?: () => string }).toString?.();
+    if (idStr) out.categoryId = idStr;
+  }
   return out;
 }
 

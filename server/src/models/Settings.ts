@@ -19,8 +19,8 @@ export interface SettingsDocument {
   socialLinks: { facebook?: string; instagram?: string };
   /** Whether newsletter signup is shown and accepted on storefront. */
   newsletterEnabled: boolean;
-  /** Homepage collection cards (title, default image, optional hover image, optional video, link) for e-commerce home. */
-  homeCollections: { title: LocalizedString; image: string; hoverImage?: string; video?: string; url: string; order: number }[];
+  /** Homepage collection cards (title, default image, optional hover image, optional video, link, optional category id) for e-commerce home. */
+  homeCollections: { title: LocalizedString; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: mongoose.Types.ObjectId }[];
   /** Hero section (top of e-commerce home): multiple images/videos, title, subtitle, CTA. */
   hero: {
     images: string[];
@@ -101,7 +101,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     },
     newsletterEnabled: { type: Boolean, default: true },
     homeCollections: {
-      type: [{ title: localizedSchema, image: String, hoverImage: String, video: String, url: String, order: Number }],
+      type: [{ title: localizedSchema, image: String, hoverImage: String, video: String, url: String, order: Number, categoryId: Schema.Types.ObjectId }],
       default: []
     },
     hero: {
