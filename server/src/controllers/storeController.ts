@@ -95,8 +95,8 @@ function toStoreCollectionShape(c: { title?: unknown; image?: string; hoverImage
   if (typeof c.video === "string" && c.video.trim() !== "") out.video = c.video.trim();
   const catId = c.categoryId;
   if (catId != null && catId !== "") {
-    const idStr = typeof catId === "string" ? catId : (catId as { toString?: () => string }).toString?.();
-    if (idStr) out.categoryId = idStr;
+    const idStr = typeof catId === "string" ? catId : String(catId);
+    if (idStr && idStr !== "undefined" && idStr !== "[object Object]") out.categoryId = idStr;
   }
   return out;
 }
