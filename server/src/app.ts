@@ -28,6 +28,8 @@ import { swaggerSpec } from "./swagger.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { initLocales, localeMiddleware } from "./middlewares/locale.js";
+import { apiLimiter, authLimiter } from "./middlewares/rateLimit.js";
+import { requestIdMiddleware } from "./middlewares/requestId.js";
 import { sendError, sendResponse } from "./utils/response.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -94,10 +96,12 @@ export const createApp = () => {
       credentials: true,
     })
   );
+  app.use(requestIdMiddleware);
   app.use(cookieParser());
   app.use(express.json());
   app.use(morgan("dev"));
   app.use(localeMiddleware);
+  app.use("/api", apiLimiter);
   app.use("/uploads", express.static(uploadsDir));
 
   app.get("/api/health", (req, res) => {
@@ -154,7 +158,7 @@ export const createApp = () => {
   });
   app.use("/api-docs", express.static(path.join(__dirname, "../node_modules/swagger-ui-dist")));
 
-  app.use("/api/auth", authRoutes);
+  app.use("/api/auth", authLimiter, authRoutes);
   app.use("/api/store", storeRoutes);
   app.use("/api/newsletter", newsletterRoutes);
   app.use("/api/subscribers", subscribersRoutes);

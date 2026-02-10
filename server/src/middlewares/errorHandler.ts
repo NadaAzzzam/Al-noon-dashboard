@@ -3,11 +3,13 @@ import multer from "multer";
 import { ZodError } from "zod";
 import { getDefaultLocale } from "../i18n.js";
 import { ApiError } from "../utils/apiError.js";
+import { logger } from "../utils/logger.js";
 import { sendError } from "../utils/response.js";
 
 export const errorHandler = (err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const locale = req.locale ?? getDefaultLocale();
   const e = err instanceof Error ? err : new Error(String(err));
+  const requestId = req.requestId;
 
   if (err instanceof multer.MulterError) {
     return sendError(res, locale, {
@@ -33,6 +35,6 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
     });
   }
 
-  console.error("Unhandled error:", e.message, e.stack);
+  logger.error({ err: e, requestId, message: e.message }, "Unhandled error");
   return sendError(res, locale, { statusCode: 500, code: "errors.common.internal_error" });
 };

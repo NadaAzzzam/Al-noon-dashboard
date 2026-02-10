@@ -5,6 +5,15 @@ export interface LocalizedString {
   ar: string;
 }
 
+/** Variant inventory tracking for specific color/size combinations. */
+export interface VariantInventory {
+  color?: string;
+  size?: string;
+  stock: number;
+  /** When true, this variant is marked as out of stock (overrides stock number). */
+  outOfStock?: boolean;
+}
+
 export interface ProductDocument {
   name: LocalizedString;
   description?: LocalizedString;
@@ -28,7 +37,9 @@ export interface ProductDocument {
   /** Optional description per size (e.g. weight range), same length as sizes. */
   sizeDescriptions: string[];
   colors: string[];
-  /** Optional "Details" section (e.g. Fabric, Color, Style, Season). */
+  /** Variant-specific inventory tracking (color/size combinations). If empty, use global stock field. */
+  variants: VariantInventory[];
+  /** Optional "Details" section - supports rich text formatting (titles, paragraphs, lists) like Shopify. */
   details?: LocalizedString;
   /** Optional styling tip for storefront. */
   stylingTip?: LocalizedString;
@@ -38,6 +49,13 @@ export interface ProductDocument {
 }
 
 const localizedSchema = new Schema({ en: { type: String, default: "" }, ar: { type: String, default: "" } }, { _id: false });
+
+const variantInventorySchema = new Schema({
+  color: { type: String },
+  size: { type: String },
+  stock: { type: Number, required: true, default: 0 },
+  outOfStock: { type: Boolean, default: false }
+}, { _id: false });
 
 const productSchema = new Schema<ProductDocument>(
   {
@@ -57,6 +75,7 @@ const productSchema = new Schema<ProductDocument>(
     sizes: { type: [String], default: [] },
     sizeDescriptions: { type: [String], default: [] },
     colors: { type: [String], default: [] },
+    variants: { type: [variantInventorySchema], default: [] },
     details: { type: localizedSchema },
     stylingTip: { type: localizedSchema },
     deletedAt: { type: Date }

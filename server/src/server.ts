@@ -1,18 +1,42 @@
 import { createApp } from "./app.js";
 import { connectDatabase } from "./config/db.js";
 import { env } from "./config/env.js";
+import { logger } from "./utils/logger.js";
+
+let httpServer: ReturnType<ReturnType<typeof createApp>["listen"]> | null = null;
 
 process.on("uncaughtException", (err: unknown) => {
   const msg = err instanceof Error ? err.message : String(err);
   const stack = err instanceof Error ? err.stack : undefined;
-  console.error("Uncaught exception:", msg);
-  if (stack) console.error(stack);
+  logger.fatal({ err, msg, stack }, "Uncaught exception");
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason: unknown) => {
-  console.error("Unhandled rejection:", reason);
+  logger.fatal({ reason }, "Unhandled rejection");
   process.exit(1);
+});
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  logger.info({ signal }, "Shutting down gracefully");
+  if (httpServer) {
+    httpServer.close(() => {
+      logger.info("HTTP server closed");
+    });
+  }
+  const mongoose = await import("mongoose");
+  if (mongoose.connection.readyState === 1) {
+    await mongoose.connection.close();
+    logger.info("MongoDB connection closed");
+  }
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => {
+  void gracefulShutdown("SIGTERM");
+});
+process.on("SIGINT", () => {
+  void gracefulShutdown("SIGINT");
 });
 
 const start = async () => {
@@ -22,21 +46,20 @@ const start = async () => {
 
   try {
     await connectDatabase();
-    console.log("MongoDB connected.");
+    logger.info("MongoDB connected");
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("Database connection failed:", msg);
-    console.warn("Running without MongoDB. Data will be empty. Login with:", env.adminEmail, "/", env.adminPassword);
+    logger.warn({ err, msg }, "Database connection failed; running without MongoDB");
+    logger.warn({ adminEmail: env.adminEmail }, "Login with admin credentials");
   }
 
-  app.listen(port, host, () => {
-    console.log(`Server listening on http://${host}:${port}`);
+  httpServer = app.listen(port, host, () => {
+    logger.info({ host, port }, "Server listening");
   });
 };
 
 start().catch((error: unknown) => {
   const err = error instanceof Error ? error : new Error(String(error));
-  console.error("Server failed to start:", err.message);
-  if (err.stack) console.error(err.stack);
+  logger.fatal({ err, message: err.message, stack: err.stack }, "Server failed to start");
   process.exit(1);
 });

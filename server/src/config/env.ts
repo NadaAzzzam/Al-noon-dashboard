@@ -1,33 +1,63 @@
 import dotenv from "dotenv";
+import { z } from "zod";
 
 dotenv.config();
 
-// Default to 8080 so cloud platforms (Fly, Render, Railway, etc.) can reach the app.
-// For local dev, set PORT=4000 in server/.env.
-const defaultPort = 8080;
-const rawPort = process.env.PORT ? Number(process.env.PORT) : defaultPort;
-// In production/cloud, always use 8080 so the platform can reach the app (even if .env has PORT=4000).
 const isCloud =
   process.env.NODE_ENV === "production" ||
-  process.env.FLY_APP_NAME ||
-  process.env.RENDER_EXTERNAL_URL ||
-  process.env.RAILWAY_ENVIRONMENT;
-const port = isCloud && rawPort === 4000 ? defaultPort : rawPort;
+  !!process.env.FLY_APP_NAME ||
+  !!process.env.RENDER_EXTERNAL_URL ||
+  !!process.env.RAILWAY_ENVIRONMENT;
+
+const envSchema = z.object({
+  PORT: z.string().optional().transform((v) => (v ? Number(v) : 8080)),
+  MONGO_URI: z.string().optional(),
+  JWT_SECRET: z.string().optional(),
+  JWT_EXIRES_IN: z.string().optional(),
+  CLIENT_URL: z.string().optional(),
+  RENDER_EXTERNAL_URL: z.string().optional(),
+  FLY_APP_NAME: z.string().optional(),
+  DEV_WITHOUT_DB: z.string().optional(),
+  ADMIN_EMAIL: z.string().optional(),
+  ADMIN_PASSWORD: z.string().optional(),
+  ADMIN_NAME: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_SECURE: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+  NODE_ENV: z.string().optional()
+});
+
+const parsed = envSchema.safeParse(process.env);
+if (!parsed.success) {
+  const msg = parsed.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ");
+  throw new Error(`Invalid environment configuration: ${msg}`);
+}
+
+const raw = parsed.data;
+const rawPort = raw.PORT ?? 8080;
+const port = isCloud && rawPort === 4000 ? 8080 : rawPort;
+
 export const env = {
   port,
-  mongoUri: process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/al-noon-node",
-  jwtSecret: (process.env.JWT_SECRET && process.env.JWT_SECRET.trim()) || "change-me",
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "1d",
-  clientUrl: process.env.CLIENT_URL ?? process.env.RENDER_EXTERNAL_URL ?? (process.env.FLY_APP_NAME ? `https://${process.env.FLY_APP_NAME}.fly.dev` : undefined) ?? "http://localhost:5173",
-  devWithoutDb: process.env.DEV_WITHOUT_DB === "1",
-  adminEmail: process.env.ADMIN_EMAIL ?? "admin@localhost",
-  adminPassword: process.env.ADMIN_PASSWORD ?? "admin123",
-  adminName: process.env.ADMIN_NAME ?? "Admin",
-  /** SMTP for order notification emails. If not set, notifications are skipped. */
-  smtpHost: process.env.SMTP_HOST?.trim() || undefined,
-  smtpPort: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
-  smtpSecure: process.env.SMTP_SECURE === "1" || process.env.SMTP_SECURE === "true",
-  smtpUser: process.env.SMTP_USER?.trim() || undefined,
-  smtpPass: process.env.SMTP_PASS?.trim() || undefined,
-  smtpFrom: process.env.SMTP_FROM?.trim() || process.env.ADMIN_EMAIL || undefined
+  mongoUri: raw.MONGO_URI?.trim() || "mongodb://127.0.0.1:27017/al-noon-node",
+  jwtSecret: (raw.JWT_SECRET && raw.JWT_SECRET.trim()) || "change-me",
+  jwtExpiresIn: raw.JWT_EXIRES_IN?.trim() || "1d",
+  clientUrl:
+    raw.CLIENT_URL?.trim() ||
+    raw.RENDER_EXTERNAL_URL?.trim() ||
+    (raw.FLY_APP_NAME ? `https://${raw.FLY_APP_NAME}.fly.dev` : undefined) ||
+    "http://localhost:5173",
+  devWithoutDb: raw.DEV_WITHOUT_DB === "1",
+  adminEmail: raw.ADMIN_EMAIL?.trim() || "admin@localhost",
+  adminPassword: raw.ADMIN_PASSWORD ?? "admin123",
+  adminName: raw.ADMIN_NAME?.trim() || "Admin",
+  smtpHost: raw.SMTP_HOST?.trim() || undefined,
+  smtpPort: raw.SMTP_PORT ? Number(raw.SMTP_PORT) : undefined,
+  smtpSecure: raw.SMTP_SECURE === "1" || raw.SMTP_SECURE === "true",
+  smtpUser: raw.SMTP_USER?.trim() || undefined,
+  smtpPass: raw.SMTP_PASS?.trim() || undefined,
+  smtpFrom: raw.SMTP_FROM?.trim() || raw.ADMIN_EMAIL?.trim() || undefined
 };

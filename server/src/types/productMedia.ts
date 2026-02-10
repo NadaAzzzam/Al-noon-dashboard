@@ -48,6 +48,7 @@ export interface ProductMediaSource {
   viewImage?: string;
   hoverImage?: string;
   videos?: string[];
+  imageColors?: string[];
 }
 
 /**
@@ -69,14 +70,54 @@ function inferMediaType(url: string): MediaType {
 }
 
 /**
+ * Filters images by color based on imageColors array.
+ * If color is specified, returns only images where imageColors[i] matches (case-insensitive).
+ * Falls back to default images (empty color string) if no exact match found.
+ */
+function filterImagesByColor(
+  images: string[] | undefined,
+  imageColors: string[] | undefined,
+  targetColor?: string
+): string[] {
+  if (!targetColor || !Array.isArray(images) || images.length === 0) {
+    return images ?? [];
+  }
+
+  const colors = Array.isArray(imageColors) ? imageColors : [];
+  const normalizedTarget = targetColor.toLowerCase().trim();
+
+  // Find images matching the target color
+  const matchedImages = images.filter((_, idx) => {
+    const imgColor = (colors[idx] ?? "").toLowerCase().trim();
+    return imgColor === normalizedTarget;
+  });
+
+  // If found, return matched images; otherwise return default (empty color) images
+  if (matchedImages.length > 0) {
+    return matchedImages;
+  }
+
+  // Fallback to default images (empty color string)
+  const defaultImages = images.filter((_, idx) => {
+    const imgColor = (colors[idx] ?? "").trim();
+    return imgColor === "";
+  });
+
+  return defaultImages.length > 0 ? defaultImages : images;
+}
+
+/**
  * Builds the API media object from legacy product fields.
  * DB-agnostic: only needs URLs; works with MongoDB, SQL, or any store.
+ * Supports color filtering to show color-specific images.
  */
-export function buildProductMedia(source: ProductMediaSource): ProductMedia {
+export function buildProductMedia(source: ProductMediaSource, color?: string): ProductMedia {
+  const filteredImages = filterImagesByColor(source.images, source.imageColors, color);
+
   const defaultUrl =
-    source.viewImage ?? (Array.isArray(source.images) ? source.images[0] : undefined) ?? "";
+    source.viewImage ?? (filteredImages.length > 0 ? filteredImages[0] : undefined) ?? "";
   const hoverUrl =
-    source.hoverImage ?? (Array.isArray(source.images) ? source.images[1] : undefined);
+    source.hoverImage ?? (filteredImages.length > 1 ? filteredImages[1] : undefined);
   const videoUrl = Array.isArray(source.videos) && source.videos.length > 0 ? source.videos[0] : undefined;
 
   const media: ProductMedia = {
@@ -107,17 +148,20 @@ export interface ProductResponseMedia {
 export interface WithProductMediaOptions {
   /** When true, omit images, videos, imageColors (for list/card responses; gallery only needed on detail). */
   forList?: boolean;
+  /** Filter images by specific color. If provided, only returns images matching this color. Falls back to default if no match. */
+  color?: string;
 }
 
 /**
  * Adds media to a product object for API response and omits legacy viewImage, hoverImage, video.
  * Use forList: true on list endpoints (list products, related, newArrivals) to omit images/videos/imageColors.
+ * Use color parameter to filter images by specific color.
  */
 export function withProductMedia<T extends ProductMediaSource>(
   product: T,
   opts?: WithProductMediaOptions
 ): Omit<T, "viewImage" | "hoverImage" | "video"> & { media: ProductMedia } {
-  const media = buildProductMedia(product);
+  const media = buildProductMedia(product, opts?.color);
   const result = { ...product, media } as T & { media: ProductMedia };
   delete (result as Record<string, unknown>).viewImage;
   delete (result as Record<string, unknown>).hoverImage;

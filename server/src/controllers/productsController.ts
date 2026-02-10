@@ -9,6 +9,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { productImagePath, productVideoPath } from "../middlewares/upload.js";
 import { sendResponse } from "../utils/response.js";
 import { withProductMedia } from "../types/productMedia.js";
+import { parseRichText } from "../utils/richTextFormatter.js";
 
 /** @deprecated Use withProductMedia from types/productMedia for full media structure. Kept for store home API compatibility. */
 export const withViewHoverVideo = withProductMedia;
@@ -257,9 +258,129 @@ export const getProduct = asyncHandler(async (req, res) => {
   if (!product) {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
+
+  // Get color parameter from query string for color-specific images
+  const requestedColor = typeof req.query.color === "string" ? req.query.color.trim() : undefined;
+
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
+
+  // Build variant availability information
+  const variants = Array.isArray((productObj as { variants?: unknown[] }).variants)
+    ? (productObj as { variants: unknown[] }).variants
+    : [];
+  const colors = Array.isArray((productObj as { colors?: string[] }).colors)
+    ? (productObj as { colors: string[] }).colors
+    : [];
+  const sizes = Array.isArray((productObj as { sizes?: string[] }).sizes)
+    ? (productObj as { sizes: string[] }).sizes
+    : [];
+
+  // Calculate availability for each color and size
+  const availability = {
+    colors: colors.map(color => ({
+      color,
+      available: isColorAvailable(color, variants, sizes),
+      outOfStock: isColorOutOfStock(color, variants, sizes)
+    })),
+    sizes: sizes.map(size => ({
+      size,
+      available: isSizeAvailable(size, variants, colors),
+      outOfStock: isSizeOutOfStock(size, variants, colors)
+    })),
+    variants: variants.map((v: { color?: string; size?: string; stock?: number; outOfStock?: boolean }) => ({
+      color: v.color,
+      size: v.size,
+      stock: v.stock ?? 0,
+      outOfStock: v.outOfStock ?? false
+    }))
+  };
+
+  const productWithMedia = withProductMedia(
+    productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[]; imageColors?: string[] },
+    { color: requestedColor }
+  );
+
+  // Parse rich text details if present
+  const details = (productObj as { details?: { en?: string; ar?: string } }).details;
+  const formattedDetails = details
+    ? {
+        en: parseRichText(details.en ?? ""),
+        ar: parseRichText(details.ar ?? "")
+      }
+    : undefined;
+
+  sendResponse(res, req.locale, {
+    data: {
+      product: {
+        ...productWithMedia,
+        availability,
+        ...(formattedDetails ? { formattedDetails } : {})
+      }
+    }
+  });
 });
+
+/** Check if a color has any available stock (at least one size in stock). */
+function isColorAvailable(color: string, variants: unknown[], sizes: string[]): boolean {
+  const variantsArray = variants as { color?: string; size?: string; stock?: number; outOfStock?: boolean }[];
+
+  // If no variants, assume color is available based on global stock
+  if (variantsArray.length === 0) return true;
+
+  // Check if any variant with this color has stock
+  const colorVariants = variantsArray.filter(v =>
+    (v.color ?? "").toLowerCase().trim() === color.toLowerCase().trim()
+  );
+
+  if (colorVariants.length === 0) return true; // No specific variant info means available
+
+  return colorVariants.some(v => !v.outOfStock && (v.stock ?? 0) > 0);
+}
+
+/** Check if a color is completely out of stock (all sizes out of stock). */
+function isColorOutOfStock(color: string, variants: unknown[], sizes: string[]): boolean {
+  const variantsArray = variants as { color?: string; size?: string; stock?: number; outOfStock?: boolean }[];
+
+  if (variantsArray.length === 0) return false;
+
+  const colorVariants = variantsArray.filter(v =>
+    (v.color ?? "").toLowerCase().trim() === color.toLowerCase().trim()
+  );
+
+  if (colorVariants.length === 0) return false;
+
+  return colorVariants.every(v => v.outOfStock || (v.stock ?? 0) === 0);
+}
+
+/** Check if a size has any available stock (at least one color in stock). */
+function isSizeAvailable(size: string, variants: unknown[], colors: string[]): boolean {
+  const variantsArray = variants as { color?: string; size?: string; stock?: number; outOfStock?: boolean }[];
+
+  if (variantsArray.length === 0) return true;
+
+  const sizeVariants = variantsArray.filter(v =>
+    (v.size ?? "").toLowerCase().trim() === size.toLowerCase().trim()
+  );
+
+  if (sizeVariants.length === 0) return true;
+
+  return sizeVariants.some(v => !v.outOfStock && (v.stock ?? 0) > 0);
+}
+
+/** Check if a size is completely out of stock (all colors out of stock). */
+function isSizeOutOfStock(size: string, variants: unknown[], colors: string[]): boolean {
+  const variantsArray = variants as { color?: string; size?: string; stock?: number; outOfStock?: boolean }[];
+
+  if (variantsArray.length === 0) return false;
+
+  const sizeVariants = variantsArray.filter(v =>
+    (v.size ?? "").toLowerCase().trim() === size.toLowerCase().trim()
+  );
+
+  if (sizeVariants.length === 0) return false;
+
+  return sizeVariants.every(v => v.outOfStock || (v.stock ?? 0) === 0);
+}
 
 export const getRelatedProducts = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
