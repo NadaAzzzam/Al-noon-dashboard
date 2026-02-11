@@ -15,6 +15,8 @@ type SettingsForm = {
   storeNameEn: string;
   storeNameAr: string;
   logo: string;
+  currency: string;
+  currencySymbol: string;
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
   lowStockThreshold: number;
@@ -34,6 +36,8 @@ const SettingsPage = () => {
     storeNameEn: "",
     storeNameAr: "",
     logo: "",
+    currency: "EGP",
+    currencySymbol: "LE",
     instaPayNumber: "",
     paymentMethods: { cod: true, instaPay: true },
     lowStockThreshold: 5,
@@ -71,10 +75,13 @@ const SettingsPage = () => {
           typeof sn === "object" ? (sn?.en ?? "") : (sn ?? "");
         const storeNameAr =
           typeof sn === "object" ? (sn?.ar ?? "") : (sn ?? "");
+        const adv = d.advancedSettings;
         setForm({
           storeNameEn,
           storeNameAr,
           logo: d.logo ?? "",
+          currency: adv?.currency ?? d.currency ?? "EGP",
+          currencySymbol: adv?.currencySymbol ?? d.currencySymbol ?? "LE",
           instaPayNumber: d.instaPayNumber ?? "",
           paymentMethods: d.paymentMethods ?? { cod: true, instaPay: true },
           lowStockThreshold: d.lowStockThreshold ?? 5,
@@ -136,6 +143,8 @@ const SettingsPage = () => {
         storeNameEn: form.storeNameEn.trim(),
         storeNameAr: form.storeNameAr.trim(),
         logo: form.logo,
+        currency: form.currency.trim() || undefined,
+        currencySymbol: form.currencySymbol.trim() || undefined,
         instaPayNumber: form.instaPayNumber,
         paymentMethods: form.paymentMethods,
         lowStockThreshold: form.lowStockThreshold,
@@ -212,6 +221,30 @@ const SettingsPage = () => {
                   }
                   placeholder={t("settings.store_name_ar")}
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="settings-currency">{t("settings.currency")}</label>
+                <input
+                  id="settings-currency"
+                  value={form.currency}
+                  onChange={(e) =>
+                    setForm({ ...form, currency: e.target.value })
+                  }
+                  placeholder="EGP"
+                />
+                <p className="settings-hint">{t("settings.currency_hint")}</p>
+              </div>
+              <div className="form-group">
+                <label htmlFor="settings-currency-symbol">{t("settings.currency_symbol")}</label>
+                <input
+                  id="settings-currency-symbol"
+                  value={form.currencySymbol}
+                  onChange={(e) =>
+                    setForm({ ...form, currencySymbol: e.target.value })
+                  }
+                  placeholder="LE"
+                />
+                <p className="settings-hint">{t("settings.currency_symbol_hint")}</p>
               </div>
               <div className="form-group">
                 <label>{t("settings.logo")}</label>

@@ -261,6 +261,17 @@ export type Settings = {
   contentPages?: ContentPage[];
   orderNotificationsEnabled?: boolean;
   orderNotificationEmail?: string;
+  /** Currency code (e.g. EGP) from settings API; used for price display. */
+  currency?: string;
+  /** Currency symbol/prefix (e.g. LE) from settings API; used for price display. */
+  currencySymbol?: string;
+  advancedSettings?: {
+    currency?: string;
+    currencySymbol?: string;
+    defaultDeliveryFee?: number;
+    productsPerPage?: number;
+    catalogPaginationLimit?: number;
+  };
   aiAssistant?: {
     enabled: boolean;
     geminiApiKey: string;
@@ -318,6 +329,8 @@ export type SettingsPayload = Partial<{
   contentPages: { slug: string; titleEn: string; titleAr: string; contentEn: string; contentAr: string }[];
   orderNotificationsEnabled?: boolean;
   orderNotificationEmail?: string;
+  currency?: string;
+  currencySymbol?: string;
   aiAssistant?: {
     enabled?: boolean;
     geminiApiKey?: string;

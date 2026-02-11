@@ -91,6 +91,57 @@ function normalizeSettings(raw: Record<string, unknown> | null): Record<string, 
   return s;
 }
 
+/** Public subset of settings for storefront (no auth). Used when GET /api/settings is called without ADMIN. */
+export const getPublicSettings = asyncHandler(async (req, res) => {
+  const currencyDefaults = { currency: "EGP", currencySymbol: "LE" };
+  if (!isDbConnected()) {
+    return sendResponse(res, req.locale, {
+      data: {
+        settings: {
+          storeName: defaults.storeName,
+          logo: defaults.logo || "/uploads/logos/default-logo.png",
+          announcementBar: defaults.announcementBar,
+          socialLinks: defaults.socialLinks,
+          newsletterEnabled: defaults.newsletterEnabled,
+          contentPages: (defaults.contentPages as { slug: string; title: { en: string; ar: string } }[]).map((p) => ({ slug: p.slug, title: p.title })),
+          currency: currencyDefaults.currency,
+          currencySymbol: currencyDefaults.currencySymbol
+        }
+      }
+    });
+  }
+  const settings = await Settings.findOne()
+    .select("storeName logo announcementBar socialLinks newsletterEnabled contentPages advancedSettings")
+    .lean();
+  const s = settings as Record<string, unknown> | null;
+  const storeName = s?.storeName ?? defaults.storeName;
+  const logo = (s?.logo && String(s.logo).trim() !== "") ? String(s.logo) : "/uploads/logos/default-logo.png";
+  const announcementBar = (s as { announcementBar?: { text?: { en?: string; ar?: string }; enabled?: boolean; backgroundColor?: string } })?.announcementBar ?? defaults.announcementBar;
+  const socialLinks = s?.socialLinks ?? defaults.socialLinks;
+  const newsletterEnabled = s?.newsletterEnabled ?? defaults.newsletterEnabled;
+  const contentPages = ((s?.contentPages as { slug?: string; title?: { en?: string; ar?: string } }[]) ?? []).map((p) => ({
+    slug: p?.slug ?? "",
+    title: p?.title ?? { en: "", ar: "" }
+  }));
+  const advanced = s?.advancedSettings as { currency?: string; currencySymbol?: string } | undefined;
+  const currency = (advanced?.currency && String(advanced.currency).trim()) || currencyDefaults.currency;
+  const currencySymbol = (advanced?.currencySymbol && String(advanced.currencySymbol).trim()) || currencyDefaults.currencySymbol;
+  sendResponse(res, req.locale, {
+    data: {
+      settings: {
+        storeName,
+        logo,
+        announcementBar,
+        socialLinks,
+        newsletterEnabled,
+        contentPages,
+        currency,
+        currencySymbol
+      }
+    }
+  });
+});
+
 export const getSettings = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
     return sendResponse(res, req.locale, { data: { settings: defaults } });
@@ -278,6 +329,15 @@ export const updateSettings = asyncHandler(async (req, res) => {
           ar: String(q.ar ?? "").trim()
         })).filter((q: { en: string; ar: string }) => q.en || q.ar)
         : []
+    };
+  }
+  if (updates.currency !== undefined || updates.currencySymbol !== undefined) {
+    const current = await Settings.findOne().select("advancedSettings").lean();
+    const adv = (current?.advancedSettings as Record<string, unknown>) ?? {};
+    toSet.advancedSettings = {
+      ...adv,
+      ...(updates.currency !== undefined && { currency: String(updates.currency).trim() || "EGP" }),
+      ...(updates.currencySymbol !== undefined && { currencySymbol: String(updates.currencySymbol).trim() || "LE" })
     };
   }
   const settings = await Settings.findOneAndUpdate(

@@ -242,6 +242,7 @@ export const getStoreHome = asyncHandler(async (req, res) => {
 
 /** Public: get storefront-safe settings (no auth). Use this from ecommerce instead of GET /api/settings (which requires ADMIN). */
 export const getStoreSettings = asyncHandler(async (req, res) => {
+  const currencyDefaults = { currency: "EGP", currencySymbol: "LE" };
   if (!isDbConnected()) {
     return sendResponse(res, req.locale, {
       data: {
@@ -251,13 +252,15 @@ export const getStoreSettings = asyncHandler(async (req, res) => {
           announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND },
           socialLinks: storeDefaults.socialLinks,
           newsletterEnabled: storeDefaults.newsletterEnabled,
-          contentPages: [] as { slug: string; title: { en: string; ar: string } }[]
+          contentPages: [] as { slug: string; title: { en: string; ar: string } }[],
+          currency: currencyDefaults.currency,
+          currencySymbol: currencyDefaults.currencySymbol
         }
       }
     });
   }
   const settings = await Settings.findOne()
-    .select("storeName logo announcementBar socialLinks newsletterEnabled contentPages")
+    .select("storeName logo announcementBar socialLinks newsletterEnabled contentPages advancedSettings")
     .lean();
   const s = settings ?? null;
   const storeName = s?.storeName ?? storeDefaults.storeName;
@@ -269,9 +272,12 @@ export const getStoreSettings = asyncHandler(async (req, res) => {
     slug: p.slug ?? "",
     title: p.title ?? { en: "", ar: "" }
   }));
+  const advanced = s?.advancedSettings as { currency?: string; currencySymbol?: string } | undefined;
+  const currency = (advanced?.currency && String(advanced.currency).trim()) || currencyDefaults.currency;
+  const currencySymbol = (advanced?.currencySymbol && String(advanced.currencySymbol).trim()) || currencyDefaults.currencySymbol;
   sendResponse(res, req.locale, {
     data: {
-      settings: { storeName, logo, announcementBar, socialLinks, newsletterEnabled, contentPages }
+      settings: { storeName, logo, announcementBar, socialLinks, newsletterEnabled, contentPages, currency, currencySymbol }
     }
   });
 });
