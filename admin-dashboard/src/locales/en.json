@@ -451,6 +451,7 @@
     "instapay_number": "InstaPay number",
     "instapay_placeholder": "Phone or account number",
     "low_stock_threshold": "Low stock threshold",
+    "stock_info_threshold": "Show exact stock when at or below",
     "payment_methods": "Payment methods",
     "cod": "Cash on Delivery",
     "instapay": "InstaPay",

@@ -450,6 +450,7 @@
     "instapay_number": "رقم إنستاباي",
     "instapay_placeholder": "رقم الهاتف أو الحساب",
     "low_stock_threshold": "حد تنبيه المخزون المنخفض",
+    "stock_info_threshold": "إظهار الكمية عندما المخزون أقل من أو يساوي",
     "payment_methods": "طرق الدفع",
     "cod": "الدفع عند الاستلام",
     "instapay": "إنستاباي",

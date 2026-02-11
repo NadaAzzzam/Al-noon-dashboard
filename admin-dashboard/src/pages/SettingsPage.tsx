@@ -18,6 +18,7 @@ type SettingsForm = {
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
   lowStockThreshold: number;
+  stockInfoThreshold: number;
   googleAnalyticsId: string;
   quickLinks: QuickLinkForm[];
   socialFacebook: string;
@@ -36,6 +37,7 @@ const SettingsPage = () => {
     instaPayNumber: "",
     paymentMethods: { cod: true, instaPay: true },
     lowStockThreshold: 5,
+    stockInfoThreshold: 10,
     googleAnalyticsId: "",
     quickLinks: [],
     socialFacebook: "",
@@ -76,6 +78,7 @@ const SettingsPage = () => {
           instaPayNumber: d.instaPayNumber ?? "",
           paymentMethods: d.paymentMethods ?? { cod: true, instaPay: true },
           lowStockThreshold: d.lowStockThreshold ?? 5,
+          stockInfoThreshold: d.stockInfoThreshold ?? 10,
           googleAnalyticsId: d.googleAnalyticsId ?? "",
           quickLinks: (d.quickLinks ?? []).map(
             (q: { label?: { en?: string; ar?: string }; url?: string }) => ({
@@ -136,6 +139,7 @@ const SettingsPage = () => {
         instaPayNumber: form.instaPayNumber,
         paymentMethods: form.paymentMethods,
         lowStockThreshold: form.lowStockThreshold,
+        stockInfoThreshold: form.stockInfoThreshold,
         googleAnalyticsId: form.googleAnalyticsId.trim() || undefined,
         quickLinks: form.quickLinks.filter((q) => q.url.trim()),
         socialLinks: {
@@ -335,6 +339,26 @@ const SettingsPage = () => {
                     setForm({
                       ...form,
                       lowStockThreshold: Math.max(
+                        0,
+                        Number(e.target.value) || 0,
+                      ),
+                    })
+                  }
+                />
+              </div>
+              <div className="form-group form-group-narrow">
+                <label htmlFor="settings-stock-info-threshold">
+                  {t("settings.stock_info_threshold")}
+                </label>
+                <input
+                  id="settings-stock-info-threshold"
+                  type="number"
+                  min={0}
+                  value={form.stockInfoThreshold}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      stockInfoThreshold: Math.max(
                         0,
                         Number(e.target.value) || 0,
                       ),

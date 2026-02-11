@@ -315,6 +315,7 @@ async function seedAi() {
       instaPayNumber: "",
       paymentMethods: { cod: true, instaPay: true },
       lowStockThreshold: 5,
+      stockInfoThreshold: 10,
       aiAssistant: defaultAiAssistant
     });
     console.log("Created new Settings with default aiAssistant.");

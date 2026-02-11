@@ -206,7 +206,10 @@ export type Settings = {
   logo?: string;
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
+  /** Low stock alert threshold. Fallback when BE does not send: 5. */
   lowStockThreshold: number;
+  /** Show exact stock when stock ≤ this (e.g. "Only 3 left"). Fallback when BE does not send: 10. */
+  stockInfoThreshold?: number;
   googleAnalyticsId?: string;
   quickLinks?: QuickLink[];
   socialLinks?: { facebook?: string; instagram?: string };
@@ -261,6 +264,7 @@ export type SettingsPayload = Partial<{
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
   lowStockThreshold: number;
+  stockInfoThreshold: number;
   googleAnalyticsId: string;
   quickLinks: { labelEn: string; labelAr: string; url: string }[];
   socialLinks: { facebook: string; instagram: string };

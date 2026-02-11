@@ -327,6 +327,7 @@ async function seed() {
     instaPayNumber: "+20 10 000 0000",
     paymentMethods: { cod: true, instaPay: true },
     lowStockThreshold: 5,
+    stockInfoThreshold: 10,
     googleAnalyticsId: "",
     quickLinks: [
       { label: { en: "Privacy", ar: "الخصوصية" }, url: "/page/privacy" },

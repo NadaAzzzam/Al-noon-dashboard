@@ -24,6 +24,7 @@ const defaults = {
   instaPayNumber: "",
   paymentMethods: { cod: true, instaPay: true },
   lowStockThreshold: 5,
+  stockInfoThreshold: 10,
   quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
@@ -78,6 +79,9 @@ function normalizeSettings(raw: Record<string, unknown> | null): Record<string, 
   if (s && typeof s === "object" && !s.aiAssistant) {
     (s as Record<string, unknown>).aiAssistant = defaults.aiAssistant;
   }
+  if (typeof (s as { stockInfoThreshold?: number }).stockInfoThreshold !== "number") {
+    (s as Record<string, unknown>).stockInfoThreshold = defaults.stockInfoThreshold;
+  }
   const ab = (s as { announcementBar?: { text?: { en?: string; ar?: string }; enabled?: boolean; backgroundColor?: string } }).announcementBar;
   (s as Record<string, unknown>).announcementBar = {
     text: { en: ab?.text?.en ?? "", ar: ab?.text?.ar ?? "" },
@@ -116,6 +120,9 @@ export const updateSettings = asyncHandler(async (req, res) => {
   }
   if (updates.lowStockThreshold !== undefined) {
     toSet.lowStockThreshold = Math.max(0, Math.floor(Number(updates.lowStockThreshold)));
+  }
+  if (updates.stockInfoThreshold !== undefined) {
+    toSet.stockInfoThreshold = Math.max(0, Math.floor(Number(updates.stockInfoThreshold)));
   }
   if (updates.googleAnalyticsId !== undefined) {
     const v = String(updates.googleAnalyticsId ?? "").trim();

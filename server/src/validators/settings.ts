@@ -13,6 +13,7 @@ export const updateSettingsSchema = z.object({
       })
       .optional(),
     lowStockThreshold: z.number().int().min(0).optional(),
+    stockInfoThreshold: z.number().int().min(0).optional(),
     googleAnalyticsId: z.string().optional(),
     quickLinks: z.array(z.object({
       labelEn: z.string(),

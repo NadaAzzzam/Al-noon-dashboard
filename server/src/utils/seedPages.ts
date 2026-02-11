@@ -71,6 +71,7 @@ async function seedPages() {
       instaPayNumber: "",
       paymentMethods: { cod: true, instaPay: true },
       lowStockThreshold: 5,
+      stockInfoThreshold: 10,
       quickLinks,
       contentPages
     });

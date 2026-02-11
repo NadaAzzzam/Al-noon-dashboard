@@ -15,6 +15,8 @@ export interface SettingsDocument {
   instaPayNumber: string;
   paymentMethods: { cod: boolean; instaPay: boolean };
   lowStockThreshold: number;
+  /** Show exact stock (e.g. "Only 3 left") when stock ≤ this value; used by storefront. */
+  stockInfoThreshold: number;
   /** Google Analytics 4 Measurement ID (e.g. G-XXXXXXXXXX) for tracking. */
   googleAnalyticsId?: string;
   /** Footer quick links (label + url) for storefront. */
@@ -94,6 +96,7 @@ const settingsSchema = new Schema<SettingsDocument>(
       instaPay: { type: Boolean, default: true }
     },
     lowStockThreshold: { type: Number, default: 5 },
+    stockInfoThreshold: { type: Number, default: 10 },
     googleAnalyticsId: { type: String },
     quickLinks: {
       type: [{ label: localizedSchema, url: String }],
