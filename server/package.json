@@ -14,6 +14,7 @@
     "seed:cities": "tsx src/utils/seedCities.ts",
     "seed:shipping-methods": "tsx src/seeders/shippingMethodSeeder.ts",
     "seed:products": "tsx src/utils/seedData.ts",
+    "seed:products-discounts": "tsx src/seeders/productSeeder.ts",
     "seed:ai": "tsx src/utils/seedAi.ts",
     "seed:translations": "tsx src/seeders/translationSeeder.ts",
     "seed:shipping": "tsx src/seeders/shippingMethodSeeder.ts",
