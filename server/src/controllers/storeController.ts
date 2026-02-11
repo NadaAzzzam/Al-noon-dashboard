@@ -240,6 +240,42 @@ export const getStoreHome = asyncHandler(async (req, res) => {
   });
 });
 
+/** Public: get storefront-safe settings (no auth). Use this from ecommerce instead of GET /api/settings (which requires ADMIN). */
+export const getStoreSettings = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) {
+    return sendResponse(res, req.locale, {
+      data: {
+        settings: {
+          storeName: storeDefaults.storeName,
+          logo: DEFAULT_LOGO_PATH,
+          announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND },
+          socialLinks: storeDefaults.socialLinks,
+          newsletterEnabled: storeDefaults.newsletterEnabled,
+          contentPages: [] as { slug: string; title: { en: string; ar: string } }[]
+        }
+      }
+    });
+  }
+  const settings = await Settings.findOne()
+    .select("storeName logo announcementBar socialLinks newsletterEnabled contentPages")
+    .lean();
+  const s = settings ?? null;
+  const storeName = s?.storeName ?? storeDefaults.storeName;
+  const logo = (s?.logo && String(s.logo).trim() !== "") ? String(s.logo) : DEFAULT_LOGO_PATH;
+  const announcementBar = (s as { announcementBar?: { text?: { en?: string; ar?: string }; enabled?: boolean; backgroundColor?: string } })?.announcementBar ?? { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND };
+  const socialLinks = s?.socialLinks ?? storeDefaults.socialLinks;
+  const newsletterEnabled = s?.newsletterEnabled ?? storeDefaults.newsletterEnabled;
+  const contentPages = (s?.contentPages ?? []).map((p: { slug?: string; title?: { en?: string; ar?: string } }) => ({
+    slug: p.slug ?? "",
+    title: p.title ?? { en: "", ar: "" }
+  }));
+  sendResponse(res, req.locale, {
+    data: {
+      settings: { storeName, logo, announcementBar, socialLinks, newsletterEnabled, contentPages }
+    }
+  });
+});
+
 const CONTENT_SLUGS = ["privacy", "return-policy", "shipping-policy", "about", "contact"] as const;
 
 /** Public: get one content page by slug for storefront (e.g. /policy/privacy). */

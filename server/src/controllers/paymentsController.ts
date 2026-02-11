@@ -37,7 +37,8 @@ export const confirmPayment = asyncHandler(async (req, res) => {
   payment.status = approved ? "PAID" : "UNPAID";
   if (approved) {
     payment.approvedAt = new Date();
-    payment.approvedBy = req.auth?.userId ? new mongoose.Types.ObjectId(req.auth.userId) : undefined;
+    const uid = req.auth?.userId;
+    payment.approvedBy = uid && /^[a-fA-F0-9]{24}$/.test(uid) ? new mongoose.Types.ObjectId(uid) : undefined;
   } else {
     payment.approvedAt = undefined;
     payment.approvedBy = undefined;

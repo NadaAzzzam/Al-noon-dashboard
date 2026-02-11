@@ -2,6 +2,9 @@ import { Order } from "../models/Order.js";
 import { Payment } from "../models/Payment.js";
 import { Product } from "../models/Product.js";
 import { Settings } from "../models/Settings.js";
+import { User } from "../models/User.js";
+import { City } from "../models/City.js";
+import mongoose from "mongoose";
 import { isDbConnected } from "../config/db.js";
 import { env } from "../config/env.js";
 import { ApiError } from "../utils/apiError.js";
@@ -130,9 +133,14 @@ function formatAddress(addr: unknown): string {
   return parts.join(", ") + ", Egypt";
 }
 
+/** True if string looks like a MongoDB ObjectId (24 hex chars). */
+function isObjectIdLike(s: unknown): s is string {
+  return typeof s === "string" && /^[a-fA-F0-9]{24}$/.test(s);
+}
+
 export const createOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const {
+  let {
     items, paymentMethod, shippingAddress, deliveryFee,
     guestName, guestEmail, guestPhone,
     // New structured checkout fields
@@ -141,7 +149,37 @@ export const createOrder = asyncHandler(async (req, res) => {
     emailNews, textNews
   } = req.body;
 
-  const isGuest = !req.auth;
+  // Only attach a user to the order when userId is a valid MongoDB ObjectId (e.g. "dev-admin" must not be stored)
+  const effectiveUserId = req.auth?.userId && isObjectIdLike(req.auth.userId) ? req.auth.userId : null;
+  const isGuest = !effectiveUserId;
+
+  // Logged-in user (real DB user): backfill contact from account when not provided
+  if (!isGuest && effectiveUserId) {
+    const hasContact = !!(firstName || lastName || bodyEmail);
+    if (!hasContact) {
+      const user = await User.findById(effectiveUserId).select("name email").lean();
+      if (user) {
+        const u = user as { name?: string; email?: string };
+        const nameParts = (u.name ?? "").trim().split(/\s+/);
+        firstName = nameParts[0] ?? "";
+        lastName = nameParts.slice(1).join(" ") ?? "";
+        bodyEmail = (u.email ?? "").trim().toLowerCase();
+      }
+    }
+  }
+
+  // Ecommerce checkout often sends city as city _id (select value). Resolve to city name for display/emails.
+  if (shippingAddress && typeof shippingAddress === "object" && !Array.isArray(shippingAddress)) {
+    const addr = shippingAddress as { city?: string; [k: string]: unknown };
+    if (addr.city && isObjectIdLike(addr.city)) {
+      const cityDoc = await City.findById(addr.city).select("name").lean();
+      if (cityDoc) {
+        const name = (cityDoc as { name?: { en?: string; ar?: string } }).name;
+        const cityName = name?.en ?? name?.ar ?? addr.city;
+        shippingAddress = { ...addr, city: cityName };
+      }
+    }
+  }
 
   // Backward compat: if new fields present, derive guestName/guestEmail/guestPhone from them
   const hasNewFields = !!(firstName || lastName || bodyEmail);
@@ -169,7 +207,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   const total = subtotal + fee;
 
   const orderPayload: Record<string, unknown> = {
-    user: req.auth?.userId ?? null,
+    user: effectiveUserId ?? null,
     items,
     total,
     deliveryFee: fee,

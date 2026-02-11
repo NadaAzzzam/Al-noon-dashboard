@@ -92,6 +92,10 @@ export async function login(input: { email: string; password: string }): Promise
 }
 
 export async function getMe(userId: string): Promise<AuthUser | null> {
+  // Dev-admin login uses a non-ObjectId id; never look it up in DB
+  if (userId === DEV_ADMIN_ID) {
+    return { id: userId, name: env.adminName, email: env.adminEmail, role: "ADMIN" };
+  }
   if (!isDbConnected()) {
     return { id: userId, name: env.adminName, email: env.adminEmail, role: "ADMIN" };
   }

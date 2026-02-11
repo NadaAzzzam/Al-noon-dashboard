@@ -667,6 +667,67 @@ function buildPaths() {
   };
 
   // --- Checkout (public) ---
+  paths["/api/checkout"] = {
+    post: {
+      operationId: "checkout",
+      tags: ["Checkout"],
+      summary: "Complete checkout (create order)",
+      description: "Used by the ecommerce storefront when the user submits the order on the checkout page (e.g. \"Pay now\" button). Same request body as POST /api/orders. Guest checkout: no auth, require firstName/lastName/email (or legacy guestName/guestEmail). Logged-in: send optional Bearer token; contact fields (firstName, lastName, email) can be omitted and are filled from the account. shippingAddress.city can be city name or city _id (from cities select); backend resolves _id to name for display and confirmation emails.",
+      security: [],
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["items"],
+              properties: {
+                items: {
+                  type: "array",
+                  minItems: 1,
+                  items: {
+                    type: "object",
+                    required: ["product", "quantity", "price"],
+                    properties: {
+                      product: { type: "string", description: "Product ID" },
+                      quantity: { type: "integer", minimum: 1 },
+                      price: { type: "number", exclusiveMinimum: 0 },
+                    },
+                  },
+                },
+                paymentMethod: { type: "string", enum: ["COD", "INSTAPAY"] },
+                shippingAddress: {
+                  description: "Flat string (legacy) OR structured { address, apartment?, city, postalCode?, country? }. city can be city name or city _id (e.g. from cities dropdown); backend resolves _id to name.",
+                  oneOf: [
+                    { type: "string" },
+                    { $ref: "#/components/schemas/StructuredAddress" },
+                  ],
+                },
+                deliveryFee: { type: "number", minimum: 0 },
+                guestName: { type: "string", description: "Guest checkout: required if firstName/lastName not provided" },
+                guestEmail: { type: "string", format: "email", description: "Guest checkout: required if email not provided" },
+                guestPhone: { type: "string" },
+                email: { type: "string", format: "email", description: "Optional when logged in (filled from account)" },
+                firstName: { type: "string", description: "Optional when logged in (filled from account)" },
+                lastName: { type: "string", description: "Optional when logged in (filled from account)" },
+                phone: { type: "string" },
+                billingAddress: { nullable: true, allOf: [{ $ref: "#/components/schemas/StructuredAddress" }] },
+                specialInstructions: { type: "string" },
+                shippingMethod: { type: "string", default: "standard" },
+                emailNews: { type: "boolean", default: false },
+                textNews: { type: "boolean", default: false },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "201": { description: "Order created; data.order returned (includes guest fields for guest checkout)", ...refSchema("OrderResponse") },
+        "400": errDesc("Validation error or guest checkout missing name/email"),
+        "503": errDesc("Database unavailable"),
+      },
+    },
+  };
+
   paths["/api/shipping-methods"] = {
     get: {
       operationId: "listShippingMethods",
