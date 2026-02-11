@@ -692,31 +692,6 @@ function buildPaths() {
     },
   };
 
-  paths["/api/governorates"] = {
-    get: {
-      operationId: "listGovernorates",
-      tags: ["Checkout"],
-      summary: "List Egyptian governorates",
-      description: "Returns all 27 Egyptian governorates with bilingual names. Egypt only — no country selection needed.",
-      security: [],
-      responses: {
-        "200": {
-          description: "Array of governorates",
-          ...jsonContent({
-            type: "object",
-            properties: {
-              success: { type: "boolean", example: true },
-              data: {
-                type: "array",
-                items: { $ref: "#/components/schemas/Governorate" },
-              },
-            },
-          }),
-        },
-      },
-    },
-  };
-
   // --- Users (Admin) ---
   const userItemSchema = {
     type: "object",
@@ -1976,12 +1951,11 @@ export const swaggerSpec = {
         properties: {
           address: { type: "string", description: "Street address", example: "735 Clarendon Street" },
           apartment: { type: "string", description: "Apartment, suite, etc.", example: "Apt 4B" },
-          city: { type: "string", description: "City name", example: "Cairo" },
-          governorate: { type: "string", description: "Egyptian governorate", example: "Cairo" },
+          city: { type: "string", description: "City (Egyptian governorate)", example: "Cairo" },
           postalCode: { type: "string", description: "Postal code", example: "11511" },
           country: { type: "string", description: "Always Egypt", default: "Egypt", example: "Egypt" },
         },
-        required: ["address", "city", "governorate"],
+        required: ["address", "city"],
       },
       OrderData: {
         type: "object",
@@ -2383,17 +2357,6 @@ export const swaggerSpec = {
             properties: { en: { type: "string", example: "Delivery in 3–5 business days" }, ar: { type: "string", example: "التوصيل خلال ٣-٥ أيام عمل" } },
           },
           estimatedDays: { type: "string", example: "3-5" },
-        },
-      },
-      Governorate: {
-        type: "object",
-        description: "Egyptian governorate (Egypt only)",
-        properties: {
-          id: { type: "string", example: "cairo" },
-          name: {
-            type: "object",
-            properties: { en: { type: "string", example: "Cairo" }, ar: { type: "string", example: "القاهرة" } },
-          },
         },
       },
     },

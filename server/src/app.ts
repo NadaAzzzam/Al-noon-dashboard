@@ -24,6 +24,8 @@ import feedbackRoutes from "./routes/feedbackRoutes.js";
 import reportsRoutes from "./routes/reportsRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
+import translationRoutes from "./routes/translationRoutes.js";
+import shippingMethodRoutes from "./routes/shippingMethodRoutes.js";
 import { swaggerSpec } from "./swagger.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
@@ -174,6 +176,8 @@ export const createApp = () => {
   app.use("/api/feedback", feedbackRoutes);
   app.use("/api/reports", reportsRoutes);
   app.use("/api/ai", aiRoutes);
+  app.use("/api/translations", translationRoutes);
+  app.use("/api/shipping-methods", shippingMethodRoutes);
   app.use("/api", checkoutRoutes);
 
   const clientBuildPath = path.resolve(__dirname, "../../admin-dashboard/dist");

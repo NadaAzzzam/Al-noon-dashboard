@@ -13,7 +13,6 @@ export interface StructuredAddress {
   address: string;
   apartment?: string;
   city: string;
-  governorate: string;
   postalCode?: string;
   country?: string; // Always "Egypt" for this store
 }
@@ -61,7 +60,6 @@ const structuredAddressSchema = new Schema(
     address: { type: String, required: true },
     apartment: { type: String, default: "" },
     city: { type: String, required: true },
-    governorate: { type: String, required: true },
     postalCode: { type: String, default: "" },
     country: { type: String, default: "Egypt" }
   },

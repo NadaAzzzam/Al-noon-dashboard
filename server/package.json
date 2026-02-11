@@ -12,6 +12,8 @@
     "seed:full": "tsx src/utils/seedData.ts",
     "seed:pages": "tsx src/utils/seedPages.ts",
     "seed:ai": "tsx src/utils/seedAi.ts",
+    "seed:translations": "tsx src/seeders/translationSeeder.ts",
+    "seed:shipping": "tsx src/seeders/shippingMethodSeeder.ts",
     "download-seed-images": "tsx scripts/downloadSeedImages.ts",
     "lint": "eslint . --ext .ts"
   },

@@ -78,6 +78,13 @@
     "settings": {
       "no_notification_email": "No notification email configured. Set notification email in settings or ADMIN_EMAIL in server config.",
       "email_send_failed": "Email could not be sent. Check SMTP settings (SMTP_HOST, SMTP_USER, SMTP_PASS) in server .env."
+    },
+    "translation": {
+      "not_found": "Translation not found",
+      "already_exists": "Translation with this key already exists"
+    },
+    "shipping_method": {
+      "not_found": "Shipping method not found"
     }
   },
   "success": {
@@ -142,6 +149,17 @@
     },
     "ai": {
       "session_deleted": "Chat session deleted"
+    },
+    "translation": {
+      "created": "Translation created successfully",
+      "updated": "Translation updated successfully",
+      "deleted": "Translation deleted successfully",
+      "bulk_imported": "Translations imported successfully"
+    },
+    "shipping_method": {
+      "created": "Shipping method created successfully",
+      "updated": "Shipping method updated successfully",
+      "deleted": "Shipping method deleted successfully"
     },
     "common": {
       "fetched": "Data retrieved successfully"

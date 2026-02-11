@@ -81,6 +81,24 @@ export interface SettingsDocument {
     systemPrompt: string;
     suggestedQuestions: LocalizedString[];
   };
+  /** Advanced store settings for currency, pagination, and defaults. */
+  advancedSettings?: {
+    currency: string;
+    currencySymbol: string;
+    defaultDeliveryFee: number;
+    productsPerPage: number;
+    catalogPaginationLimit: number;
+  };
+  /** SEO default settings for meta tags. */
+  seoSettings?: {
+    defaultMetaDescription: LocalizedString;
+    defaultMetaKeywords: LocalizedString;
+    ogImage?: string;
+    twitterCard?: string;
+    homePageMeta?: { title: LocalizedString; description: LocalizedString };
+    catalogPageMeta?: { title: LocalizedString; description: LocalizedString };
+    productPageMeta?: { titleSuffix: LocalizedString };
+  };
   updatedAt: Date;
 }
 
@@ -165,6 +183,30 @@ const settingsSchema = new Schema<SettingsDocument>(
           { en: "How can I return an item?", ar: "كيف أستطيع إرجاع منتج؟" },
           { en: "Show me new arrivals", ar: "أرني الوصول الجديد" }
         ]
+      }
+    },
+    advancedSettings: {
+      currency: { type: String, default: "EGP" },
+      currencySymbol: { type: String, default: "EGP" },
+      defaultDeliveryFee: { type: Number, default: 65 },
+      productsPerPage: { type: Number, default: 12 },
+      catalogPaginationLimit: { type: Number, default: 12 }
+    },
+    seoSettings: {
+      defaultMetaDescription: { type: localizedSchema, default: () => ({ en: "Shop the latest fashion and accessories", ar: "تسوق أحدث الأزياء والإكسسوارات" }) },
+      defaultMetaKeywords: { type: localizedSchema, default: () => ({ en: "fashion, clothing, accessories, online shopping", ar: "أزياء، ملابس، إكسسوارات، تسوق أونلاين" }) },
+      ogImage: { type: String, default: "" },
+      twitterCard: { type: String, default: "summary_large_image" },
+      homePageMeta: {
+        title: { type: localizedSchema, default: () => ({ en: "", ar: "" }) },
+        description: { type: localizedSchema, default: () => ({ en: "", ar: "" }) }
+      },
+      catalogPageMeta: {
+        title: { type: localizedSchema, default: () => ({ en: "Shop All Products", ar: "تسوق جميع المنتجات" }) },
+        description: { type: localizedSchema, default: () => ({ en: "Browse our complete collection", ar: "تصفح مجموعتنا الكاملة" }) }
+      },
+      productPageMeta: {
+        titleSuffix: { type: localizedSchema, default: () => ({ en: " - Al-noon Store", ar: " - متجر النون" }) }
       }
     }
   },

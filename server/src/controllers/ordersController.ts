@@ -125,8 +125,8 @@ export const getOrder = asyncHandler(async (req, res) => {
 function formatAddress(addr: unknown): string {
   if (!addr) return "—";
   if (typeof addr === "string") return addr || "—";
-  const a = addr as { address?: string; apartment?: string; city?: string; governorate?: string; postalCode?: string };
-  const parts = [a.address, a.apartment, a.city, a.governorate, a.postalCode].filter(Boolean);
+  const a = addr as { address?: string; apartment?: string; city?: string; postalCode?: string };
+  const parts = [a.address, a.apartment, a.city, a.postalCode].filter(Boolean);
   return parts.join(", ") + ", Egypt";
 }
 

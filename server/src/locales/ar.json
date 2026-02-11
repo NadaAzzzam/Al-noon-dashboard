@@ -78,6 +78,13 @@
     "settings": {
       "no_notification_email": "لم يتم تعيين بريد للإشعارات. عيّن بريد الإشعارات في الإعدادات أو ADMIN_EMAIL في إعدادات السيرفر.",
       "email_send_failed": "تعذر إرسال البريد. تحقق من إعدادات SMTP (SMTP_HOST, SMTP_USER, SMTP_PASS) في ملف .env."
+    },
+    "translation": {
+      "not_found": "الترجمة غير موجودة",
+      "already_exists": "ترجمة بهذا المفتاح موجودة بالفعل"
+    },
+    "shipping_method": {
+      "not_found": "طريقة الشحن غير موجودة"
     }
   },
   "success": {
@@ -142,6 +149,17 @@
     },
     "ai": {
       "session_deleted": "تم حذف جلسة المحادثة"
+    },
+    "translation": {
+      "created": "تم إنشاء الترجمة بنجاح",
+      "updated": "تم تحديث الترجمة بنجاح",
+      "deleted": "تم حذف الترجمة بنجاح",
+      "bulk_imported": "تم استيراد الترجمات بنجاح"
+    },
+    "shipping_method": {
+      "created": "تم إنشاء طريقة الشحن بنجاح",
+      "updated": "تم تحديث طريقة الشحن بنجاح",
+      "deleted": "تم حذف طريقة الشحن بنجاح"
     },
     "common": {
       "fetched": "تم جلب البيانات بنجاح"

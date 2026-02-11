@@ -260,18 +260,35 @@ async function seed() {
   const cat = (en: string) => categories.find((c) => c.name.en === en)!;
   console.log(`Created ${categories.length} categories.`);
 
-  // ----- Cities (Egypt – all with name en/ar and deliveryFee) -----
+  // ----- Cities (Egypt – all 27 governorates with name en/ar and deliveryFee) -----
   const citiesData = [
     { name: { en: "Cairo", ar: "القاهرة" }, deliveryFee: 35 },
     { name: { en: "Giza", ar: "الجيزة" }, deliveryFee: 35 },
     { name: { en: "Alexandria", ar: "الإسكندرية" }, deliveryFee: 50 },
-    { name: { en: "Mansoura", ar: "المنصورة" }, deliveryFee: 45 },
-    { name: { en: "Tanta", ar: "طنطا" }, deliveryFee: 40 },
+    { name: { en: "Qalyubia", ar: "القليوبية" }, deliveryFee: 40 },
+    { name: { en: "Dakahlia", ar: "الدقهلية" }, deliveryFee: 45 },
+    { name: { en: "Sharqia", ar: "الشرقية" }, deliveryFee: 45 },
+    { name: { en: "Gharbia", ar: "الغربية" }, deliveryFee: 40 },
+    { name: { en: "Monufia", ar: "المنوفية" }, deliveryFee: 40 },
+    { name: { en: "Beheira", ar: "البحيرة" }, deliveryFee: 45 },
+    { name: { en: "Kafr El Sheikh", ar: "كفر الشيخ" }, deliveryFee: 45 },
+    { name: { en: "Damietta", ar: "دمياط" }, deliveryFee: 48 },
     { name: { en: "Port Said", ar: "بورسعيد" }, deliveryFee: 55 },
+    { name: { en: "Ismailia", ar: "الإسماعيلية" }, deliveryFee: 48 },
     { name: { en: "Suez", ar: "السويس" }, deliveryFee: 45 },
+    { name: { en: "North Sinai", ar: "شمال سيناء" }, deliveryFee: 60 },
+    { name: { en: "South Sinai", ar: "جنوب سيناء" }, deliveryFee: 65 },
+    { name: { en: "Faiyum", ar: "الفيوم" }, deliveryFee: 45 },
+    { name: { en: "Beni Suef", ar: "بني سويف" }, deliveryFee: 50 },
+    { name: { en: "Minya", ar: "المنيا" }, deliveryFee: 50 },
+    { name: { en: "Asyut", ar: "أسيوط" }, deliveryFee: 55 },
+    { name: { en: "Sohag", ar: "سوهاج" }, deliveryFee: 55 },
+    { name: { en: "Qena", ar: "قنا" }, deliveryFee: 58 },
     { name: { en: "Luxor", ar: "الأقصر" }, deliveryFee: 60 },
     { name: { en: "Aswan", ar: "أسوان" }, deliveryFee: 65 },
-    { name: { en: "Ismailia", ar: "الإسماعيلية" }, deliveryFee: 48 }
+    { name: { en: "Red Sea", ar: "البحر الأحمر" }, deliveryFee: 65 },
+    { name: { en: "New Valley", ar: "الوادي الجديد" }, deliveryFee: 70 },
+    { name: { en: "Matrouh", ar: "مطروح" }, deliveryFee: 65 }
   ];
   await City.deleteMany({});
   await City.insertMany(citiesData);

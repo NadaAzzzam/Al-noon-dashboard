@@ -7,7 +7,6 @@ const structuredAddressSchema = z.object({
   address: z.string().min(1),
   apartment: z.string().optional().default(""),
   city: z.string().min(1),
-  governorate: z.string().min(1),
   postalCode: z.string().optional().default(""),
   country: z.string().optional().default("Egypt")
 });
