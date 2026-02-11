@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import CategoriesPage from "./pages/CategoriesPage";
 import CitiesPage from "./pages/CitiesPage";
+import ShippingMethodsPage from "./pages/ShippingMethodsPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import CustomersPage from "./pages/CustomersPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -49,6 +50,7 @@ const App = () => (
       <Route path="products/:id/edit" element={<ProductFormPage />} />
       <Route path="categories" element={<CategoriesPage />} />
       <Route path="cities" element={<CitiesPage />} />
+      <Route path="shipping-methods" element={<ShippingMethodsPage />} />
       <Route path="inventory" element={<InventoryPage />} />
       <Route path="orders" element={<OrdersPage />} />
       <Route path="orders/:id" element={<OrderDetailPage />} />

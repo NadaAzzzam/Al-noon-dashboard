@@ -794,7 +794,9 @@ a {
   overflow: hidden;
   background: var(--color-border);
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.15s;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
 }
 .customer-avatar-cell:not(:disabled):hover {
   opacity: 0.9;
@@ -1651,13 +1653,31 @@ select:focus {
   gap: 8px;
 }
 
-.form-group label,
-.form-label {
+.form-group label {
   font-size: 13px;
   font-weight: 500;
   color: #475569;
   display: block;
   margin-bottom: 4px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label span {
+  display: block;
+}
+
+.form-label input,
+.form-label textarea {
+  width: 100%;
+  min-width: 0;
 }
 
 .form-group input,

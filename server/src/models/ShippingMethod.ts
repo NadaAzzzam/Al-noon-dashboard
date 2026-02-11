@@ -1,5 +1,11 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+/** Per-city delivery price. When set, storefront can resolve price by cityId; otherwise use method's default price. */
+export interface IShippingMethodCityPrice {
+  city: mongoose.Types.ObjectId;
+  price: number;
+}
+
 export interface IShippingMethod extends Document {
   name: {
     en: string;
@@ -13,7 +19,10 @@ export interface IShippingMethod extends Document {
     min: number;
     max: number;
   };
+  /** Default delivery price (EGP). Used when no city match in cityPrices. */
   price: number;
+  /** Optional per-city delivery prices. When customer selects a city, use matching entry or fall back to price. */
+  cityPrices?: IShippingMethodCityPrice[];
   enabled: boolean;
   order: number;
   createdAt: Date;
@@ -61,6 +70,16 @@ const shippingMethodSchema = new Schema<IShippingMethod>(
       required: true,
       min: 0,
       default: 0,
+    },
+    cityPrices: {
+      type: [
+        {
+          city: { type: Schema.Types.ObjectId, ref: 'City', required: true },
+          price: { type: Number, required: true, min: 0 },
+        },
+      ],
+      default: undefined,
+      _id: false,
     },
     enabled: {
       type: Boolean,

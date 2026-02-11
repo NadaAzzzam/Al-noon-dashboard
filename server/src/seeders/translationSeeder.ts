@@ -121,7 +121,7 @@ async function seedTranslations() {
     logger.info(`Translation seeding complete! Created: ${created}, Skipped: ${skipped}`);
     process.exit(0);
   } catch (error) {
-    logger.error('Error seeding translations:', error);
+    logger.error({ err: error }, 'Error seeding translations');
     process.exit(1);
   }
 }

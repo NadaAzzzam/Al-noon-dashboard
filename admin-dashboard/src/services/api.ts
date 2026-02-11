@@ -199,6 +199,37 @@ export type City = {
 /** Payload for create/update city (API accepts nameEn, nameAr) */
 export type CityPayload = { nameEn: string; nameAr: string; deliveryFee?: number };
 
+/** Per-city delivery price (city may be populated with name) */
+export type ShippingMethodCityPrice = {
+  city: string | { _id: string; name?: LocalizedString };
+  price: number;
+};
+
+export type ShippingMethod = {
+  _id: string;
+  name: LocalizedString;
+  description: LocalizedString;
+  estimatedDays: { min: number; max: number };
+  price: number;
+  /** Optional per-city delivery prices. When set, storefront can use ?cityId= to get resolved price. */
+  cityPrices?: ShippingMethodCityPrice[];
+  enabled: boolean;
+  order: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** Payload for create/update shipping method (API accepts cityPrices: [{ city: ObjectId, price }]) */
+export type ShippingMethodPayload = {
+  name: LocalizedString;
+  description: LocalizedString;
+  estimatedDays: { min: number; max: number };
+  price: number;
+  cityPrices?: { city: string; price: number }[];
+  enabled?: boolean;
+  order?: number;
+};
+
 export type QuickLink = { label: LocalizedString; url: string };
 
 export type Settings = {
@@ -578,6 +609,25 @@ export const api = {
   updateCity: (id: string, payload: Partial<CityPayload>) =>
     request(`/cities/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteCity: (id: string) => request(`/cities/${id}`, { method: "DELETE" }),
+
+  listShippingMethods: (includeDisabled?: boolean, cityId?: string) => {
+    const params = new URLSearchParams();
+    if (includeDisabled) params.set("includeDisabled", "true");
+    if (cityId) params.set("cityId", cityId);
+    const q = params.toString();
+    return request(`/shipping-methods${q ? `?${q}` : ""}`);
+  },
+  getShippingMethod: (id: string) => request(`/shipping-methods/${id}`),
+  createShippingMethod: (payload: ShippingMethodPayload) =>
+    request("/shipping-methods", { method: "POST", body: JSON.stringify(payload) }),
+  updateShippingMethod: (id: string, payload: Partial<ShippingMethodPayload>) =>
+    request(`/shipping-methods/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteShippingMethod: (id: string) => request(`/shipping-methods/${id}`, { method: "DELETE" }),
+  toggleShippingMethod: (id: string) =>
+    request(`/shipping-methods/${id}/toggle`, { method: "PATCH" }),
+
+  /** Public: get enabled payment methods for e-commerce (COD, InstaPay from settings). */
+  getPaymentMethods: () => request("/payment-methods"),
 
   listCategories: () => request("/categories"),
   createCategory: (payload: CategoryPayload) =>

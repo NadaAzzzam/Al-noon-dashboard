@@ -692,6 +692,46 @@ function buildPaths() {
     },
   };
 
+  paths["/api/payment-methods"] = {
+    get: {
+      operationId: "getPaymentMethods",
+      tags: ["Checkout"],
+      summary: "Get enabled payment methods",
+      description: "Returns payment methods enabled in store settings (e.g. COD, InstaPay) for e-commerce checkout. Public.",
+      security: [],
+      responses: {
+        "200": {
+          description: "List of enabled payment methods with id and localized name",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              data: {
+                type: "object",
+                properties: {
+                  paymentMethods: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string", enum: ["COD", "INSTAPAY"] },
+                        name: {
+                          type: "object",
+                          properties: { en: { type: "string" }, ar: { type: "string" } },
+                        },
+                        instaPayNumber: { type: "string", description: "Present only for INSTAPAY; store's InstaPay number for customer transfer." },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        },
+      },
+    },
+  };
+
   // --- Users (Admin) ---
   const userItemSchema = {
     type: "object",
