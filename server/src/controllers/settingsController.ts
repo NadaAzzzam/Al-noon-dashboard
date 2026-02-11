@@ -78,6 +78,12 @@ function normalizeSettings(raw: Record<string, unknown> | null): Record<string, 
   if (s && typeof s === "object" && !s.aiAssistant) {
     (s as Record<string, unknown>).aiAssistant = defaults.aiAssistant;
   }
+  const ab = (s as { announcementBar?: { text?: { en?: string; ar?: string }; enabled?: boolean; backgroundColor?: string } }).announcementBar;
+  (s as Record<string, unknown>).announcementBar = {
+    text: { en: ab?.text?.en ?? "", ar: ab?.text?.ar ?? "" },
+    enabled: Boolean(ab?.enabled),
+    backgroundColor: (ab?.backgroundColor && String(ab.backgroundColor).trim()) || DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND
+  };
   return s;
 }
 
@@ -313,50 +319,89 @@ export const uploadLogo = asyncHandler(async (req: Request, res: Response, _next
   sendResponse(res, req.locale, { message: "success.settings.logo_uploaded", data: { logo: pathUrl } });
 });
 
-/** Upload a collection image for homepage. Returns { image: "/uploads/collections/..." }. Does not update settings. */
-export const uploadCollectionImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+/**
+ * Unified media upload handler for home page settings.
+ * Accepts mediaType query parameter: 'hero' | 'section' | 'collection' | 'promo'
+ * Returns { image: "path" } for images or { video: "path" } for videos.
+ */
+export const uploadHomePageMedia = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
   const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
-  const pathUrl = collectionImagePath(file.filename);
-  sendResponse(res, req.locale, { message: "success.settings.image_uploaded", data: { image: pathUrl } });
+  if (!file) {
+    const isVideo = req.path.includes('video');
+    throw new ApiError(400, isVideo ? "No video file uploaded" : "No image file uploaded", {
+      code: isVideo ? "errors.upload.no_video" : "errors.upload.no_image"
+    });
+  }
+
+  const mediaType = req.query.type as string || 'section';
+  const isVideo = file.mimetype.startsWith('video/');
+
+  let pathUrl: string;
+
+  // Determine the correct path helper based on media type and file type
+  if (isVideo) {
+    if (mediaType === 'hero') {
+      pathUrl = heroVideoPath(file.filename);
+    } else {
+      pathUrl = sectionVideoPath(file.filename);
+    }
+  } else {
+    switch (mediaType) {
+      case 'hero':
+        pathUrl = heroImagePath(file.filename);
+        break;
+      case 'collection':
+        pathUrl = collectionImagePath(file.filename);
+        break;
+      case 'promo':
+        pathUrl = promoImagePath(file.filename);
+        break;
+      case 'section':
+      default:
+        pathUrl = sectionImagePath(file.filename);
+        break;
+    }
+  }
+
+  const message = isVideo ? "success.settings.video_uploaded" : "success.settings.image_uploaded";
+  const dataKey = isVideo ? 'video' : 'image';
+
+  sendResponse(res, req.locale, { message, data: { [dataKey]: pathUrl } });
 });
 
-/** Upload hero image. Returns { image: "/uploads/hero/..." }. Does not update settings. */
-export const uploadHeroImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-  const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
-  const pathUrl = heroImagePath(file.filename);
-  sendResponse(res, req.locale, { message: "success.settings.image_uploaded", data: { image: pathUrl } });
+// Backward compatibility - keep old endpoints but delegate to unified handler
+/** @deprecated Use uploadHomePageMedia with type=collection */
+export const uploadCollectionImage = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  req.query.type = 'collection';
+  return uploadHomePageMedia(req, res, next);
 });
 
-/** Upload section image (New Arrivals or Our Collection banner). Returns { image: "/uploads/sections/..." }. */
-export const uploadSectionImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-  const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
-  const pathUrl = sectionImagePath(file.filename);
-  sendResponse(res, req.locale, { message: "success.settings.image_uploaded", data: { image: pathUrl } });
+/** @deprecated Use uploadHomePageMedia with type=hero */
+export const uploadHeroImage = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  req.query.type = 'hero';
+  return uploadHomePageMedia(req, res, next);
 });
 
-/** Upload hero video. Returns { video: "/uploads/hero/videos/..." }. */
-export const uploadHeroVideo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-  const file = req.file;
-  if (!file) throw new ApiError(400, "No video file uploaded", { code: "errors.upload.no_video" });
-  const pathUrl = heroVideoPath(file.filename);
-  sendResponse(res, req.locale, { message: "success.settings.video_uploaded", data: { video: pathUrl } });
+/** @deprecated Use uploadHomePageMedia with type=section */
+export const uploadSectionImage = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  req.query.type = 'section';
+  return uploadHomePageMedia(req, res, next);
 });
 
-/** Upload section video (New Arrivals or Our Collection). Returns { video: "/uploads/sections/videos/..." }. */
-export const uploadSectionVideo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-  const file = req.file;
-  if (!file) throw new ApiError(400, "No video file uploaded", { code: "errors.upload.no_video" });
-  const pathUrl = sectionVideoPath(file.filename);
-  sendResponse(res, req.locale, { message: "success.settings.video_uploaded", data: { video: pathUrl } });
+/** @deprecated Use uploadHomePageMedia with type=hero */
+export const uploadHeroVideo = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  req.query.type = 'hero';
+  return uploadHomePageMedia(req, res, next);
 });
 
-/** Upload promotional banner image. Returns { image: "/uploads/promo/..." }. */
-export const uploadPromoImage = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-  const file = req.file;
-  if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
-  const pathUrl = promoImagePath(file.filename);
-  sendResponse(res, req.locale, { message: "success.settings.image_uploaded", data: { image: pathUrl } });
+/** @deprecated Use uploadHomePageMedia with type=section */
+export const uploadSectionVideo = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  req.query.type = 'section';
+  return uploadHomePageMedia(req, res, next);
+});
+
+/** @deprecated Use uploadHomePageMedia with type=promo */
+export const uploadPromoImage = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  req.query.type = 'promo';
+  return uploadHomePageMedia(req, res, next);
 });

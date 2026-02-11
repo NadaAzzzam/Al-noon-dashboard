@@ -38,6 +38,29 @@ function isGradient(bg: string): boolean {
   return bg.trim().toLowerCase().includes("gradient");
 }
 
+/** Parse linear-gradient(angle deg, color1, color2, ...) into angle and hex colors. */
+function parseLinearGradient(bg: string): { angle: number; colors: string[] } | null {
+  const trimmed = bg.trim();
+  const match = trimmed.match(/linear-gradient\s*\(\s*(\d+)deg\s*,\s*([^)]+)\)/);
+  if (!match) return null;
+  const angle = Math.max(0, Math.min(360, parseInt(match[1], 10)));
+  const colorPart = match[2];
+  const colors: string[] = [];
+  const hex6 = /#[0-9A-Fa-f]{6}/g;
+  const hex3 = /#[0-9A-Fa-f]{3}\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = hex6.exec(colorPart)) !== null) colors.push(m[0]);
+  if (colors.length === 0) while ((m = hex3.exec(colorPart)) !== null) colors.push("#" + m[0].slice(1).replace(/(.)/g, "$1$1"));
+  return colors.length >= 2 ? { angle, colors } : null;
+}
+
+/** Build CSS linear-gradient from angle and two hex colors. */
+function buildLinearGradient(angle: number, color1: string, color2: string): string {
+  const c1 = normalizeToHex(color1);
+  const c2 = normalizeToHex(color2);
+  return `linear-gradient(${angle}deg, ${c1}, ${c2})`;
+}
+
 type HeroForm = {
   images: string[];
   videos: string[];
@@ -739,70 +762,318 @@ const HomePageSettingsPage = () => {
             </div>
             <div className="form-group form-group-narrow">
               <label>{t("settings.announcement_bg")}</label>
-              <p className="settings-hint" style={{ marginTop: 4, marginBottom: 8 }}>
+              <p className="settings-hint" style={{ marginTop: 4, marginBottom: 10 }}>
                 {t("settings.announcement_bg_hint")}
               </p>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <input
-                  type="color"
-                  value={pickerHexFromBackground(form.announcementBar.backgroundColor)}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      announcementBar: {
-                        ...f.announcementBar,
-                        backgroundColor: e.target.value,
-                      },
-                    }))
-                  }
-                  title={t("settings.announcement_picker_tooltip")}
+              {/* Mode: Solid vs Gradient */}
+              <div
+                role="group"
+                aria-label={t("settings.announcement_bg")}
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  marginBottom: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <label
                   style={{
-                    width: 44,
-                    height: 40,
-                    padding: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
                     cursor: "pointer",
+                    padding: "8px 12px",
+                    borderRadius: 6,
                     border: "1px solid var(--border-color, #ccc)",
-                    borderRadius: 4,
+                    background: !isGradient(form.announcementBar.backgroundColor)
+                      ? "var(--input-focus-bg, #e8f4ff)"
+                      : "transparent",
                   }}
-                />
-                <input
-                  type="text"
-                  value={form.announcementBar.backgroundColor}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      announcementBar: {
-                        ...f.announcementBar,
-                        backgroundColor: e.target.value,
-                      },
-                    }))
-                  }
-                  placeholder="#1a1a2e or linear-gradient(...)"
-                  style={{ flex: 1, minWidth: 200 }}
-                />
-              </div>
-              {isGradient(form.announcementBar.backgroundColor) && (
-                <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() =>
+                >
+                  <input
+                    type="radio"
+                    name="announcement-bg-mode"
+                    checked={!isGradient(form.announcementBar.backgroundColor)}
+                    onChange={() =>
                       setForm((f) => ({
                         ...f,
                         announcementBar: {
                           ...f.announcementBar,
-                          backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND,
+                          backgroundColor: pickerHexFromBackground(f.announcementBar.backgroundColor),
                         },
                       }))
                     }
-                    style={{ padding: "6px 12px", fontSize: 13 }}
-                  >
-                    {t("settings.announcement_gradient_preset")}
-                  </button>
+                  />
+                  <span>{t("settings.announcement_bg_mode_solid")}</span>
+                </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    cursor: "pointer",
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-color, #ccc)",
+                    background: isGradient(form.announcementBar.backgroundColor)
+                      ? "var(--input-focus-bg, #e8f4ff)"
+                      : "transparent",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="announcement-bg-mode"
+                    checked={isGradient(form.announcementBar.backgroundColor)}
+                    onChange={() =>
+                      setForm((f) => ({
+                        ...f,
+                        announcementBar: {
+                          ...f.announcementBar,
+                          backgroundColor:
+                            f.announcementBar.backgroundColor === DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND
+                              ? DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND
+                              : (() => {
+                                  const parsed = parseLinearGradient(f.announcementBar.backgroundColor);
+                                  if (parsed && parsed.colors.length >= 2)
+                                    return buildLinearGradient(
+                                      parsed.angle,
+                                      parsed.colors[0],
+                                      parsed.colors[1],
+                                    );
+                                  return buildLinearGradient(90, "#1a1a2e", "#16213e");
+                                })(),
+                        },
+                      }))
+                    }
+                  />
+                  <span>{t("settings.announcement_bg_mode_gradient")}</span>
+                </label>
+              </div>
+
+              {!isGradient(form.announcementBar.backgroundColor) ? (
+                /* Solid color: picker + hex display */
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <input
+                    type="color"
+                    value={pickerHexFromBackground(form.announcementBar.backgroundColor)}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        announcementBar: {
+                          ...f.announcementBar,
+                          backgroundColor: e.target.value,
+                        },
+                      }))
+                    }
+                    title={t("settings.announcement_picker_tooltip")}
+                    style={{
+                      width: 48,
+                      height: 40,
+                      padding: 2,
+                      cursor: "pointer",
+                      border: "1px solid var(--border-color, #ccc)",
+                      borderRadius: 6,
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={form.announcementBar.backgroundColor}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        announcementBar: {
+                          ...f.announcementBar,
+                          backgroundColor: e.target.value,
+                        },
+                      }))
+                    }
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (v === "" || HEX_6.test(v) || HEX_3.test(v)) {
+                        setForm((f) => ({
+                          ...f,
+                          announcementBar: {
+                            ...f.announcementBar,
+                            backgroundColor: v === "" ? "#1a1a2e" : normalizeToHex(v),
+                          },
+                        }));
+                      }
+                    }}
+                    placeholder="#1a1a2e"
+                    style={{
+                      width: 120,
+                      fontFamily: "monospace",
+                      fontSize: 14,
+                    }}
+                  />
                 </div>
+              ) : (
+                /* Gradient: preset (Default / Custom) + custom builder or default button */
+                <>
+                  <div style={{ marginBottom: 10 }}>
+                    <label className="settings-hint" style={{ display: "block", marginBottom: 4 }}>
+                      {t("settings.announcement_gradient_preset_label")}
+                    </label>
+                    <select
+                      value={
+                        form.announcementBar.backgroundColor === DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND
+                          ? "default"
+                          : "custom"
+                      }
+                      onChange={(e) => {
+                        const isDefault = e.target.value === "default";
+                        setForm((f) => ({
+                          ...f,
+                          announcementBar: {
+                            ...f.announcementBar,
+                            backgroundColor: isDefault
+                              ? DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND
+                              : (() => {
+                                  const parsed = parseLinearGradient(f.announcementBar.backgroundColor);
+                                  if (parsed && parsed.colors.length >= 2)
+                                    return buildLinearGradient(
+                                      parsed.angle,
+                                      parsed.colors[0],
+                                      parsed.colors[1],
+                                    );
+                                  return buildLinearGradient(90, "#1a1a2e", "#16213e");
+                                })(),
+                          },
+                        }));
+                      }}
+                      style={{ minWidth: 200, padding: "8px 10px", borderRadius: 6 }}
+                    >
+                      <option value="default">{t("settings.announcement_gradient_default")}</option>
+                      <option value="custom">{t("settings.announcement_gradient_custom")}</option>
+                    </select>
+                  </div>
+                  {form.announcementBar.backgroundColor === DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND ? (
+                    <p className="settings-hint" style={{ fontSize: 12 }}>
+                      {t("settings.announcement_bg_hex_note")}
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 12,
+                        alignItems: "flex-end",
+                        padding: "12px",
+                        background: "var(--bg-muted, #f5f5f5)",
+                        borderRadius: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {(() => {
+                        const parsed = parseLinearGradient(form.announcementBar.backgroundColor);
+                        const angle = parsed?.angle ?? 90;
+                        const c1 = parsed?.colors?.[0] ?? "#1a1a2e";
+                        const c2 = parsed?.colors?.[1] ?? "#16213e";
+                        return (
+                          <>
+                            <div>
+                              <label className="settings-hint" style={{ display: "block", marginBottom: 4 }}>
+                                {t("settings.announcement_gradient_angle")}
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={360}
+                                value={angle}
+                                onChange={(e) => {
+                                  const a = Math.max(0, Math.min(360, parseInt(e.target.value, 10) || 0));
+                                  setForm((f) => ({
+                                    ...f,
+                                    announcementBar: {
+                                      ...f.announcementBar,
+                                      backgroundColor: buildLinearGradient(a, c1, c2),
+                                    },
+                                  }));
+                                }}
+                                style={{ width: 72, padding: "6px 8px", borderRadius: 4 }}
+                              />
+                            </div>
+                            <div>
+                              <label className="settings-hint" style={{ display: "block", marginBottom: 4 }}>
+                                {t("settings.announcement_gradient_start")}
+                              </label>
+                              <input
+                                type="color"
+                                value={pickerHexFromBackground(c1)}
+                                onChange={(e) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    announcementBar: {
+                                      ...f.announcementBar,
+                                      backgroundColor: buildLinearGradient(angle, e.target.value, c2),
+                                    },
+                                  }))
+                                }
+                                title={t("settings.announcement_picker_tooltip")}
+                                style={{
+                                  width: 44,
+                                  height: 36,
+                                  padding: 2,
+                                  cursor: "pointer",
+                                  border: "1px solid var(--border-color, #ccc)",
+                                  borderRadius: 4,
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label className="settings-hint" style={{ display: "block", marginBottom: 4 }}>
+                                {t("settings.announcement_gradient_end")}
+                              </label>
+                              <input
+                                type="color"
+                                value={pickerHexFromBackground(c2)}
+                                onChange={(e) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    announcementBar: {
+                                      ...f.announcementBar,
+                                      backgroundColor: buildLinearGradient(angle, c1, e.target.value),
+                                    },
+                                  }))
+                                }
+                                title={t("settings.announcement_picker_tooltip")}
+                                style={{
+                                  width: 44,
+                                  height: 36,
+                                  padding: 2,
+                                  cursor: "pointer",
+                                  border: "1px solid var(--border-color, #ccc)",
+                                  borderRadius: 4,
+                                }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  announcementBar: {
+                                    ...f.announcementBar,
+                                    backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND,
+                                  },
+                                }))
+                              }
+                              style={{ padding: "8px 12px", fontSize: 13, marginLeft: "auto" }}
+                            >
+                              {t("settings.announcement_gradient_preset")}
+                            </button>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </>
               )}
-              <p className="settings-hint" style={{ marginTop: 6, fontSize: 12 }}>
-                {t("settings.announcement_bg_hex_note")}
-              </p>
+              {!isGradient(form.announcementBar.backgroundColor) && (
+                <p className="settings-hint" style={{ marginTop: 6, fontSize: 12 }}>
+                  {t("settings.announcement_bg_hex_note")}
+                </p>
+              )}
             </div>
           </div>
         </section>

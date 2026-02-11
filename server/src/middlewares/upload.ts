@@ -255,3 +255,76 @@ export const uploadPaymentProof = multer({
 export function paymentProofPath(filename: string): string {
   return `/uploads/payment-proof/${filename}`;
 }
+
+/**
+ * Multer middleware factory for unified home page media uploads.
+ * Detects media type from query parameter and file mimetype.
+ */
+export function createHomePageMediaUpload() {
+  return (req: any, res: any, next: any) => {
+    const mediaType = (req.query.type as string) || 'section';
+
+    // Determine storage and filter based on field name in the request
+    const upload = multer({
+      storage: multer.diskStorage({
+        destination: (_req, file, cb) => {
+          const isVideo = file.mimetype.startsWith('video/');
+          let dest: string;
+
+          if (isVideo) {
+            dest = mediaType === 'hero' ? heroVideosDir : sectionVideosDir;
+          } else {
+            switch (mediaType) {
+              case 'hero':
+                dest = heroDir;
+                break;
+              case 'collection':
+                dest = collectionsDir;
+                break;
+              case 'promo':
+                dest = promoDir;
+                break;
+              case 'section':
+              default:
+                dest = sectionsDir;
+                break;
+            }
+          }
+          cb(null, dest);
+        },
+        filename: (_req, file, cb) => {
+          const isVideo = file.mimetype.startsWith('video/');
+          const ext = path.extname(file.originalname) || (isVideo ? '.mp4' : '.png');
+          const allowedImageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+          const allowedVideoExts = ['.mp4', '.webm', '.mov', '.ogg'];
+          const safeExt = isVideo
+            ? (allowedVideoExts.includes(ext.toLowerCase()) ? ext : '.mp4')
+            : (allowedImageExts.includes(ext.toLowerCase()) ? ext : '.png');
+
+          const prefix = isVideo
+            ? (mediaType === 'hero' ? 'hero-video' : 'section-video')
+            : mediaType;
+
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).slice(2, 9);
+          cb(null, `${prefix}-${timestamp}-${random}${safeExt}`);
+        }
+      }),
+      fileFilter: (_req, file, cb) => {
+        const isVideo = file.mimetype.startsWith('video/');
+        if (isVideo) {
+          const allowed = /^video\/(mp4|webm|quicktime|ogg)$/i.test(file.mimetype);
+          if (allowed) cb(null, true);
+          else cb(new ApiError(400, "Only video files are allowed (MP4, WebM, MOV, OGG)"));
+        } else {
+          const allowed = /^image\/(png|jpeg|jpg|gif|webp)$/i.test(file.mimetype);
+          if (allowed) cb(null, true);
+          else cb(new ApiError(400, "Only image files are allowed (PNG, JPG, GIF, WEBP)"));
+        }
+      },
+      limits: { fileSize: 100 * 1024 * 1024 } // Max limit for videos
+    }).single('file'); // Accept field named 'file' for unified API
+
+    upload(req, res, next);
+  };
+}

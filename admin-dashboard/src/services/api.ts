@@ -293,26 +293,34 @@ export type SettingsPayload = Partial<{
   };
 }>;
 
-/** Public store config for e-commerce (store name, logo, footer, newsletter, homepage collections, hero, feedback). */
-export type StoreConfig = {
-  storeName: LocalizedString;
-  logo: string;
-  quickLinks: QuickLink[];
-  socialLinks: { facebook: string; instagram: string };
-  newsletterEnabled: boolean;
-  homeCollections: HomeCollection[];
+/** Unified home page data for e-commerce storefront (GET /api/store/home). Contains all sections in a single response. */
+export type StoreHomeData = {
+  store: {
+    storeName: LocalizedString;
+    logo: string;
+    quickLinks: QuickLink[];
+    socialLinks: { facebook: string; instagram: string };
+    newsletterEnabled: boolean;
+  };
   hero: HeroConfig;
   heroEnabled: boolean;
   newArrivalsLimit: number;
-  newArrivalsSectionImages?: string[];
-  newArrivalsSectionVideos?: string[];
+  newArrivals: Pick<Product, '_id' | 'name' | 'description' | 'price' | 'discountPrice' | 'media' | 'sizes' | 'colors'>[];
+  newArrivalsSectionImages: string[];
+  newArrivalsSectionVideos: string[];
+  homeCollections: HomeCollection[];
   homeCollectionsDisplayLimit: number;
-  ourCollectionSectionImages?: string[];
-  ourCollectionSectionVideos?: string[];
+  ourCollectionSectionImages: string[];
+  ourCollectionSectionVideos: string[];
   feedbackSectionEnabled: boolean;
   feedbackDisplayLimit: number;
-  feedbacks: { _id: string; product: { name: LocalizedString }; customerName: string; message: string; rating: number; image?: string }[];
+  feedbacks: { product: { name: LocalizedString }; customerName: string; message: string; rating: number; image?: string }[];
+  announcementBar: { text: LocalizedString; enabled: boolean; backgroundColor: string };
+  promoBanner: { enabled: boolean; image: string; title: LocalizedString; subtitle: LocalizedString; ctaLabel: LocalizedString; ctaUrl: string };
 };
+
+/** @deprecated Use StoreHomeData instead. This type is kept for backward compatibility but will be removed. */
+export type StoreConfig = StoreHomeData;
 
 export type Subscriber = { email: string; createdAt: string };
 
@@ -857,5 +865,43 @@ export const api = {
     const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
     const data = resBody?.data ?? resBody;
     return data?.image ?? "";
+  },
+
+  /**
+   * Unified home page media upload endpoint.
+   * Uploads image or video for home page settings based on media type.
+   * @param file - The image or video file to upload
+   * @param mediaType - The type of media: 'hero' | 'section' | 'collection' | 'promo'
+   * @returns The uploaded file path
+   */
+  uploadHomePageMedia: async (file: File, mediaType: 'hero' | 'section' | 'collection' | 'promo' = 'section'): Promise<string> => {
+    const token = getToken();
+    const headers = new Headers();
+    headers.set("Accept-Language", getApiLocale());
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+
+    const formData = new FormData();
+    formData.set("file", file);
+
+    const isVideo = file.type.startsWith('video/');
+    const response = await fetch(`${API_BASE}/settings/upload-media?type=${mediaType}`, {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: formData
+    });
+
+    if (!response.ok) {
+      const { message, body, code } = await parseErrorResponse(response);
+      throw new ApiError(response.status, message, body, code);
+    }
+
+    const resBody = (await response.json()) as {
+      data?: { image?: string; video?: string };
+      image?: string;
+      video?: string;
+    };
+    const data = resBody?.data ?? resBody;
+    return isVideo ? (data?.video ?? "") : (data?.image ?? "");
   }
 };

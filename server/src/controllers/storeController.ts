@@ -139,83 +139,6 @@ function normalizeHero(hero: { image?: string; images?: string[]; videos?: strin
   return { ...hero, images: images.slice(0, HERO_IMAGES_LIMIT), videos };
 }
 
-/** Public: used by e-commerce storefront for footer, header, newsletter. */
-export const getStore = asyncHandler(async (req, res) => {
-  if (!isDbConnected()) {
-    return sendResponse(res, req.locale, { data: { store: storeDefaults } });
-  }
-  const settings = await Settings.findOne().lean();
-  const s = settings ?? null;
-  const homeCollections = (s?.homeCollections ?? storeDefaults.homeCollections).sort((a, b) => a.order - b.order);
-  const displayLimit = s?.homeCollectionsDisplayLimit ?? storeDefaults.homeCollectionsDisplayLimit;
-  const collectionsToShow = displayLimit > 0 ? homeCollections.slice(0, displayLimit) : homeCollections;
-
-  const hero = normalizeHero(s?.hero as { image?: string; images?: string[]; videos?: string[] } | null);
-  const newArrivalsImages = Array.isArray((s as { newArrivalsSectionImages?: string[] })?.newArrivalsSectionImages)
-    ? (s as { newArrivalsSectionImages: string[] }).newArrivalsSectionImages
-    : ((s as unknown as { newArrivalsSectionImage?: string })?.newArrivalsSectionImage ? [(s as unknown as { newArrivalsSectionImage: string }).newArrivalsSectionImage] : storeDefaults.newArrivalsSectionImages);
-  const newArrivalsVideos = Array.isArray((s as { newArrivalsSectionVideos?: string[] })?.newArrivalsSectionVideos)
-    ? (s as { newArrivalsSectionVideos: string[] }).newArrivalsSectionVideos
-    : storeDefaults.newArrivalsSectionVideos;
-  const ourCollectionImages = Array.isArray((s as { ourCollectionSectionImages?: string[] })?.ourCollectionSectionImages)
-    ? (s as { ourCollectionSectionImages: string[] }).ourCollectionSectionImages
-    : ((s as unknown as { ourCollectionSectionImage?: string })?.ourCollectionSectionImage ? [(s as unknown as { ourCollectionSectionImage: string }).ourCollectionSectionImage] : storeDefaults.ourCollectionSectionImages);
-  const ourCollectionVideos = Array.isArray((s as { ourCollectionSectionVideos?: string[] })?.ourCollectionSectionVideos)
-    ? (s as { ourCollectionSectionVideos: string[] }).ourCollectionSectionVideos
-    : storeDefaults.ourCollectionSectionVideos;
-
-  const feedbackSectionEnabled = (s as { feedbackSectionEnabled?: boolean })?.feedbackSectionEnabled ?? storeDefaults.feedbackSectionEnabled;
-  const feedbackDisplayLimit = (s as { feedbackDisplayLimit?: number })?.feedbackDisplayLimit ?? storeDefaults.feedbackDisplayLimit;
-  let feedbacks = storeDefaults.feedbacks;
-  if (feedbackSectionEnabled && isDbConnected()) {
-    const limit = feedbackDisplayLimit > 0 ? feedbackDisplayLimit : 50;
-    const list = await ProductFeedback.find({ approved: true })
-      .sort({ order: 1, createdAt: -1 })
-      .limit(limit)
-      .populate("product", "name")
-      .lean();
-    feedbacks = list.map((f: unknown) => toStoreFeedbackShape(f as { product?: { name?: unknown }; customerName?: string; message?: string; rating?: number; image?: string }));
-  }
-
-  const newArrivalsLimit = Math.max(1, Math.min(24, s?.newArrivalsLimit ?? storeDefaults.newArrivalsLimit));
-  const newArrivalProducts = await Product.find({ isNewArrival: true, status: "ACTIVE", deletedAt: null })
-    .populate("category", "name status")
-    .sort({ createdAt: -1 })
-    .limit(newArrivalsLimit)
-    .lean();
-  const newArrivals = (newArrivalProducts as Record<string, unknown>[]).map((p) => {
-    const withMedia = withProductMedia(p as { images?: string[]; videos?: string[]; viewImage?: string; hoverImage?: string }, { forList: true });
-    return toStoreProductShape(withMedia as Record<string, unknown>);
-  });
-
-  const quickLinks = (s?.quickLinks ?? storeDefaults.quickLinks).map((q) => toStoreQuickLinkShape(q));
-  const homeCollectionsStripped = collectionsToShow.map((c) => toStoreCollectionShape(c));
-
-  sendResponse(res, req.locale, {
-    data: {
-      store: {
-        storeName: s?.storeName ?? storeDefaults.storeName,
-        logo: (s?.logo && s.logo.trim() !== "") ? s.logo : DEFAULT_LOGO_PATH,
-        quickLinks,
-        socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
-        newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled,
-        homeCollections: homeCollectionsStripped,
-        hero,
-        heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
-        newArrivalsLimit: s?.newArrivalsLimit ?? storeDefaults.newArrivalsLimit,
-        newArrivals,
-        newArrivalsSectionImages: newArrivalsImages,
-        newArrivalsSectionVideos: newArrivalsVideos,
-        homeCollectionsDisplayLimit: displayLimit,
-        ourCollectionSectionImages: ourCollectionImages,
-        ourCollectionSectionVideos: ourCollectionVideos,
-        feedbackSectionEnabled,
-        feedbackDisplayLimit,
-        feedbacks
-      }
-    }
-  });
-});
 
 /** Public: single home page API – returns all sections (store meta, hero, newArrivals products, collections, feedbacks). */
 export const getStoreHome = asyncHandler(async (req, res) => {
@@ -271,6 +194,19 @@ export const getStoreHome = asyncHandler(async (req, res) => {
   const announcementBar = (s as { announcementBar?: { text: { en: string; ar: string }; enabled: boolean; backgroundColor: string } })?.announcementBar ?? { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND };
   const promoBanner = (s as { promoBanner?: { enabled: boolean; image: string; title: { en: string; ar: string }; subtitle: { en: string; ar: string }; ctaLabel: { en: string; ar: string }; ctaUrl: string } })?.promoBanner ?? { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" };
 
+  const newArrivalsImages = Array.isArray((s as { newArrivalsSectionImages?: string[] })?.newArrivalsSectionImages)
+    ? (s as { newArrivalsSectionImages: string[] }).newArrivalsSectionImages
+    : ((s as unknown as { newArrivalsSectionImage?: string })?.newArrivalsSectionImage ? [(s as unknown as { newArrivalsSectionImage: string }).newArrivalsSectionImage] : storeDefaults.newArrivalsSectionImages);
+  const newArrivalsVideos = Array.isArray((s as { newArrivalsSectionVideos?: string[] })?.newArrivalsSectionVideos)
+    ? (s as { newArrivalsSectionVideos: string[] }).newArrivalsSectionVideos
+    : storeDefaults.newArrivalsSectionVideos;
+  const ourCollectionImages = Array.isArray((s as { ourCollectionSectionImages?: string[] })?.ourCollectionSectionImages)
+    ? (s as { ourCollectionSectionImages: string[] }).ourCollectionSectionImages
+    : ((s as unknown as { ourCollectionSectionImage?: string })?.ourCollectionSectionImage ? [(s as unknown as { ourCollectionSectionImage: string }).ourCollectionSectionImage] : storeDefaults.ourCollectionSectionImages);
+  const ourCollectionVideos = Array.isArray((s as { ourCollectionSectionVideos?: string[] })?.ourCollectionSectionVideos)
+    ? (s as { ourCollectionSectionVideos: string[] }).ourCollectionSectionVideos
+    : storeDefaults.ourCollectionSectionVideos;
+
   const quickLinks = (s?.quickLinks ?? storeDefaults.quickLinks).map((q) => toStoreQuickLinkShape(q));
   const homeCollectionsStripped = collectionsToShow.map((c) => toStoreCollectionShape(c));
 
@@ -286,8 +222,14 @@ export const getStoreHome = asyncHandler(async (req, res) => {
         },
         hero,
         heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
+        newArrivalsLimit,
         newArrivals,
+        newArrivalsSectionImages: newArrivalsImages,
+        newArrivalsSectionVideos: newArrivalsVideos,
         homeCollections: homeCollectionsStripped,
+        homeCollectionsDisplayLimit: displayLimit,
+        ourCollectionSectionImages: ourCollectionImages,
+        ourCollectionSectionVideos: ourCollectionVideos,
         feedbackSectionEnabled,
         feedbackDisplayLimit,
         feedbacks,

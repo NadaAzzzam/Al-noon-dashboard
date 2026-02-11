@@ -1,13 +1,11 @@
 import { Router } from "express";
-import { getStore, getStoreHome, getPageBySlug, submitContact } from "../controllers/storeController.js";
+import { getStoreHome, getPageBySlug, submitContact } from "../controllers/storeController.js";
 import { validate } from "../middlewares/validate.js";
 import { submitContactSchema } from "../validators/contact.js";
 
 const router = Router();
 
-/** Public: e-commerce storefront fetches store name, logo, quick links, social links, newsletter flag. */
-router.get("/", getStore);
-/** Public: single home page API – all sections (hero, newArrivals products with media, collections, feedbacks). */
+/** Public: single home page API – all sections (hero, newArrivals products with media, collections, feedbacks, section images/videos). */
 router.get("/home", getStoreHome);
 /** Public: get rich-text content for a footer page (privacy, return-policy, shipping-policy, about, contact). */
 router.get("/page/:slug", getPageBySlug);

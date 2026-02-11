@@ -23,13 +23,13 @@ function buildPaths() {
   };
 
   // --- Store (public) ---
-  paths["/api/store"] = {
+  paths["/api/store/home"] = {
     get: {
-      operationId: "getStore",
+      operationId: "getStoreHome",
       tags: ["Store"],
-      summary: "Get store config (name, logo, links, hero, collections, newsletter flag)",
+      summary: "Get unified home page data (store config, hero, new arrivals, collections, feedbacks, announcement bar)",
       responses: {
-        "200": { description: "Store settings for storefront", ...refSchema("StoreResponse") },
+        "200": { description: "Complete home page data for storefront", ...refSchema("StoreHomeResponse") },
       },
     },
   };
@@ -1523,35 +1523,42 @@ export const swaggerSpec = {
           },
         },
       },
-      StoreResponse: {
+      StoreHomeResponse: {
         type: "object",
-        description: "Store settings for storefront (GET /api/store). Includes newArrivals (ProductListItem[] with media only).",
+        description: "Unified home page data for storefront (GET /api/store/home). Single endpoint with all sections: store config, hero, new arrivals, collections, feedbacks, announcement bar, promo banner.",
         properties: {
           success: { type: "boolean", example: true },
           data: {
             type: "object",
             properties: {
-              store: {
+              home: {
                 type: "object",
                 properties: {
-                  storeName: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
-                  logo: { type: "string" },
-                  quickLinks: { type: "array", items: { type: "object" } },
-                  socialLinks: { type: "object" },
-                  newsletterEnabled: { type: "boolean" },
-                  homeCollections: { type: "array", items: { type: "object" } },
-                  hero: { type: "object" },
+                  store: {
+                    type: "object",
+                    properties: {
+                      storeName: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
+                      logo: { type: "string" },
+                      quickLinks: { type: "array", items: { type: "object" } },
+                      socialLinks: { type: "object" },
+                      newsletterEnabled: { type: "boolean" },
+                    },
+                  },
+                  hero: { type: "object", description: "Hero section config with images/videos, title, subtitle, CTA" },
                   heroEnabled: { type: "boolean" },
                   newArrivalsLimit: { type: "integer" },
-                  newArrivals: { type: "array", items: { $ref: "#/components/schemas/ProductListItem" }, description: "New-arrival products (media only)" },
+                  newArrivals: { type: "array", items: { $ref: "#/components/schemas/ProductListItem" }, description: "New-arrival products with media" },
                   newArrivalsSectionImages: { type: "array", items: { type: "string" }, description: "Section media for New Arrivals block" },
                   newArrivalsSectionVideos: { type: "array", items: { type: "string" } },
+                  homeCollections: { type: "array", items: { type: "object" }, description: "Home page collections/categories" },
                   homeCollectionsDisplayLimit: { type: "integer" },
                   ourCollectionSectionImages: { type: "array", items: { type: "string" }, description: "Section media for Our Collection block" },
                   ourCollectionSectionVideos: { type: "array", items: { type: "string" } },
                   feedbackSectionEnabled: { type: "boolean" },
-                  feedbackDisplayLimit: { type: "integer", description: "Number of feedback items to show (0 = show all)" },
-                  feedbacks: { type: "array", items: { type: "object" } },
+                  feedbackDisplayLimit: { type: "integer" },
+                  feedbacks: { type: "array", items: { type: "object" }, description: "Approved customer feedback/reviews" },
+                  announcementBar: { type: "object", description: "Top announcement bar config" },
+                  promoBanner: { type: "object", description: "Promotional banner config" },
                 },
               },
             },
