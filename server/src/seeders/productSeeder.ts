@@ -1,6 +1,7 @@
 /**
  * Product seeder for Al-noon dashboard.
  * Seeds products with a focus on items that have discounts (discountPrice).
+ * Covers all inventory cases: no variants (estimated), variants with some colors/sizes out of stock.
  *
  * HOW TO USE:
  *   From server directory:  npm run seed:products-discounts
@@ -10,10 +11,12 @@
  *   - Connects to the DB, loads seed images/videos, fetches categories.
  *   - Deletes existing products, then inserts products (many with discountPrice).
  *   - Uses same image/video and fill logic as full seed for consistency.
+ *   - Variant cases: no variants (API estimated); all in stock; one color out; one size out; one variant out; mixed; fully out.
  */
 import { connectDatabase } from "../config/db";
 import { Category } from "../models/Category";
 import { Product } from "../models/Product";
+import type { VariantInventory } from "../models/Product";
 import { logger } from "../utils/logger";
 import { loadSeedImages, getProductGalleryImages, loadSeedVideos } from "../utils/seedData";
 
@@ -28,17 +31,61 @@ const defaultStylingTip = {
 
 type CategoryDoc = { _id: unknown; name: { en?: string; ar?: string } };
 
+/** Build variants for every color×size. Optionally mark entire colors, sizes, or specific pairs as out of stock. */
+function buildVariants(
+  sizes: string[],
+  colors: string[],
+  stockPerVariant: number,
+  options?: {
+    outOfStockColors?: string[];
+    outOfStockSizes?: string[];
+    /** Specific [color, size] pairs to mark out of stock. */
+    outOfStockPairs?: [string, string][];
+  }
+): VariantInventory[] {
+  const outColors = new Set((options?.outOfStockColors ?? []).map((c) => c.toLowerCase().trim()));
+  const outSizes = new Set((options?.outOfStockSizes ?? []).map((s) => s.toLowerCase().trim()));
+  const outPairs = new Set(
+    (options?.outOfStockPairs ?? []).map(([c, s]) => `${c.toLowerCase().trim()}:${s.toLowerCase().trim()}`)
+  );
+  const allOut = stockPerVariant <= 0;
+  const variants: VariantInventory[] = [];
+  for (const color of colors) {
+    for (const size of sizes) {
+      const key = `${color.toLowerCase().trim()}:${size.toLowerCase().trim()}`;
+      const isOut =
+        allOut ||
+        outColors.has(color.toLowerCase().trim()) ||
+        outSizes.has(size.toLowerCase().trim()) ||
+        outPairs.has(key);
+      variants.push({
+        color,
+        size,
+        stock: isOut ? 0 : stockPerVariant,
+        outOfStock: isOut
+      });
+    }
+  }
+  return variants;
+}
+
 function fillProduct(
   p: {
     sizes: string[];
     images: string[];
     imageColors?: string[];
     videos?: string[];
+    variants?: VariantInventory[];
   } & Record<string, unknown>
 ) {
   const images = (p.images as string[]) ?? [];
+  const variants = (p.variants as VariantInventory[] | undefined) ?? [];
+  const stock =
+    variants.length > 0 ? variants.reduce((sum, v) => sum + (v.outOfStock ? 0 : v.stock), 0) : (p.stock as number);
   return {
     ...p,
+    stock,
+    variants,
     imageColors: (p.imageColors as string[] | undefined) ?? images.map(() => ""),
     sizeDescriptions: (p.sizes as string[]).map(() => ""),
     details: defaultDetails,
@@ -65,6 +112,13 @@ async function seedProductsWithDiscounts() {
     }
     const cat = (en: string) => categories.find((c) => (c.name as { en?: string })?.en === en) as CategoryDoc | undefined;
 
+    type VariantOptions = {
+      stockPerVariant: number;
+      outOfStockColors?: string[];
+      outOfStockSizes?: string[];
+      outOfStockPairs?: [string, string][];
+    };
+
     const productList: Array<{
       name: { en: string; ar: string };
       description: { en: string; ar: string };
@@ -77,8 +131,10 @@ async function seedProductsWithDiscounts() {
       sizes: string[];
       colors: string[];
       imageColors?: string[];
+      /** When set, product uses variant inventory (exact stock). Otherwise no variants (API will estimate). */
+      variantOptions?: VariantOptions;
     }> = [
-      // Products WITH discounts (discountPrice = original price, price = sale price)
+      // CASE: No variants — API returns variantsSource: "estimated", synthesized from global stock
       {
         name: { en: "Black Zip-Front Abaya", ar: "عباية سوداء زود أمامي" },
         description: { en: "Black zip-front abaya, versatile and modern.", ar: "عباية سوداء زود أمامي، عصرية ومتعددة الاستخدام." },
@@ -91,6 +147,7 @@ async function seedProductsWithDiscounts() {
         sizes: ["S", "M", "L"],
         colors: ["Black"]
       },
+      // CASE: Variants — one entire COLOR out of stock (Burgundy)
       {
         name: { en: "Velvet Chemise Abaya", ar: "عباية مخمل شيميز" },
         description: { en: "Luxurious velvet chemise-style abaya.", ar: "عباية مخملية على طراز الشيميز." },
@@ -101,8 +158,10 @@ async function seedProductsWithDiscounts() {
         status: "ACTIVE",
         isNewArrival: false,
         sizes: ["M", "L"],
-        colors: ["Black", "Burgundy", "Navy"]
+        colors: ["Black", "Burgundy", "Navy"],
+        variantOptions: { stockPerVariant: 2, outOfStockColors: ["Burgundy"] }
       },
+      // CASE: No variants (estimated)
       {
         name: { en: "Wool Cape", ar: "كاب صوف" },
         description: { en: "Warm wool cape, essential for modest wardrobe.", ar: "كاب صوف دافئ، أساسي للخزانة المحتشمة." },
@@ -115,6 +174,7 @@ async function seedProductsWithDiscounts() {
         sizes: ["One Size"],
         colors: ["Black", "Grey", "Camel"]
       },
+      // CASE: Variants — one entire COLOR out of stock (Navy)
       {
         name: { en: "Cape Hasna", ar: "كاب حَسَناء" },
         description: { en: "Elegant cape with clean lines.", ar: "كاب أنيق بخطوط نظيفة." },
@@ -125,8 +185,10 @@ async function seedProductsWithDiscounts() {
         status: "ACTIVE",
         isNewArrival: true,
         sizes: ["One Size"],
-        colors: ["Black", "Navy"]
+        colors: ["Black", "Navy"],
+        variantOptions: { stockPerVariant: 3, outOfStockColors: ["Navy"] }
       },
+      // CASE: Variants — one entire SIZE out of stock (L)
       {
         name: { en: "Black Ribbed Twin Set – Abaya & Cardigan", ar: "توأم ريب أسود – عباية وكارديجان" },
         description: { en: "Matching abaya and cardigan set.", ar: "ست عباية وكارديجان متطابقين." },
@@ -136,8 +198,10 @@ async function seedProductsWithDiscounts() {
         stock: 9,
         status: "ACTIVE",
         sizes: ["S", "M", "L"],
-        colors: ["Black"]
+        colors: ["Black"],
+        variantOptions: { stockPerVariant: 3, outOfStockSizes: ["L"] }
       },
+      // CASE: Variants — one specific variant out (Black-M)
       {
         name: { en: "Ribbed Kaftan", ar: "كافتان ريب" },
         description: { en: "Comfortable ribbed kaftan, easy to layer.", ar: "كافتان ريب مريح، سهل الطبقات." },
@@ -147,8 +211,10 @@ async function seedProductsWithDiscounts() {
         stock: 11,
         status: "ACTIVE",
         sizes: ["S", "M", "L"],
-        colors: ["Black", "Navy", "Grey"]
+        colors: ["Black", "Navy", "Grey"],
+        variantOptions: { stockPerVariant: 2, outOfStockPairs: [["Black", "M"]] }
       },
+      // CASE: Variants — mixed: one color partially out (Burgundy: M and L out)
       {
         name: { en: "Velvet Pleated Cardigan", ar: "كارديجان مخمل بليت" },
         description: { en: "Velvet pleated cardigan for layering.", ar: "كارديجان مخمل بليت للطبقات." },
@@ -159,31 +225,37 @@ async function seedProductsWithDiscounts() {
         status: "ACTIVE",
         isNewArrival: true,
         sizes: ["S", "M", "L"],
-        colors: ["Black", "Burgundy"]
+        colors: ["Black", "Burgundy"],
+        variantOptions: { stockPerVariant: 2, outOfStockPairs: [["Burgundy", "M"], ["Burgundy", "L"]] }
       },
+      // CASE: Variants — all in stock (exact inventory)
       {
         name: { en: "Wool Coat", ar: "معطف صوف" },
         description: { en: "Warm wool coat for winter.", ar: "معطف صوف دافئ للشتاء." },
         category: cat("Cardigans & Coats"),
         price: 1080,
         discountPrice: 2700,
-        stock: 4,
+        stock: 9,
         status: "ACTIVE",
         sizes: ["S", "M", "L"],
-        colors: ["Black", "Camel", "Grey"]
+        colors: ["Black", "Camel", "Grey"],
+        variantOptions: { stockPerVariant: 1 }
       },
+      // CASE: Variants — fully out of stock (all variants 0)
       {
         name: { en: "Embroidered Malhafa – Sale", ar: "ملحفة مطرزة – عرض" },
         description: { en: "Malhafa with subtle embroidery. Limited time offer.", ar: "ملحفة بتطريز خفيف. عرض لفترة محدودة." },
         category: cat("Malhafa"),
         price: 999,
         discountPrice: 1200,
-        stock: 7,
+        stock: 0,
         status: "ACTIVE",
         isNewArrival: true,
         sizes: ["One Size"],
-        colors: ["Black", "Burgundy"]
+        colors: ["Black", "Burgundy"],
+        variantOptions: { stockPerVariant: 0 }
       },
+      // CASE: No variants, many colors (estimated)
       {
         name: { en: "Chiffon Hijab – Summer Sale", ar: "حجاب شيفون – عرض الصيف" },
         description: { en: "Light chiffon hijab for summer. Special price.", ar: "حجاب شيفون خفيف للصيف. سعر خاص." },
@@ -195,17 +267,18 @@ async function seedProductsWithDiscounts() {
         sizes: ["One Size"],
         colors: ["Black", "White", "Nude", "Pink", "Blue"]
       },
-      // One product without discount for variety
+      // CASE: Variants — all in stock, multiple sizes and colors
       {
         name: { en: "Zipped Hooded Abaya", ar: "عباية زود هود" },
         description: { en: "Classic zipped abaya with hood. Comfortable and modest.", ar: "عباية كلاسيكية بزود وهود. مريحة ومحتشمة." },
         category: cat("Abayas"),
         price: 2100,
-        stock: 15,
+        stock: 24,
         status: "ACTIVE",
         isNewArrival: true,
         sizes: ["S", "M", "L", "XL"],
-        colors: ["Black", "Navy", "Brown"]
+        colors: ["Black", "Navy", "Brown"],
+        variantOptions: { stockPerVariant: 2 }
       }
     ];
 
@@ -217,7 +290,20 @@ async function seedProductsWithDiscounts() {
     await Product.deleteMany({});
     const productsData = validProducts.map((p, i) => {
       const images = getProductGalleryImages(IMAGES, i);
-      return fillProduct({ ...p, images, videos: productVideos });
+      const variants = p.variantOptions
+        ? buildVariants(
+            p.sizes,
+            p.colors,
+            p.variantOptions.stockPerVariant,
+            p.variantOptions
+          )
+        : [];
+      return fillProduct({
+        ...p,
+        images,
+        videos: productVideos,
+        variants
+      });
     });
     const products = await Product.insertMany(productsData);
 

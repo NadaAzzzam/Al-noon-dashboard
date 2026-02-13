@@ -1536,8 +1536,9 @@ export const swaggerSpec = {
       },
       ProductAvailabilityDetail: {
         type: "object",
-        description: "Availability block on GET /products/:id. Colors include hasImage/imageUrl for color-specific images.",
+        description: "Availability block on GET /products/:id. Colors include hasImage/imageUrl for color-specific images. When product has no variant records, variants are synthesized from global stock (variantsSource: estimated).",
         properties: {
+          variantsSource: { type: "string", enum: ["exact", "estimated"], description: "exact when variants come from DB; estimated when synthesized from global stock (no variants stored)." },
           availableSizeCount: { type: "integer", description: "Total number of sizes that are available (in stock) for this product." },
           colors: { type: "array", items: { $ref: "#/components/schemas/ProductColorAvailability" } },
           sizes: {

@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImageLightbox } from "../components/ImageLightbox";
-import { api, ApiError, Product, getProductImageUrl } from "../services/api";
+import {
+  api,
+  ApiError,
+  Product,
+  getProductImageUrl,
+  getProductDefaultImageUrl,
+  isVideoUrl,
+} from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
 
@@ -111,21 +118,31 @@ const InventoryPage = () => {
             {lowStock.map((p) => (
               <tr key={p._id}>
                 <td>
-                  {p.images?.[0] ? (
+                  {getProductDefaultImageUrl(p) || p.images?.[0] ? (
                     (() => {
-                      const src = getProductImageUrl(p.images[0]);
-                      return (
-                        <img
+                      const rawUrl =
+                        getProductDefaultImageUrl(p) || p.images?.[0] || "";
+                      const src = getProductImageUrl(rawUrl);
+                      const isVideo = isVideoUrl(src);
+                      const commonProps = {
+                        className:
+                          "inventory-product-img table-image-clickable",
+                        role: "button" as const,
+                        tabIndex: 0,
+                        onClick: () => setImagePopupSrc(src),
+                        onKeyDown: (e: React.KeyboardEvent) =>
+                          e.key === "Enter" && setImagePopupSrc(src),
+                      };
+                      return isVideo ? (
+                        <video
                           src={src}
-                          alt=""
-                          className="inventory-product-img table-image-clickable"
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setImagePopupSrc(src)}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" && setImagePopupSrc(src)
-                          }
+                          muted
+                          loop
+                          playsInline
+                          {...commonProps}
                         />
+                      ) : (
+                        <img src={src} alt="" {...commonProps} />
                       );
                     })()
                   ) : (
@@ -187,21 +204,31 @@ const InventoryPage = () => {
             {outOfStock.map((p) => (
               <tr key={p._id}>
                 <td>
-                  {p.images?.[0] ? (
+                  {getProductDefaultImageUrl(p) || p.images?.[0] ? (
                     (() => {
-                      const src = getProductImageUrl(p.images[0]);
-                      return (
-                        <img
+                      const rawUrl =
+                        getProductDefaultImageUrl(p) || p.images?.[0] || "";
+                      const src = getProductImageUrl(rawUrl);
+                      const isVideo = isVideoUrl(src);
+                      const commonProps = {
+                        className:
+                          "inventory-product-img table-image-clickable",
+                        role: "button" as const,
+                        tabIndex: 0,
+                        onClick: () => setImagePopupSrc(src),
+                        onKeyDown: (e: React.KeyboardEvent) =>
+                          e.key === "Enter" && setImagePopupSrc(src),
+                      };
+                      return isVideo ? (
+                        <video
                           src={src}
-                          alt=""
-                          className="inventory-product-img table-image-clickable"
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setImagePopupSrc(src)}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" && setImagePopupSrc(src)
-                          }
+                          muted
+                          loop
+                          playsInline
+                          {...commonProps}
                         />
+                      ) : (
+                        <img src={src} alt="" {...commonProps} />
                       );
                     })()
                   ) : (

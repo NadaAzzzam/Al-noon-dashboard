@@ -299,8 +299,39 @@ export const getProduct = asyncHandler(async (req, res) => {
     outOfStock: isSizeOutOfStock(size, variants, colors)
   }));
 
+  // When product has no variant records, synthesize variants from global stock so clients
+  // always get a stock number per color/size (estimated distribution).
+  const totalStock = typeof (productObj as { stock?: number }).stock === "number"
+    ? Math.max(0, (productObj as { stock: number }).stock)
+    : 0;
+  const hasRealVariants = variants.length > 0;
+  const variantList: Array<{ color: string; size: string; stock: number; outOfStock: boolean }> = hasRealVariants
+    ? (variants as { color?: string; size?: string; stock?: number; outOfStock?: boolean }[]).map(v => ({
+        color: v.color ?? "",
+        size: v.size ?? "",
+        stock: v.stock ?? 0,
+        outOfStock: v.outOfStock ?? false
+      }))
+    : (() => {
+        const n = colors.length * sizes.length;
+        if (n === 0) return [];
+        const base = Math.floor(totalStock / n);
+        let remainder = totalStock - base * n;
+        const out: Array<{ color: string; size: string; stock: number; outOfStock: boolean }> = [];
+        for (const color of colors) {
+          for (const size of sizes) {
+            const extra = remainder > 0 ? 1 : 0;
+            if (remainder > 0) remainder--;
+            out.push({ color, size, stock: base + extra, outOfStock: false });
+          }
+        }
+        return out;
+      })();
+
   // Calculate availability for each color and size
   const availability = {
+    /** "exact" when variants come from DB; "estimated" when synthesized from global stock. */
+    variantsSource: hasRealVariants ? ("exact" as const) : ("estimated" as const),
     colors: colors.map(color => {
       const info = colorImageInfo.get(color.toLowerCase().trim());
       return {
@@ -312,15 +343,7 @@ export const getProduct = asyncHandler(async (req, res) => {
       };
     }),
     sizes: sizesAvailability,
-    variants: variants.map((v: unknown) => {
-      const vv = v as { color?: string; size?: string; stock?: number; outOfStock?: boolean };
-      return {
-        color: vv.color,
-        size: vv.size,
-        stock: vv.stock ?? 0,
-        outOfStock: vv.outOfStock ?? false
-      };
-    })
+    variants: variantList
   };
 
   const productWithMedia = withProductMedia(

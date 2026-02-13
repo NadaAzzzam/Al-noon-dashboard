@@ -22,6 +22,12 @@ export function getProductVideoUrl(path: string): string {
   return path.startsWith("http") ? path : getUploadsBaseUrl() + path;
 }
 
+/** True if the path or URL is a video file (e.g. .mp4, .webm). */
+export function isVideoUrl(path: string): boolean {
+  if (!path) return false;
+  return /\.(mp4|webm|mov|ogg)(\?|$)/i.test(path);
+}
+
 export type User = {
   id: string;
   name: string;
@@ -62,6 +68,8 @@ export type ProductColorAvailability = {
 
 /** Availability block on single product response (GET /products/:id). */
 export type ProductAvailabilityDetail = {
+  /** "exact" when variants come from DB; "estimated" when synthesized from global stock (no variants stored). */
+  variantsSource?: "exact" | "estimated";
   /** Total number of sizes that are available (in stock) for this product. */
   availableSizeCount?: number;
   colors: ProductColorAvailability[];
@@ -139,6 +147,32 @@ export type Product = {
 /** Default image URL for a product (media.default.url or first image). */
 export function getProductDefaultImageUrl(product: Product): string {
   return product.media?.default?.url ?? product.images?.[0] ?? "";
+}
+
+/**
+ * Get available stock for a specific color and size.
+ * Uses availability.variants (exact when from DB, estimated when product has no variant records).
+ * Returns 0 if variant is out of stock or not found.
+ */
+export function getStockForColorSize(
+  product: Product,
+  color: string,
+  size: string
+): number {
+  const variants = product.availability?.variants ?? [];
+  const normalized = (s: string) => (s ?? "").toLowerCase().trim();
+  const c = normalized(color);
+  const s = normalized(size);
+  const v = variants.find(
+    (v) => normalized(v.color) === c && normalized(v.size) === s
+  );
+  if (!v || v.outOfStock) return 0;
+  return v.stock ?? 0;
+}
+
+/** Whether availability.variants for this product are estimated (no variant records in DB). */
+export function isAvailabilityEstimated(product: Product): boolean {
+  return product.availability?.variantsSource === "estimated";
 }
 
 /** Payload for create/update product (API accepts nameEn, nameAr, etc.) */

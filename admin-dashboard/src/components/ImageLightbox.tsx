@@ -55,12 +55,23 @@ export const ImageLightbox = ({ open, src, onClose }: ImageLightboxProps) => {
           </svg>
         </button>
         {src && (
-          <img
-            src={src}
-            alt=""
-            className="image-lightbox-img"
-            onClick={(e) => e.stopPropagation()}
-          />
+          /\.(mp4|webm|mov|ogg)(\?|$)/i.test(src) ? (
+            <video
+              src={src}
+              controls
+              autoPlay
+              playsInline
+              className="image-lightbox-img image-lightbox-video"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <img
+              src={src}
+              alt=""
+              className="image-lightbox-img"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )
         )}
       </div>
     </div>

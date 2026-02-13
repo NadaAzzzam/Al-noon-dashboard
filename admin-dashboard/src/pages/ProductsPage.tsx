@@ -12,6 +12,7 @@ import {
   ProductAvailability,
   getProductImageUrl,
   getProductDefaultImageUrl,
+  isVideoUrl,
 } from "../services/api";
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
@@ -351,30 +352,32 @@ const ProductsPage = () => {
                   <tr key={product._id}>
                     <td>
                       {getProductDefaultImageUrl(product) ? (
-                        <img
-                          src={getProductImageUrl(
+                        (() => {
+                          const src = getProductImageUrl(
                             getProductDefaultImageUrl(product),
-                          )}
-                          alt=""
-                          className="inventory-product-img table-image-clickable"
-                          role="button"
-                          tabIndex={0}
-                          onClick={() =>
-                            setImagePopupSrc(
-                              getProductImageUrl(
-                                getProductDefaultImageUrl(product),
-                              ),
-                            )
-                          }
-                          onKeyDown={(e) =>
-                            e.key === "Enter" &&
-                            setImagePopupSrc(
-                              getProductImageUrl(
-                                getProductDefaultImageUrl(product),
-                              ),
-                            )
-                          }
-                        />
+                          );
+                          const isVideo = isVideoUrl(src);
+                          const commonProps = {
+                            className:
+                              "inventory-product-img table-image-clickable",
+                            role: "button" as const,
+                            tabIndex: 0,
+                            onClick: () => setImagePopupSrc(src),
+                            onKeyDown: (e: React.KeyboardEvent) =>
+                              e.key === "Enter" && setImagePopupSrc(src),
+                          };
+                          return isVideo ? (
+                            <video
+                              src={src}
+                              muted
+                              loop
+                              playsInline
+                              {...commonProps}
+                            />
+                          ) : (
+                            <img src={src} alt="" {...commonProps} />
+                          );
+                        })()
                       ) : (
                         <span className="inventory-product-img-placeholder">
                           {t("common.none")}
