@@ -26,6 +26,10 @@ type ProductForm = {
   imageColors: string[];
   /** Video paths (uploaded files or external URLs). */
   videos: string[];
+  /** Preferred media type for default display ("image" or "video"). */
+  defaultMediaType: "image" | "video";
+  /** Preferred media type for hover display ("image" or "video"). */
+  hoverMediaType: "image" | "video";
   /** Optional "Details" section (e.g. Fabric, Color, Style, Season). */
   detailsEn: string;
   detailsAr: string;
@@ -51,6 +55,8 @@ const emptyForm: ProductForm = {
   images: [],
   imageColors: [],
   videos: [],
+  defaultMediaType: "image",
+  hoverMediaType: "image",
   detailsEn: "",
   detailsAr: "",
   stylingTipEn: "",
@@ -126,6 +132,8 @@ const ProductFormPage = () => {
             ? p.imageColors
             : (p.images ?? []).map(() => ""),
         videos: p.videos && Array.isArray(p.videos) ? p.videos : [],
+        defaultMediaType: p.defaultMediaType ?? "image",
+        hoverMediaType: p.hoverMediaType ?? "image",
         detailsEn:
           (p.details && typeof p.details === "object" ? p.details.en : "") ??
           "",
@@ -186,6 +194,8 @@ const ProductFormPage = () => {
         images: form.images.length ? form.images : undefined,
         imageColors: form.images.length ? form.imageColors : undefined,
         videos: form.videos.length ? form.videos : undefined,
+        defaultMediaType: form.defaultMediaType,
+        hoverMediaType: form.hoverMediaType,
         detailsEn: form.detailsEn.trim() || undefined,
         detailsAr: form.detailsAr.trim() || undefined,
         stylingTipEn: form.stylingTipEn.trim() || undefined,
@@ -801,6 +811,109 @@ const ProductFormPage = () => {
               {t("common.none")}
             </p>
           )}
+        </section>
+
+        <section className="product-form-section">
+          <h2 className="product-form-section-title">
+            Card Display Settings
+          </h2>
+          <p className="product-form-hint" style={{ marginBottom: 16 }}>
+            Control what media shows on product cards in the store. Choose between images and videos for default view and hover state.
+          </p>
+          <div className="product-form-grid">
+            <div className="product-form-field">
+              <label htmlFor="default-media-type">
+                Default Card Media
+                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                  (What shows first)
+                </span>
+              </label>
+              <select
+                id="default-media-type"
+                value={form.defaultMediaType}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    defaultMediaType: e.target.value as "image" | "video",
+                  }))
+                }
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  backgroundColor: "#fff",
+                }}
+              >
+                <option value="image">🖼️ Show Image (First image or custom view image)</option>
+                <option value="video">🎥 Show Video (First video as default)</option>
+              </select>
+              <p className="product-form-hint" style={{ marginTop: 8, fontSize: 13 }}>
+                {form.defaultMediaType === "image" 
+                  ? "Product cards will display the first image by default"
+                  : "Product cards will display the first video by default (if available)"}
+              </p>
+            </div>
+            <div className="product-form-field">
+              <label htmlFor="hover-media-type">
+                Hover Card Media
+                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                  (What shows on hover)
+                </span>
+              </label>
+              <select
+                id="hover-media-type"
+                value={form.hoverMediaType}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    hoverMediaType: e.target.value as "image" | "video",
+                  }))
+                }
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  backgroundColor: "#fff",
+                }}
+              >
+                <option value="image">🖼️ Show Image (Second image or custom hover image)</option>
+                <option value="video">🎥 Show Video (First video on hover)</option>
+              </select>
+              <p className="product-form-hint" style={{ marginTop: 8, fontSize: 13 }}>
+                {form.hoverMediaType === "image" 
+                  ? "Product cards will show the second image on hover"
+                  : "Product cards will show a video on hover (if available)"}
+              </p>
+            </div>
+          </div>
+          <div 
+            style={{
+              marginTop: 16,
+              padding: 16,
+              backgroundColor: "#f1f5f9",
+              borderRadius: 8,
+              border: "1px solid #cbd5e1"
+            }}
+          >
+            <p style={{ margin: 0, fontSize: 14, lineHeight: "1.5" }}>
+              <strong>💡 Preview:</strong> Default = <strong style={{ color: form.defaultMediaType === "image" ? "#0ea5e9" : "#8b5cf6" }}>
+                {form.defaultMediaType === "image" ? "Image" : "Video"}
+              </strong> | Hover = <strong style={{ color: form.hoverMediaType === "image" ? "#0ea5e9" : "#8b5cf6" }}>
+                {form.hoverMediaType === "image" ? "Image" : "Video"}
+              </strong>
+            </p>
+            <p style={{ margin: "8px 0 0 0", fontSize: 13, color: "#64748b" }}>
+              {form.images.length === 0 && form.videos.length === 0 
+                ? "⚠️ Please upload at least one image or video"
+                : form.defaultMediaType === "video" && form.videos.length === 0
+                ? "⚠️ No videos uploaded yet. Add videos below or switch to image mode."
+                : form.hoverMediaType === "video" && form.videos.length === 0
+                ? "⚠️ No videos for hover. Add videos below or switch hover to image mode."
+                : "✓ Media configuration looks good!"}
+            </p>
+          </div>
         </section>
 
         <section className="product-form-section">

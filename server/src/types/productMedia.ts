@@ -49,6 +49,8 @@ export interface ProductMediaSource {
   hoverImage?: string;
   videos?: string[];
   imageColors?: string[];
+  defaultMediaType?: "image" | "video";
+  hoverMediaType?: "image" | "video";
 }
 
 /**
@@ -110,25 +112,68 @@ function filterImagesByColor(
  * Builds the API media object from legacy product fields.
  * DB-agnostic: only needs URLs; works with MongoDB, SQL, or any store.
  * Supports color filtering to show color-specific images.
+ * Respects defaultMediaType and hoverMediaType preferences:
+ * - If defaultMediaType is "video" and videos exist, uses first video as default
+ * - If hoverMediaType is "video" and videos exist, uses first video as hover
+ * - Otherwise falls back to image behavior
  */
 export function buildProductMedia(source: ProductMediaSource, color?: string): ProductMedia {
   const filteredImages = filterImagesByColor(source.images, source.imageColors, color);
+  const hasVideos = Array.isArray(source.videos) && source.videos.length > 0;
 
-  const defaultUrl =
-    source.viewImage ?? (filteredImages.length > 0 ? filteredImages[0] : undefined) ?? "";
-  const hoverUrl =
-    source.hoverImage ?? (filteredImages.length > 1 ? filteredImages[1] : undefined);
-  const videoUrl = Array.isArray(source.videos) && source.videos.length > 0 ? source.videos[0] : undefined;
+  // Determine default media based on preference
+  let defaultUrl: string;
+  let defaultType: MediaType;
+
+  if (source.defaultMediaType === "video" && hasVideos) {
+    defaultUrl = source.videos![0];
+    defaultType = "video";
+  } else if (source.viewImage) {
+    defaultUrl = source.viewImage;
+    defaultType = inferMediaType(source.viewImage);
+  } else if (filteredImages.length > 0) {
+    defaultUrl = filteredImages[0];
+    defaultType = inferMediaType(filteredImages[0]);
+  } else {
+    defaultUrl = "";
+    defaultType = "image";
+  }
+
+  // Determine hover media based on preference
+  let hoverUrl: string | undefined;
+  let hoverType: MediaType | undefined;
+
+  if (source.hoverMediaType === "video" && hasVideos) {
+    hoverUrl = source.videos![0];
+    hoverType = "video";
+  } else if (source.hoverImage) {
+    hoverUrl = source.hoverImage;
+    hoverType = inferMediaType(source.hoverImage);
+  } else if (filteredImages.length > 1) {
+    hoverUrl = filteredImages[1];
+    hoverType = inferMediaType(filteredImages[1]);
+  }
+
+  // Build preview video (only if not already used for default or hover)
+  let videoUrl: string | undefined;
+  if (hasVideos) {
+    // If video is used for default or hover, use the second video (if available) for preview
+    if (source.defaultMediaType === "video" || source.hoverMediaType === "video") {
+      videoUrl = source.videos!.length > 1 ? source.videos![1] : undefined;
+    } else {
+      videoUrl = source.videos![0];
+    }
+  }
 
   const media: ProductMedia = {
     default: {
-      type: inferMediaType(defaultUrl),
+      type: defaultType,
       url: defaultUrl
     }
   };
 
   if (hoverUrl) {
-    media.hover = { type: inferMediaType(hoverUrl), url: hoverUrl };
+    media.hover = { type: hoverType!, url: hoverUrl };
   }
 
   if (videoUrl) {

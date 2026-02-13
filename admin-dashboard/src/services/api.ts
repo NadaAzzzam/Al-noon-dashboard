@@ -47,11 +47,34 @@ export type ProductSort =
 /** Stock filter for list products: all | inStock | outOfStock */
 export type ProductAvailability = "all" | "inStock" | "outOfStock";
 
+/** Per-color info in single product response (GET /products/:id). Indicates if color has a dedicated image. */
+export type ProductColorAvailability = {
+  color: string;
+  available: boolean;
+  outOfStock: boolean;
+  /** Number of sizes in stock for this color. When variants is empty, equals product.sizes.length. */
+  availableSizeCount?: number;
+  /** True when at least one product image is linked to this color via imageColors[]. */
+  hasImage?: boolean;
+  /** First image URL for this color when hasImage is true. Use for color swatch thumbnails. */
+  imageUrl?: string;
+};
+
+/** Availability block on single product response (GET /products/:id). */
+export type ProductAvailabilityDetail = {
+  /** Total number of sizes that are available (in stock) for this product. */
+  availableSizeCount?: number;
+  colors: ProductColorAvailability[];
+  sizes: Array<{ size: string; available: boolean; outOfStock: boolean }>;
+  variants: Array<{ color?: string; size?: string; stock: number; outOfStock: boolean }>;
+};
+
 /** Handled query params returned by list products API */
 export type ProductListAppliedFilters = {
   sort: ProductSort;
   availability: ProductAvailability;
-  category?: string;
+  categoryId?: string;
+  categoryName?: LocalizedString;
   search?: string;
   status?: "ACTIVE" | "INACTIVE";
   newArrival?: boolean;
@@ -94,6 +117,10 @@ export type Product = {
   colors?: string[];
   /** Video paths (uploaded) or external URLs. Shown with images on product detail. */
   videos?: string[];
+  /** Preferred media type for default display on product cards ("image" or "video"). */
+  defaultMediaType?: "image" | "video";
+  /** Preferred media type for hover display on product cards ("image" or "video"). */
+  hoverMediaType?: "image" | "video";
   /** Optional "Details" section (e.g. Fabric, Color, Style, Season). */
   details?: LocalizedString;
   /** Optional styling tip for storefront. */
@@ -105,6 +132,8 @@ export type Product = {
   averageRating?: number;
   /** Number of users who rated this product (approved feedback). Set by list products API. */
   ratingCount?: number;
+  /** Present on GET /products/:id. Colors include hasImage/imageUrl when product has color-specific images. */
+  availability?: ProductAvailabilityDetail;
 };
 
 /** Default image URL for a product (media.default.url or first image). */
@@ -129,6 +158,8 @@ export type ProductPayload = {
   hoverImage?: string;
   imageColors?: string[];
   videos?: string[];
+  defaultMediaType?: "image" | "video";
+  hoverMediaType?: "image" | "video";
   detailsEn?: string;
   detailsAr?: string;
   stylingTipEn?: string;

@@ -272,7 +272,10 @@ function buildPaths() {
       operationId: "getProduct",
       tags: ["Products"],
       summary: "Get product by ID",
-      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "string" } },
+        { name: "color", in: "query", required: false, schema: { type: "string" }, description: "Filter media/images by color (e.g. Black). When set, media and images arrays show only images for that color." },
+      ],
       responses: {
         "200": { description: "Product", ...refSchema("ProductResponse") },
         "404": errDesc("Not found"),
@@ -1519,9 +1522,52 @@ export const swaggerSpec = {
           soldQty: { type: "integer", description: "Units sold", nullable: true },
         },
       },
+      ProductColorAvailability: {
+        type: "object",
+        description: "Per-color availability and optional image. hasImage true when imageColors[i] matches this color.",
+        properties: {
+          color: { type: "string" },
+          available: { type: "boolean" },
+          outOfStock: { type: "boolean" },
+          availableSizeCount: { type: "integer", description: "Number of sizes in stock for this color. When variants is empty, equals product.sizes.length." },
+          hasImage: { type: "boolean", description: "True when at least one image is linked to this color via imageColors" },
+          imageUrl: { type: "string", description: "First image URL for this color when hasImage is true" },
+        },
+      },
+      ProductAvailabilityDetail: {
+        type: "object",
+        description: "Availability block on GET /products/:id. Colors include hasImage/imageUrl for color-specific images.",
+        properties: {
+          availableSizeCount: { type: "integer", description: "Total number of sizes that are available (in stock) for this product." },
+          colors: { type: "array", items: { $ref: "#/components/schemas/ProductColorAvailability" } },
+          sizes: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                size: { type: "string" },
+                available: { type: "boolean" },
+                outOfStock: { type: "boolean" },
+              },
+            },
+          },
+          variants: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                color: { type: "string" },
+                size: { type: "string" },
+                stock: { type: "integer" },
+                outOfStock: { type: "boolean" },
+              },
+            },
+          },
+        },
+      },
       ProductData: {
         type: "object",
-        description: "Full product (single product: GET /products/:id, create/update/delete/status). Includes media + images, videos, imageColors for detail/admin.",
+        description: "Full product (single product: GET /products/:id, create/update/delete/status). Includes media + images, videos, imageColors for detail/admin. GET response also includes availability (with hasImage/imageUrl per color) and formattedDetails.",
         properties: {
           _id: { type: "string" },
           name: { $ref: "#/components/schemas/LocalizedString" },
@@ -1538,6 +1584,8 @@ export const swaggerSpec = {
           images: { type: "array", items: { type: "string" }, description: "Full gallery (only on single-product responses)" },
           imageColors: { type: "array", items: { type: "string" }, description: "Color per image; only on single-product responses" },
           videos: { type: "array", items: { type: "string" }, description: "Video URLs; only on single-product responses" },
+          defaultMediaType: { type: "string", enum: ["image", "video"], description: "Preferred media type for default display on product cards", nullable: true },
+          hoverMediaType: { type: "string", enum: ["image", "video"], description: "Preferred media type for hover display on product cards", nullable: true },
           stock: { type: "integer" },
           status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
           isNewArrival: { type: "boolean" },
@@ -1552,6 +1600,7 @@ export const swaggerSpec = {
           averageRating: { type: "number", description: "Present when ratings exist", nullable: true },
           ratingCount: { type: "integer", description: "Present on list", nullable: true },
           soldQty: { type: "integer", description: "Units sold", nullable: true },
+          availability: { $ref: "#/components/schemas/ProductAvailabilityDetail", description: "Present on GET /products/:id; colors include hasImage and imageUrl when product has color-specific images" },
         },
       },
       ProductSingleData: {
@@ -1814,7 +1863,8 @@ export const swaggerSpec = {
         properties: {
           sort: { type: "string", enum: ["newest", "priceAsc", "priceDesc", "nameAsc", "nameDesc", "bestSelling", "highestSelling", "lowSelling"], description: "Sort applied (default newest)" },
           availability: { type: "string", enum: ["all", "inStock", "outOfStock"], description: "Stock filter applied (all = no filter)" },
-          category: { type: "string", nullable: true, description: "Category ID when filtered" },
+          categoryId: { type: "string", nullable: true, description: "Category ID when filtered" },
+          categoryName: { type: "object", nullable: true, properties: { en: { type: "string" }, ar: { type: "string" } }, description: "Category name (en/ar) when filtered" },
           search: { type: "string", nullable: true, description: "Search term when provided" },
           status: { type: "string", enum: ["ACTIVE", "INACTIVE"], nullable: true },
           newArrival: { type: "boolean", nullable: true, description: "true when filtering new arrivals" },

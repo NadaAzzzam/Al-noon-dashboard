@@ -1,6 +1,7 @@
 import type { Request } from "express";
 import mongoose from "mongoose";
 import { Product } from "../models/Product.js";
+import { Category } from "../models/Category.js";
 import { Order } from "../models/Order.js";
 import { ProductFeedback } from "../models/ProductFeedback.js";
 import { isDbConnected } from "../config/db.js";
@@ -119,7 +120,13 @@ export const listProducts = asyncHandler(async (req, res) => {
     sort: sort || "newest",
     availability: availability === "inStock" || availability === "outOfStock" ? availability : "all"
   };
-  if (category) appliedFilters.category = category;
+  if (category) {
+    appliedFilters.categoryId = category;
+    const categoryDoc = await Category.findById(category).select("name").lean();
+    if (categoryDoc?.name) {
+      appliedFilters.categoryName = categoryDoc.name;
+    }
+  }
   if (search) appliedFilters.search = search;
   if (status === "ACTIVE" || status === "INACTIVE") appliedFilters.status = status;
   if (newArrival === "true") appliedFilters.newArrival = true;
@@ -275,24 +282,45 @@ export const getProduct = asyncHandler(async (req, res) => {
     ? (productObj as { sizes: string[] }).sizes
     : [];
 
+  const images = Array.isArray((productObj as { images?: string[] }).images)
+    ? (productObj as { images: string[] }).images
+    : [];
+  const imageColors = Array.isArray((productObj as { imageColors?: string[] }).imageColors)
+    ? (productObj as { imageColors: string[] }).imageColors
+    : [];
+
+  /** For each color: whether it has a dedicated image and the first image URL for that color. */
+  const colorImageInfo = getColorImageInfo(colors, images, imageColors);
+
+  // Build sizes array with available/outOfStock
+  const sizesAvailability = sizes.map(size => ({
+    size,
+    available: isSizeAvailable(size, variants, colors),
+    outOfStock: isSizeOutOfStock(size, variants, colors)
+  }));
+
   // Calculate availability for each color and size
   const availability = {
-    colors: colors.map(color => ({
-      color,
-      available: isColorAvailable(color, variants, sizes),
-      outOfStock: isColorOutOfStock(color, variants, sizes)
-    })),
-    sizes: sizes.map(size => ({
-      size,
-      available: isSizeAvailable(size, variants, colors),
-      outOfStock: isSizeOutOfStock(size, variants, colors)
-    })),
-    variants: variants.map((v: { color?: string; size?: string; stock?: number; outOfStock?: boolean }) => ({
-      color: v.color,
-      size: v.size,
-      stock: v.stock ?? 0,
-      outOfStock: v.outOfStock ?? false
-    }))
+    colors: colors.map(color => {
+      const info = colorImageInfo.get(color.toLowerCase().trim());
+      return {
+        color,
+        available: isColorAvailable(color, variants, sizes),
+        outOfStock: isColorOutOfStock(color, variants, sizes),
+        hasImage: info?.hasImage ?? false,
+        ...(info?.imageUrl != null ? { imageUrl: info.imageUrl } : {})
+      };
+    }),
+    sizes: sizesAvailability,
+    variants: variants.map((v: unknown) => {
+      const vv = v as { color?: string; size?: string; stock?: number; outOfStock?: boolean };
+      return {
+        color: vv.color,
+        size: vv.size,
+        stock: vv.stock ?? 0,
+        outOfStock: vv.outOfStock ?? false
+      };
+    })
   };
 
   const productWithMedia = withProductMedia(
@@ -304,9 +332,9 @@ export const getProduct = asyncHandler(async (req, res) => {
   const details = (productObj as { details?: { en?: string; ar?: string } }).details;
   const formattedDetails = details
     ? {
-        en: parseRichText(details.en ?? ""),
-        ar: parseRichText(details.ar ?? "")
-      }
+      en: parseRichText(details.en ?? ""),
+      ar: parseRichText(details.ar ?? "")
+    }
     : undefined;
 
   sendResponse(res, req.locale, {
@@ -319,6 +347,33 @@ export const getProduct = asyncHandler(async (req, res) => {
     }
   });
 });
+
+/**
+ * For each product color, determine if there is a dedicated image (imageColors[i] matches)
+ * and the first image URL for that color. Returns a Map keyed by normalized color (lowercase).
+ */
+function getColorImageInfo(
+  colors: string[],
+  images: string[],
+  imageColors: string[]
+): Map<string, { hasImage: boolean; imageUrl?: string }> {
+  const map = new Map<string, { hasImage: boolean; imageUrl?: string }>();
+  if (!Array.isArray(images) || images.length === 0) {
+    colors.forEach(c => map.set(c.toLowerCase().trim(), { hasImage: false }));
+    return map;
+  }
+  const colorArr = Array.isArray(imageColors) ? imageColors : [];
+  for (const color of colors) {
+    const normalized = color.toLowerCase().trim();
+    const idx = images.findIndex((_, i) => (colorArr[i] ?? "").toLowerCase().trim() === normalized);
+    if (idx >= 0 && images[idx]) {
+      map.set(normalized, { hasImage: true, imageUrl: images[idx] });
+    } else {
+      map.set(normalized, { hasImage: false });
+    }
+  }
+  return map;
+}
 
 /** Check if a color has any available stock (at least one size in stock). */
 function isColorAvailable(color: string, variants: unknown[], sizes: string[]): boolean {

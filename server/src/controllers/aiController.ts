@@ -7,7 +7,8 @@ import { isDbConnected } from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
-import { callGemini, buildSystemPromptFromContext } from "../utils/aiService.js";
+import { detectIntent } from "../utils/chatIntents.js";
+import { buildResponse, type ChatResponseData } from "../utils/chatResponses.js";
 
 /** Strip HTML tags for plain-text context. */
 function stripHtml(html: string): string {
@@ -227,7 +228,7 @@ export const getAiSettings = asyncHandler(async (req, res) => {
   });
 });
 
-/** Public: send a chat message and get AI response. */
+/** Public: send a chat message and get response (rule-based, no AI). */
 export const postChat = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
     throw new ApiError(503, "Service unavailable", { code: "errors.common.db_unavailable" });
@@ -238,35 +239,79 @@ export const postChat = asyncHandler(async (req, res) => {
     locale?: "en" | "ar";
   };
   const responseLocale = bodyLocale ?? req.locale;
+
   const settings = await Settings.findOne().lean();
-  const ai = (settings as { aiAssistant?: { enabled?: boolean; geminiApiKey?: string; greeting?: unknown; systemPrompt?: string; suggestedQuestions?: unknown[] }; storeName?: { en?: string; ar?: string }; contentPages?: { slug: string; title?: { en?: string; ar?: string }; content?: { en?: string; ar?: string } }[] } | null)?.aiAssistant;
+  const ai = (settings as { aiAssistant?: { enabled?: boolean } } | null)?.aiAssistant;
   if (!ai?.enabled) {
-    throw new ApiError(400, "AI assistant is disabled", { code: "errors.ai.disabled" });
+    throw new ApiError(400, "Chat assistant is disabled", { code: "errors.ai.disabled" });
   }
-  const apiKey = (ai.geminiApiKey || "").trim();
-  if (!apiKey) {
-    throw new ApiError(500, "AI assistant is not configured. Please set your Gemini API key in admin settings.", { code: "errors.ai.not_configured" });
-  }
+
   const storeName = (settings as { storeName?: { en?: string; ar?: string } })?.storeName ?? { en: "Store", ar: "المتجر" };
   const contentPages = (settings as { contentPages?: { slug: string; title?: { en?: string; ar?: string }; content?: { en?: string; ar?: string } }[] })?.contentPages ?? [];
-  const contentSummary = buildContentSummary(contentPages);
-  const storeInfoSummary = buildStoreInfoSummary(settings as Record<string, unknown>);
-  const [categoriesSummary, citiesSummary, productCatalogSummary] = await Promise.all([
-    getCategoriesSummary(),
-    getCitiesSummary(),
-    getProductCatalogSummary(extractKeywords(message))
+  const paymentMethods = (settings as { paymentMethods?: { cod?: boolean; instaPay?: boolean } })?.paymentMethods ?? { cod: true, instaPay: false };
+  const instaPayNumber = ((settings as { instaPayNumber?: string })?.instaPayNumber ?? "").trim();
+  const socialLinks = (settings as { socialLinks?: { facebook?: string; instagram?: string } })?.socialLinks ?? {};
+
+  const [cities, categories] = await Promise.all([
+    City.find().select("name deliveryFee").sort({ "name.en": 1 }).lean(),
+    Category.find({ status: "visible" }).select("name").lean()
   ]);
-  const systemPrompt = buildSystemPromptFromContext({
-    storeNameEn: storeName.en || "Store",
-    storeNameAr: storeName.ar || "المتجر",
-    storeInfoSummary,
-    contentPagesSummary: contentSummary,
-    categoriesSummary,
-    citiesSummary,
-    productCatalogSummary,
-    customSystemPrompt: (ai.systemPrompt || "").trim(),
-    responseLocale
-  });
+
+  const responseData: ChatResponseData = {
+    storeName: { en: storeName.en ?? "Store", ar: storeName.ar ?? "المتجر" },
+    contentPages: contentPages.map((p) => ({
+      slug: p.slug,
+      title: { en: p.title?.en, ar: p.title?.ar },
+      content: { en: p.content?.en, ar: p.content?.ar }
+    })),
+    paymentMethods: { cod: Boolean(paymentMethods.cod), instaPay: Boolean(paymentMethods.instaPay) },
+    instaPayNumber,
+    socialLinks: { facebook: socialLinks.facebook, instagram: socialLinks.instagram },
+    cities: cities.map((c) => ({
+      name: { en: (c as { name?: { en?: string } }).name?.en, ar: (c as { name?: { ar?: string } }).name?.ar },
+      deliveryFee: (c as { deliveryFee?: number }).deliveryFee ?? 0
+    })),
+    categories: categories.map((c) => ({
+      name: { en: (c as { name?: { en?: string } }).name?.en, ar: (c as { name?: { ar?: string } }).name?.ar }
+    }))
+  };
+
+  const intentMatch = detectIntent(message);
+
+  const assistantText = buildResponse(intentMatch.intent, responseData, responseLocale, intentMatch.extractedData);
+
+  let productCards: { id: string; name: { en: string; ar: string }; image: string; productUrl: string }[] = [];
+  if (intentMatch.intent === "product_search" && intentMatch.extractedData?.productKeywords) {
+    const keywords = intentMatch.extractedData.productKeywords as string[];
+    const products = await Product.find({
+      deletedAt: null,
+      status: "ACTIVE",
+      $or: keywords.flatMap((k) => [
+        { "name.en": { $regex: k, $options: "i" } },
+        { "name.ar": { $regex: k, $options: "i" } },
+        { "description.en": { $regex: k, $options: "i" } },
+        { "description.ar": { $regex: k, $options: "i" } }
+      ])
+    })
+      .select("_id name images")
+      .limit(6)
+      .lean();
+
+    productCards = products.map((p) => {
+      const id = String((p as { _id: unknown })._id);
+      const name = (p as { name?: { en?: string; ar?: string } }).name ?? { en: "", ar: "" };
+      const img = Array.isArray((p as { images?: string[] }).images) && (p as { images: string[] }).images[0]
+        ? (p as { images: string[] }).images[0]
+        : "";
+      return {
+        id,
+        name: { en: name.en ?? "", ar: name.ar ?? "" },
+        image: img,
+        productUrl: `/product/${id}`
+      };
+    });
+  }
+
   let session = clientSessionId
     ? await ChatSession.findOne({ sessionId: clientSessionId }).lean()
     : null;
@@ -279,30 +324,7 @@ export const postChat = asyncHandler(async (req, res) => {
     });
     session = created.toObject();
   }
-  const messages = (session as { messages?: { role: string; content: string }[] }).messages ?? [];
-  const chatTurns: { role: "user" | "assistant"; content: string }[] = messages.map((m) => ({
-    role: m.role as "user" | "assistant",
-    content: m.content
-  }));
-  chatTurns.push({ role: "user", content: message });
-  let assistantText: string;
-  try {
-    assistantText = await callGemini(apiKey, systemPrompt, chatTurns);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "AI request failed";
-    // Log the real cause so you can fix it (e.g. network, quota, blocked region, bad response)
-    console.error("[AI] Gemini request failed:", err instanceof Error ? err.message : err);
-    if (msg === "RATE_LIMIT") {
-      throw new ApiError(429, "Too many requests. Please try again in a minute.", { code: "errors.ai.rate_limit" });
-    }
-    if (msg === "INVALID_API_KEY") {
-      throw new ApiError(500, "Invalid API key. Please check your Gemini API key in admin settings.", { code: "errors.ai.invalid_api_key" });
-    }
-    throw new ApiError(502, "AI is temporarily unavailable. Please try again.", { code: "errors.ai.unavailable" });
-  }
-  const productIds = extractProductIdsFromResponse(assistantText);
-  const productCards = await getProductCardsForIds(productIds);
-  const responseClean = stripProductIdTags(assistantText);
+
   const sessionId = (session as { sessionId: string }).sessionId;
   await ChatSession.updateOne(
     { sessionId },
@@ -312,7 +334,7 @@ export const postChat = asyncHandler(async (req, res) => {
           { role: "user", content: message, timestamp: new Date() },
           {
             role: "assistant",
-            content: responseClean,
+            content: assistantText,
             timestamp: new Date(),
             ...(productCards.length > 0 && { productCards })
           }
@@ -321,10 +343,11 @@ export const postChat = asyncHandler(async (req, res) => {
       $set: { updatedAt: new Date() }
     }
   );
+
   sendResponse(res, req.locale, {
     data: {
       sessionId,
-      response: responseClean,
+      response: assistantText,
       productCards
     }
   });

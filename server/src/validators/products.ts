@@ -20,6 +20,8 @@ export const productSchema = z.object({
     hoverImage: z.string().optional(),
     imageColors: z.array(z.string()).optional(),
     videos: z.array(z.string()).optional(),
+    defaultMediaType: z.enum(["image", "video"]).optional(),
+    hoverMediaType: z.enum(["image", "video"]).optional(),
     detailsEn: z.string().optional(),
     detailsAr: z.string().optional(),
     stylingTipEn: z.string().optional(),

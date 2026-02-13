@@ -29,6 +29,10 @@ export interface ProductDocument {
   imageColors: string[];
   /** Video paths (uploaded files) or external URLs. Shown alongside images on product detail. */
   videos: string[];
+  /** Preferred media type for default display on product cards. If "video", first video is used; if "image" (default), first image is used. */
+  defaultMediaType: "image" | "video";
+  /** Preferred media type for hover display on product cards. If "video", uses video; if "image" (default), uses second image or first image. */
+  hoverMediaType: "image" | "video";
   stock: number;
   status: "ACTIVE" | "INACTIVE";
   /** When true, product appears in "New Arrivals" on the storefront. */
@@ -69,6 +73,8 @@ const productSchema = new Schema<ProductDocument>(
     hoverImage: { type: String },
     imageColors: { type: [String], default: [] },
     videos: { type: [String], default: [] },
+    defaultMediaType: { type: String, enum: ["image", "video"], default: "image" },
+    hoverMediaType: { type: String, enum: ["image", "video"], default: "image" },
     stock: { type: Number, required: true, default: 0 },
     status: { type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" },
     isNewArrival: { type: Boolean, default: false },
