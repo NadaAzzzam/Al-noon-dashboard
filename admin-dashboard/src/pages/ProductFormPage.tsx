@@ -9,7 +9,15 @@ import {
   getProductImageUrl,
   getProductVideoUrl,
 } from "../services/api";
+import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
+
+type VariantInventory = {
+  color: string;
+  size: string;
+  stock: number;
+  outOfStock: boolean;
+};
 
 type ProductForm = {
   nameEn: string;
@@ -39,6 +47,8 @@ type ProductForm = {
   sizes: string[];
   sizeDescriptions: string[];
   colors: string[];
+  /** Shopify-style variants: each size×color combination with individual stock */
+  variants: VariantInventory[];
 };
 
 const emptyForm: ProductForm = {
@@ -64,6 +74,7 @@ const emptyForm: ProductForm = {
   sizes: [],
   sizeDescriptions: [],
   colors: [],
+  variants: [],
 };
 
 const ProductFormPage = () => {
@@ -158,6 +169,15 @@ const ProductFormPage = () => {
           return sz.map((_, i) => desc[i] ?? "");
         })(),
         colors: p.colors ?? [],
+        variants:
+          p.variants && Array.isArray(p.variants)
+            ? p.variants.map((v: { color?: string; size?: string; stock: number; outOfStock?: boolean }) => ({
+                color: v.color ?? "",
+                size: v.size ?? "",
+                stock: v.stock ?? 0,
+                outOfStock: v.outOfStock ?? false,
+              }))
+            : [],
       });
     } catch (err) {
       setError(
@@ -180,6 +200,11 @@ const ProductFormPage = () => {
     setError(null);
     setSaving(true);
     try {
+      // Calculate total stock from variants
+      const totalStock = form.variants.length > 0
+        ? form.variants.reduce((sum, v) => sum + (v.outOfStock ? 0 : v.stock), 0)
+        : form.stock;
+
       const payload = {
         nameEn: form.nameEn.trim(),
         nameAr: form.nameAr.trim(),
@@ -187,7 +212,7 @@ const ProductFormPage = () => {
         descriptionAr: form.descriptionAr.trim() || undefined,
         price: form.price,
         discountPrice: form.discountPrice || undefined,
-        stock: form.stock,
+        stock: totalStock,
         category: form.category || undefined,
         status: form.status,
         isNewArrival: form.isNewArrival,
@@ -203,6 +228,7 @@ const ProductFormPage = () => {
         sizes: form.sizes.length ? form.sizes : undefined,
         sizeDescriptions: form.sizes.length ? form.sizeDescriptions : undefined,
         colors: form.colors.length ? form.colors : undefined,
+        variants: form.variants.length ? form.variants : undefined,
       };
       if (isEdit && id) {
         await api.updateProduct(id, payload);
@@ -224,21 +250,41 @@ const ProductFormPage = () => {
   const addSize = () => {
     const v = sizeInput.trim();
     if (v && !form.sizes.includes(v)) {
-      setForm((f) => ({
-        ...f,
-        sizes: [...f.sizes, v],
-        sizeDescriptions: [...f.sizeDescriptions, ""],
-      }));
+      setForm((f) => {
+        const newSizes = [...f.sizes, v];
+        const newSizeDescriptions = [...f.sizeDescriptions, ""];
+        // Generate variants for the new size with all existing colors
+        const newVariants = [...f.variants];
+        f.colors.forEach((color) => {
+          newVariants.push({
+            size: v,
+            color,
+            stock: 0,
+            outOfStock: true,
+          });
+        });
+        return {
+          ...f,
+          sizes: newSizes,
+          sizeDescriptions: newSizeDescriptions,
+          variants: newVariants,
+        };
+      });
       setSizeInput("");
     }
   };
+  
   const removeSize = (index: number) => {
+    const sizeToRemove = form.sizes[index];
     setForm((f) => ({
       ...f,
       sizes: f.sizes.filter((_, i) => i !== index),
       sizeDescriptions: f.sizeDescriptions.filter((_, i) => i !== index),
+      // Remove all variants with this size
+      variants: f.variants.filter((v) => v.size !== sizeToRemove),
     }));
   };
+  
   const setSizeDescription = (index: number, value: string) => {
     setForm((f) => {
       const next = [...f.sizeDescriptions];
@@ -246,15 +292,61 @@ const ProductFormPage = () => {
       return { ...f, sizeDescriptions: next };
     });
   };
+  
   const addColor = () => {
     const v = colorInput.trim();
     if (v && !form.colors.includes(v)) {
-      setForm((f) => ({ ...f, colors: [...f.colors, v] }));
+      setForm((f) => {
+        const newColors = [...f.colors, v];
+        // Generate variants for the new color with all existing sizes
+        const newVariants = [...f.variants];
+        f.sizes.forEach((size) => {
+          newVariants.push({
+            size,
+            color: v,
+            stock: 0,
+            outOfStock: true,
+          });
+        });
+        return {
+          ...f,
+          colors: newColors,
+          variants: newVariants,
+        };
+      });
       setColorInput("");
     }
   };
+  
   const removeColor = (c: string) => {
-    setForm((f) => ({ ...f, colors: f.colors.filter((x) => x !== c) }));
+    setForm((f) => ({
+      ...f,
+      colors: f.colors.filter((x) => x !== c),
+      // Remove all variants with this color
+      variants: f.variants.filter((v) => v.color !== c),
+    }));
+  };
+
+  const updateVariantStock = (size: string, color: string, stock: number) => {
+    setForm((f) => ({
+      ...f,
+      variants: f.variants.map((v) =>
+        v.size === size && v.color === color
+          ? { ...v, stock, outOfStock: stock === 0 }
+          : v
+      ),
+    }));
+  };
+
+  const toggleVariantOutOfStock = (size: string, color: string) => {
+    setForm((f) => ({
+      ...f,
+      variants: f.variants.map((v) =>
+        v.size === size && v.color === color
+          ? { ...v, outOfStock: !v.outOfStock, stock: v.outOfStock ? v.stock : 0 }
+          : v
+      ),
+    }));
   };
 
   const handleImagesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -537,23 +629,59 @@ const ProductFormPage = () => {
             </div>
             <div className="product-form-field">
               <label htmlFor="product-discount">
-                {t("products.discount_price")} (EGP)
+                {t("products.discount_percent")}
               </label>
               <input
                 id="product-discount"
                 type="number"
-                step={0.01}
+                step={1}
                 min={0}
-                value={form.discountPrice ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    discountPrice: e.target.value
-                      ? Number(e.target.value)
-                      : undefined,
-                  }))
+                max={100}
+                placeholder="e.g. 10"
+                value={
+                  form.price > 0 && form.discountPrice != null
+                    ? Math.round(
+                        (1 - form.discountPrice / form.price) * 100,
+                      )
+                    : ""
                 }
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    setForm((f) => ({ ...f, discountPrice: undefined }));
+                    return;
+                  }
+                  const percent = Number(raw);
+                  if (form.price > 0 && percent >= 0 && percent <= 100) {
+                    setForm((f) => ({
+                      ...f,
+                      discountPrice: Math.round(
+                        f.price * (1 - percent / 100),
+                      ),
+                    }));
+                  }
+                }}
               />
+              {form.price <= 0 && (
+                <p className="product-form-hint">
+                  {t("products.discount_set_price_first")}
+                </p>
+              )}
+              {form.price > 0 &&
+                form.discountPrice != null &&
+                form.discountPrice < form.price && (
+                  <p className="product-form-hint" style={{ marginTop: 6 }}>
+                    {t("products.discount_calc_message", {
+                      percent: Math.round(
+                        (1 - form.discountPrice / form.price) * 100,
+                      ),
+                      amount: formatPriceEGP(
+                        form.price - form.discountPrice,
+                      ),
+                      sale: formatPriceEGP(form.discountPrice),
+                    })}
+                  </p>
+                )}
             </div>
           </div>
         </section>
@@ -569,12 +697,25 @@ const ProductFormPage = () => {
                 id="product-stock"
                 type="number"
                 min={0}
-                value={form.stock}
+                value={
+                  form.variants.length > 0
+                    ? form.variants.reduce(
+                        (sum, v) => sum + (v.outOfStock ? 0 : v.stock),
+                        0
+                      )
+                    : form.stock
+                }
                 onChange={(e) =>
                   setForm((f) => ({ ...f, stock: Number(e.target.value) || 0 }))
                 }
+                disabled={form.variants.length > 0}
                 required
               />
+              {form.variants.length > 0 && (
+                <p className="product-form-hint" style={{ marginTop: 6 }}>
+                  Stock is automatically calculated from variants below. To manually set stock, remove all sizes and colors first.
+                </p>
+              )}
             </div>
             <div className="product-form-field">
               <label htmlFor="product-status">{t("dashboard.status")}</label>
@@ -599,6 +740,9 @@ const ProductFormPage = () => {
           <h2 className="product-form-section-title">
             {t("products.section_variants")}
           </h2>
+          <p className="product-form-hint" style={{ marginBottom: 16 }}>
+            Add sizes and colors, then manage inventory for each combination below.
+          </p>
           <div className="product-form-variants-row">
             <div className="product-form-variants-block">
               <label>{t("products.sizes")}</label>
@@ -681,6 +825,188 @@ const ProductFormPage = () => {
               </div>
             </div>
           </div>
+
+          {/* Variant Inventory Table */}
+          {form.sizes.length > 0 && form.colors.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                Inventory Management
+              </h3>
+              <p className="product-form-hint" style={{ marginBottom: 16 }}>
+                Set stock quantity for each size and color combination. Leave at 0 or check "Out of Stock" for unavailable variants.
+              </p>
+              <div style={{ overflowX: "auto" }}>
+                <table 
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    border: "1px solid #e2e8f0",
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ backgroundColor: "#f8fafc" }}>
+                      <th style={{
+                        padding: "12px",
+                        textAlign: "left",
+                        borderBottom: "2px solid #e2e8f0",
+                        fontWeight: 600,
+                        fontSize: 14,
+                      }}>
+                        Size
+                      </th>
+                      {form.colors.map((color) => (
+                        <th 
+                          key={color}
+                          style={{
+                            padding: "12px",
+                            textAlign: "center",
+                            borderBottom: "2px solid #e2e8f0",
+                            fontWeight: 600,
+                            fontSize: 14,
+                          }}
+                        >
+                          {color}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.sizes.map((size) => (
+                      <tr key={size}>
+                        <td style={{
+                          padding: "12px",
+                          borderBottom: "1px solid #e2e8f0",
+                          fontWeight: 500,
+                          fontSize: 14,
+                        }}>
+                          {size}
+                        </td>
+                        {form.colors.map((color) => {
+                          const variant = form.variants.find(
+                            (v) => v.size === size && v.color === color
+                          );
+                          const stock = variant?.stock ?? 0;
+                          const isOutOfStock = variant?.outOfStock ?? true;
+                          
+                          return (
+                            <td 
+                              key={`${size}-${color}`}
+                              style={{
+                                padding: "8px",
+                                borderBottom: "1px solid #e2e8f0",
+                                textAlign: "center",
+                              }}
+                            >
+                              <div style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 4,
+                              }}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={stock}
+                                  onChange={(e) =>
+                                    updateVariantStock(
+                                      size,
+                                      color,
+                                      Number(e.target.value) || 0
+                                    )
+                                  }
+                                  disabled={isOutOfStock}
+                                  style={{
+                                    width: "70px",
+                                    padding: "6px 8px",
+                                    textAlign: "center",
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: 4,
+                                    fontSize: 13,
+                                    opacity: isOutOfStock ? 0.5 : 1,
+                                  }}
+                                  aria-label={`Stock for ${size} ${color}`}
+                                />
+                                <label 
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    fontSize: 11,
+                                    cursor: "pointer",
+                                    userSelect: "none",
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isOutOfStock}
+                                    onChange={() =>
+                                      toggleVariantOutOfStock(size, color)
+                                    }
+                                    style={{ cursor: "pointer" }}
+                                  />
+                                  <span style={{ color: "#64748b" }}>
+                                    Out of stock
+                                  </span>
+                                </label>
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ backgroundColor: "#f8fafc" }}>
+                      <td style={{
+                        padding: "12px",
+                        fontWeight: 600,
+                        fontSize: 14,
+                        borderTop: "2px solid #e2e8f0",
+                      }}>
+                        Total Stock
+                      </td>
+                      {form.colors.map((color) => {
+                        const totalForColor = form.variants
+                          .filter((v) => v.color === color)
+                          .reduce((sum, v) => sum + (v.outOfStock ? 0 : v.stock), 0);
+                        return (
+                          <td 
+                            key={`total-${color}`}
+                            style={{
+                              padding: "12px",
+                              textAlign: "center",
+                              fontWeight: 600,
+                              fontSize: 14,
+                              borderTop: "2px solid #e2e8f0",
+                              color: totalForColor === 0 ? "#ef4444" : "#10b981",
+                            }}
+                          >
+                            {totalForColor}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div style={{
+                marginTop: 16,
+                padding: 12,
+                backgroundColor: "#f1f5f9",
+                borderRadius: 8,
+                fontSize: 13,
+                color: "#475569",
+              }}>
+                <strong>Total Product Stock:</strong>{" "}
+                {form.variants.reduce(
+                  (sum, v) => sum + (v.outOfStock ? 0 : v.stock),
+                  0
+                )}{" "}
+                units across all variants
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="product-form-section">
