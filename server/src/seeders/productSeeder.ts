@@ -10,6 +10,8 @@
  * WHAT IT DOES:
  *   - Connects to the DB, loads seed images/videos, fetches categories.
  *   - Deletes existing products, then inserts products (many with discountPrice).
+ *   - Sets defaultMediaType / hoverMediaType (one product uses video as default for cards).
+ *   - Sets costPerItem for margin demo (auto-calculated or explicit per product).
  *   - Uses same image/video and fill logic as full seed for consistency.
  *   - Variant cases: no variants (API estimated); all in stock; one color out; one size out; one variant out; mixed; fully out.
  */
@@ -28,6 +30,12 @@ const defaultStylingTip = {
   en: "Pair with our hijabs and accessories for a complete look.",
   ar: "زينيها مع حجاباتنا وإكسسواراتنا لمظهر كامل."
 };
+
+/** Vendors/brands used in seed data. */
+const VENDORS = ["Al-noon Originals", "Nada Collection", "Silk & Velvet Co."];
+
+/** Tags pool for seed data. */
+const TAG_POOL = ["summer", "winter", "new-collection", "bestseller", "modest", "casual", "elegant", "sale", "limited-edition"];
 
 type CategoryDoc = { _id: unknown; name: { en?: string; ar?: string } };
 
@@ -58,11 +66,15 @@ function buildVariants(
         outColors.has(color.toLowerCase().trim()) ||
         outSizes.has(size.toLowerCase().trim()) ||
         outPairs.has(key);
+      const skuColor = color.substring(0, 3).toUpperCase();
+      const skuSize = size.replace(/\s+/g, "").toUpperCase();
       variants.push({
         color,
         size,
         stock: isOut ? 0 : stockPerVariant,
-        outOfStock: isOut
+        outOfStock: isOut,
+        sku: `${skuColor}-${skuSize}-${String(variants.length + 1).padStart(3, "0")}`,
+        barcode: `600${String(Math.floor(Math.random() * 9999999999)).padStart(10, "0")}`
       });
     }
   }
@@ -76,12 +88,37 @@ function fillProduct(
     imageColors?: string[];
     videos?: string[];
     variants?: VariantInventory[];
-  } & Record<string, unknown>
+    /** Override default media on product cards (e.g. "video" when product has videos). */
+    defaultMediaType?: "image" | "video";
+    hoverMediaType?: "image" | "video";
+    /** Cost per item for margin calculation (optional). */
+    costPerItem?: number;
+  } & Record<string, unknown>,
+  index: number
 ) {
   const images = (p.images as string[]) ?? [];
   const variants = (p.variants as VariantInventory[] | undefined) ?? [];
+  const videos = (p.videos as string[]) ?? [];
   const stock =
     variants.length > 0 ? variants.reduce((sum, v) => sum + (v.outOfStock ? 0 : v.stock), 0) : (p.stock as number);
+  const nameEn = ((p.name as { en: string })?.en ?? "product").toLowerCase().trim();
+  const slug = nameEn.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  // Pick tags: 2-4 random tags from the pool
+  const numTags = 2 + Math.floor(Math.random() * 3);
+  const shuffled = [...TAG_POOL].sort(() => Math.random() - 0.5);
+  const tags = shuffled.slice(0, numTags);
+  // Pick vendor round-robin
+  const vendor = VENDORS[index % VENDORS.length];
+  // Weight: random between 150-800g
+  const weight = 150 + Math.floor(Math.random() * 650);
+  // defaultMediaType / hoverMediaType: use override or "image"; use "video" only when product has videos
+  const hasVideos = videos.length > 0;
+  const defaultMediaType = (p.defaultMediaType as "image" | "video" | undefined) ?? (hasVideos && index % 4 === 0 ? "video" : "image");
+  const hoverMediaType = (p.hoverMediaType as "image" | "video" | undefined) ?? "image";
+  // costPerItem: use override or, for products with price, set to ~55–70% of price for margin demo
+  const price = (p.price as number) ?? 0;
+  const costPerItem = (p.costPerItem as number | undefined) ?? (price > 0 ? Math.round(price * (0.55 + Math.random() * 0.15)) : undefined);
+
   return {
     ...p,
     stock,
@@ -92,7 +129,17 @@ function fillProduct(
     stylingTip: defaultStylingTip,
     viewImage: images[0] ?? "",
     hoverImage: images[1] ?? images[0] ?? "",
-    videos: (p.videos as string[]) ?? []
+    videos,
+    defaultMediaType,
+    hoverMediaType,
+    costPerItem,
+    slug,
+    tags,
+    vendor,
+    weight,
+    weightUnit: "g",
+    metaTitle: { en: "", ar: "" },
+    metaDescription: { en: "", ar: "" }
   };
 }
 
@@ -125,6 +172,7 @@ async function seedProductsWithDiscounts() {
       category: CategoryDoc | undefined;
       price: number;
       discountPrice?: number;
+      costPerItem?: number;
       stock: number;
       status: "ACTIVE";
       isNewArrival?: boolean;
@@ -133,6 +181,9 @@ async function seedProductsWithDiscounts() {
       imageColors?: string[];
       /** When set, product uses variant inventory (exact stock). Otherwise no variants (API will estimate). */
       variantOptions?: VariantOptions;
+      /** Override default/hover media type on product cards (e.g. "video" to test video-first display). */
+      defaultMediaType?: "image" | "video";
+      hoverMediaType?: "image" | "video";
     }> = [
       // CASE: No variants — API returns variantsSource: "estimated", synthesized from global stock
       {
@@ -267,18 +318,20 @@ async function seedProductsWithDiscounts() {
         sizes: ["One Size"],
         colors: ["Black", "White", "Nude", "Pink", "Blue"]
       },
-      // CASE: Variants — all in stock, multiple sizes and colors
+      // CASE: Variants — all in stock, multiple sizes and colors; video as default media for card
       {
         name: { en: "Zipped Hooded Abaya", ar: "عباية زود هود" },
         description: { en: "Classic zipped abaya with hood. Comfortable and modest.", ar: "عباية كلاسيكية بزود وهود. مريحة ومحتشمة." },
         category: cat("Abayas"),
         price: 2100,
+        costPerItem: 1150,
         stock: 24,
         status: "ACTIVE",
         isNewArrival: true,
         sizes: ["S", "M", "L", "XL"],
         colors: ["Black", "Navy", "Brown"],
-        variantOptions: { stockPerVariant: 2 }
+        variantOptions: { stockPerVariant: 2 },
+        defaultMediaType: "video"
       }
     ];
 
@@ -303,7 +356,7 @@ async function seedProductsWithDiscounts() {
         images,
         videos: productVideos,
         variants
-      });
+      }, i);
     });
     const products = await Product.insertMany(productsData);
 

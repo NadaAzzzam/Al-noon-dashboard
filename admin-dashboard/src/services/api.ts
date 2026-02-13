@@ -39,7 +39,7 @@ export type User = {
 
 export type LocalizedString = { en: string; ar: string };
 
-/** Must match backend: newest | priceAsc | priceDesc | nameAsc | nameDesc | bestSelling | highestSelling | lowSelling */
+/** Must match backend: newest | priceAsc | priceDesc | nameAsc | nameDesc | bestSelling | leastSelling */
 export type ProductSort =
   | "newest"
   | "priceAsc"
@@ -47,8 +47,7 @@ export type ProductSort =
   | "nameAsc"
   | "nameDesc"
   | "bestSelling"
-  | "highestSelling"
-  | "lowSelling";
+  | "leastSelling";
 
 /** Stock filter for list products: all | inStock | outOfStock */
 export type ProductAvailability = "all" | "inStock" | "outOfStock";
@@ -84,15 +83,18 @@ export type ProductListAppliedFilters = {
   categoryId?: string;
   categoryName?: LocalizedString;
   search?: string;
-  status?: "ACTIVE" | "INACTIVE";
+  status?: "ACTIVE" | "INACTIVE" | "DRAFT";
   newArrival?: boolean;
   minPrice?: number;
   maxPrice?: number;
   color?: string;
   minRating?: number;
+  tags?: string;
+  vendor?: string;
+  hasDiscount?: string;
 };
 
-/** Option for E-commerce filter dropdowns (from GET /api/products/filters/availability and /filters/sort) */
+/** Option for E-commerce filter dropdowns. */
 export type ProductFilterOption = { value: string; labelEn: string; labelAr: string };
 
 /** Single media asset in product.media (image | video | gif). */
@@ -108,15 +110,27 @@ export type Product = {
   _id: string;
   name: LocalizedString;
   description?: LocalizedString;
+  /** URL-friendly slug (auto-generated from name.en). */
+  slug?: string;
+  /** Free-form tags for filtering/search. */
+  tags?: string[];
+  /** Brand / manufacturer name. */
+  vendor?: string;
   price: number;
   discountPrice?: number;
+  /** Cost per item for profit margin calculations. Not shown to customers. */
+  costPerItem?: number;
+  /** Computed effective price (discountPrice ?? price). Set by list/get API. */
+  effectivePrice?: number;
+  /** Whether product has stock > 0. Set by list/get API. */
+  inStock?: boolean;
   images?: string[];
   /** Structured media: default, hover, previewVideo (API response only). */
   media?: ProductMedia;
   /** Same length as images; imageColors[i] = color name for images[i]. "" = default (all colors). */
   imageColors?: string[];
   stock: number;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "INACTIVE" | "DRAFT";
   /** When true, show in "New Arrivals" on the storefront. */
   isNewArrival?: boolean;
   sizes?: string[];
@@ -133,6 +147,14 @@ export type Product = {
   details?: LocalizedString;
   /** Optional styling tip for storefront. */
   stylingTip?: LocalizedString;
+  /** SEO meta title override. */
+  metaTitle?: LocalizedString;
+  /** SEO meta description override. */
+  metaDescription?: LocalizedString;
+  /** Product weight for shipping. */
+  weight?: number;
+  /** Weight unit: grams or kilograms. */
+  weightUnit?: "g" | "kg";
   category?: { name: LocalizedString; status?: string } | string;
   /** Total quantity sold (CONFIRMED/SHIPPED/DELIVERED orders). Set by list products API. */
   soldQty?: number;
@@ -183,13 +205,12 @@ export type ProductPayload = {
   descriptionAr?: string;
   price: number;
   discountPrice?: number;
+  costPerItem?: number;
   stock: number;
   category?: string;
-  status?: "ACTIVE" | "INACTIVE";
+  status?: "ACTIVE" | "INACTIVE" | "DRAFT";
   isNewArrival?: boolean;
   images?: string[];
-  viewImage?: string;
-  hoverImage?: string;
   imageColors?: string[];
   videos?: string[];
   defaultMediaType?: "image" | "video";
@@ -198,9 +219,18 @@ export type ProductPayload = {
   detailsAr?: string;
   stylingTipEn?: string;
   stylingTipAr?: string;
+  metaTitleEn?: string;
+  metaTitleAr?: string;
+  metaDescriptionEn?: string;
+  metaDescriptionAr?: string;
   sizes?: string[];
   sizeDescriptions?: string[];
   colors?: string[];
+  slug?: string;
+  tags?: string[];
+  vendor?: string;
+  weight?: number;
+  weightUnit?: "g" | "kg";
 };
 
 export type Category = {
@@ -596,6 +626,9 @@ export const api = {
     maxPrice?: number;
     color?: string;
     minRating?: number;
+    tags?: string;
+    vendor?: string;
+    hasDiscount?: boolean;
   }) => {
     const sp = new URLSearchParams();
     if (params?.page != null) sp.set("page", String(params.page));
@@ -610,6 +643,9 @@ export const api = {
     if (params?.maxPrice != null) sp.set("maxPrice", String(params.maxPrice));
     if (params?.color) sp.set("color", params.color);
     if (params?.minRating != null) sp.set("minRating", String(params.minRating));
+    if (params?.tags) sp.set("tags", params.tags);
+    if (params?.vendor) sp.set("vendor", params.vendor);
+    if (params?.hasDiscount === true) sp.set("hasDiscount", "true");
     const q = sp.toString();
     return request(`/products${q ? `?${q}` : ""}`) as Promise<{
       data: Product[];
@@ -617,12 +653,6 @@ export const api = {
       appliedFilters?: ProductListAppliedFilters;
     }>;
   },
-  /** GET /api/products/filters/availability – options for E-commerce availability dropdown */
-  getAvailabilityFilters: () =>
-    request("/products/filters/availability") as Promise<{ data: ProductFilterOption[] }>,
-  /** GET /api/products/filters/sort – options for E-commerce sort dropdown */
-  getSortFilters: () =>
-    request("/products/filters/sort") as Promise<{ data: ProductFilterOption[] }>,
   getProduct: (id: string) => request(`/products/${id}`),
   getRelatedProducts: (id: string, limit?: number) =>
     request(`/products/${id}/related${limit != null ? `?limit=${limit}` : ""}`),
@@ -674,7 +704,7 @@ export const api = {
     const data = resBody?.data ?? resBody;
     return data?.paths ?? [];
   },
-  setProductStatus: (id: string, status: "ACTIVE" | "INACTIVE") =>
+  setProductStatus: (id: string, status: "ACTIVE" | "INACTIVE" | "DRAFT") =>
     request(`/products/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   updateProductStock: (productId: string, stock: number) =>
     request(`/products/${productId}/stock`, { method: "PATCH", body: JSON.stringify({ stock }) }),

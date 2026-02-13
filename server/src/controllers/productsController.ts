@@ -15,32 +15,46 @@ import { parseRichText } from "../utils/richTextFormatter.js";
 /** @deprecated Use withProductMedia from types/productMedia for full media structure. Kept for store home API compatibility. */
 export const withViewHoverVideo = withProductMedia;
 
-/** Options for E-commerce availability filter (value matches list products query). */
-const AVAILABILITY_OPTIONS = [
-  { value: "all", labelEn: "All", labelAr: "الكل" },
-  { value: "inStock", labelEn: "In stock", labelAr: "متوفر" },
-  { value: "outOfStock", labelEn: "Out of stock", labelAr: "غير متوفر" },
-] as const;
+/** Shopify-style sort keys for collection/product list (ProductCollectionSortKeys + direction). */
+const SORT_FILTERS_SHOPIFY: { value: string; labelEn: string; labelAr: string }[] = [
+  { value: "BEST_SELLING", labelEn: "Best selling", labelAr: "الأكثر مبيعاً" },
+  { value: "CREATED_DESC", labelEn: "Newest", labelAr: "الأحدث" },
+  { value: "PRICE_ASC", labelEn: "Price: Low to High", labelAr: "السعر: منخفض إلى عالي" },
+  { value: "PRICE_DESC", labelEn: "Price: High to Low", labelAr: "السعر: عالي إلى منخفض" },
+  { value: "TITLE_ASC", labelEn: "Name A–Z", labelAr: "الاسم أ–ي" },
+  { value: "TITLE_DESC", labelEn: "Name Z–A", labelAr: "الاسم ي–أ" },
+  { value: "MANUAL", labelEn: "Manual", labelAr: "يدوي" },
+];
 
-/** Options for E-commerce sort (value matches list products query). */
-const SORT_OPTIONS = [
-  { value: "newest", labelEn: "Newest", labelAr: "الأحدث" },
-  { value: "priceAsc", labelEn: "Price: Low to High", labelAr: "السعر: منخفض إلى عالي" },
-  { value: "priceDesc", labelEn: "Price: High to Low", labelAr: "السعر: عالي إلى منخفض" },
-  { value: "nameAsc", labelEn: "Name A–Z", labelAr: "الاسم أ–ي" },
-  { value: "nameDesc", labelEn: "Name Z–A", labelAr: "الاسم ي–أ" },
-  { value: "bestSelling", labelEn: "Best selling", labelAr: "الأكثر مبيعاً" },
-  { value: "highestSelling", labelEn: "Highest selling", labelAr: "الأعلى مبيعاً" },
-  { value: "lowSelling", labelEn: "Lowest selling", labelAr: "الأقل مبيعاً" },
-] as const;
-
-export const getAvailabilityFilters = asyncHandler(async (req, res) => {
-  sendResponse(res, req.locale, { data: [...AVAILABILITY_OPTIONS] });
-});
-
+/** GET /api/products/filters/sort — returns sort options in Shopify format (ProductCollectionSortKeys-style). */
 export const getSortFilters = asyncHandler(async (req, res) => {
-  sendResponse(res, req.locale, { data: [...SORT_OPTIONS] });
+  sendResponse(res, req.locale, {
+    data: SORT_FILTERS_SHOPIFY,
+  });
 });
+
+/** Map Shopify-style or legacy sort param to internal sort key. */
+function normalizeSort(sort: string): string {
+  const map: Record<string, string> = {
+    CREATED_DESC: "newest",
+    CREATED_ASC: "oldest",
+    PRICE_ASC: "priceAsc",
+    PRICE_DESC: "priceDesc",
+    TITLE_ASC: "nameAsc",
+    TITLE_DESC: "nameDesc",
+    BEST_SELLING: "bestSelling",
+    MANUAL: "newest",
+    // Legacy
+    newest: "newest",
+    priceAsc: "priceAsc",
+    priceDesc: "priceDesc",
+    nameAsc: "nameAsc",
+    nameDesc: "nameDesc",
+    bestSelling: "bestSelling",
+    leastSelling: "leastSelling",
+  };
+  return map[sort] ?? "newest";
+}
 
 export const listProducts = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
@@ -59,16 +73,45 @@ export const listProducts = asyncHandler(async (req, res) => {
   const color = typeof req.query.color === "string" ? req.query.color.trim() : "";
   const minPrice = req.query.minPrice != null ? Number(req.query.minPrice) : undefined;
   const maxPrice = req.query.maxPrice != null ? Number(req.query.maxPrice) : undefined;
-  const sort = (req.query.sort as string) || "newest";
+  const sort = normalizeSort((req.query.sort as string) || "newest");
   const minRating = req.query.minRating != null ? Number(req.query.minRating) : undefined;
+  const tagsParam = typeof req.query.tags === "string" ? req.query.tags.trim() : "";
+  const vendorParam = typeof req.query.vendor === "string" ? req.query.vendor.trim() : "";
+  const hasDiscount = req.query.hasDiscount as string | undefined;
 
   const filter: Record<string, unknown> = { deletedAt: null };
-  if (status === "ACTIVE" || status === "INACTIVE") filter.status = status;
+  if (status === "ACTIVE" || status === "INACTIVE" || status === "DRAFT") filter.status = status;
   if (category) filter.category = category;
   if (newArrival === "true") filter.isNewArrival = true;
   if (availability === "inStock") filter.stock = { $gt: 0 };
   if (availability === "outOfStock") filter.stock = 0;
   if (color) filter.colors = { $in: [new RegExp(color, "i")] };
+
+  // Tags filter: comma-separated, matches products with ANY of the tags
+  if (tagsParam) {
+    const tagsArr = tagsParam.split(",").map(t => t.trim()).filter(Boolean);
+    if (tagsArr.length > 0) {
+      filter.tags = { $in: tagsArr.map(t => new RegExp(`^${t}$`, "i")) };
+    }
+  }
+
+  // Vendor filter: case-insensitive partial match
+  if (vendorParam) {
+    filter.vendor = new RegExp(vendorParam, "i");
+  }
+
+  // Has discount filter
+  if (hasDiscount === "true") {
+    filter.discountPrice = { $ne: null, $gt: 0 };
+  } else if (hasDiscount === "false") {
+    filter.$or = filter.$or || [];
+    (filter.$or as unknown[]).push(
+      { discountPrice: null },
+      { discountPrice: { $exists: false } },
+      { discountPrice: 0 }
+    );
+  }
+
   if (minPrice != null && !Number.isNaN(minPrice)) {
     filter.$and = filter.$and || [];
     (filter.$and as unknown[]).push({
@@ -89,12 +132,23 @@ export const listProducts = asyncHandler(async (req, res) => {
   }
   if (search) {
     const re = new RegExp(search, "i");
-    filter.$or = [
+    const searchOr: unknown[] = [
       { "name.en": re },
       { "name.ar": re },
       { "description.en": re },
-      { "description.ar": re }
+      { "description.ar": re },
+      { tags: { $in: [re] } },
+      { vendor: re }
     ];
+    // If there's already an $or from hasDiscount, wrap both in $and
+    if (filter.$or) {
+      filter.$and = filter.$and || [];
+      (filter.$and as unknown[]).push({ $or: filter.$or });
+      delete filter.$or;
+      (filter.$and as unknown[]).push({ $or: searchOr });
+    } else {
+      filter.$or = searchOr;
+    }
   }
 
   if (minRating != null && !Number.isNaN(minRating) && minRating >= 1 && minRating <= 5) {
@@ -122,21 +176,28 @@ export const listProducts = asyncHandler(async (req, res) => {
   };
   if (category) {
     appliedFilters.categoryId = category;
-    const categoryDoc = await Category.findById(category).select("name").lean();
-    if (categoryDoc?.name) {
-      appliedFilters.categoryName = categoryDoc.name;
+    let categoryName: { en: string; ar: string } | null = null;
+    if (mongoose.Types.ObjectId.isValid(category)) {
+      const categoryDoc = await Category.findOne({ _id: new mongoose.Types.ObjectId(category) })
+        .select("name")
+        .lean();
+      categoryName = categoryDoc?.name ?? null;
     }
+    appliedFilters.categoryName = categoryName;
   }
   if (search) appliedFilters.search = search;
-  if (status === "ACTIVE" || status === "INACTIVE") appliedFilters.status = status;
+  if (status === "ACTIVE" || status === "INACTIVE" || status === "DRAFT") appliedFilters.status = status;
   if (newArrival === "true") appliedFilters.newArrival = true;
   if (minPrice != null && !Number.isNaN(minPrice)) appliedFilters.minPrice = minPrice;
   if (maxPrice != null && !Number.isNaN(maxPrice)) appliedFilters.maxPrice = maxPrice;
   if (color) appliedFilters.color = color;
   if (minRating != null && !Number.isNaN(minRating) && minRating >= 1 && minRating <= 5) appliedFilters.minRating = minRating;
+  if (tagsParam) appliedFilters.tags = tagsParam;
+  if (vendorParam) appliedFilters.vendor = vendorParam;
+  if (hasDiscount === "true" || hasDiscount === "false") appliedFilters.hasDiscount = hasDiscount;
 
   const useEffectivePriceSort = sort === "priceAsc" || sort === "priceDesc";
-  const useSalesSort = sort === "bestSelling" || sort === "highestSelling" || sort === "lowSelling";
+  const useSalesSort = sort === "bestSelling" || sort === "leastSelling";
   let products: unknown[];
 
   if (useEffectivePriceSort) {
@@ -158,10 +219,10 @@ export const listProducts = asyncHandler(async (req, res) => {
           }
         }
       },
-      { $project: { categoryDoc: 0, effectivePrice: 0 } }
+      { $project: { categoryDoc: 0 } }
     ]);
   } else if (useSalesSort) {
-    const soldSort = (sort === "highestSelling" || sort === "bestSelling") ? -1 : 1;
+    const soldSort = sort === "bestSelling" ? -1 : 1;
     products = await Product.aggregate([
       { $match: filter },
       {
@@ -202,7 +263,8 @@ export const listProducts = asyncHandler(async (req, res) => {
     const sortOption: Record<string, 1 | -1> =
       sort === "nameAsc" ? { "name.en": 1 } :
         sort === "nameDesc" ? { "name.en": -1 } :
-          { createdAt: -1 };
+          sort === "oldest" ? { createdAt: 1 } :
+            { createdAt: -1 };
     products = await Product.find(filter)
       .populate("category", "name status")
       .sort(sortOption)
@@ -247,6 +309,18 @@ export const listProducts = asyncHandler(async (req, res) => {
       };
     });
   }
+
+  // Add effectivePrice and inStock to each product for the list response
+  products = (products as Record<string, unknown>[]).map((p) => {
+    const price = typeof p.price === "number" ? p.price : 0;
+    const discountPrice = typeof p.discountPrice === "number" ? p.discountPrice : undefined;
+    const stock = typeof p.stock === "number" ? p.stock : 0;
+    return {
+      ...p,
+      effectivePrice: discountPrice ?? price,
+      inStock: stock > 0
+    };
+  });
 
   const data = (products as Record<string, unknown>[]).map((p) => withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true }));
   sendResponse(res, req.locale, {
@@ -360,11 +434,17 @@ export const getProduct = asyncHandler(async (req, res) => {
     }
     : undefined;
 
+  // Compute effectivePrice
+  const price = typeof (productObj as { price?: number }).price === "number" ? (productObj as { price: number }).price : 0;
+  const discountPrice = typeof (productObj as { discountPrice?: number }).discountPrice === "number" ? (productObj as { discountPrice: number }).discountPrice : undefined;
+
   sendResponse(res, req.locale, {
     data: {
       product: {
         ...productWithMedia,
         availability,
+        effectivePrice: discountPrice ?? price,
+        inStock: totalStock > 0,
         ...(formattedDetails ? { formattedDetails } : {})
       }
     }
@@ -490,7 +570,10 @@ export const getRelatedProducts = asyncHandler(async (req, res) => {
 function mapBodyToProduct(body: Record<string, unknown>) {
   const {
     nameEn, nameAr, descriptionEn, descriptionAr, detailsEn, detailsAr, stylingTipEn, stylingTipAr,
-    sizes, sizeDescriptions, colors, images, imageColors, videos, isNewArrival, ...rest
+    metaTitleEn, metaTitleAr, metaDescriptionEn, metaDescriptionAr,
+    sizes, sizeDescriptions, colors, images, imageColors, videos, isNewArrival,
+    tags, vendor, slug, costPerItem, weight, weightUnit,
+    ...rest
   } = body;
   const payload: Record<string, unknown> = { ...rest };
   if (isNewArrival !== undefined) payload.isNewArrival = Boolean(isNewArrival);
@@ -505,6 +588,12 @@ function mapBodyToProduct(body: Record<string, unknown>) {
   }
   if (stylingTipEn !== undefined || stylingTipAr !== undefined) {
     payload.stylingTip = { en: String(stylingTipEn ?? "").trim(), ar: String(stylingTipAr ?? "").trim() };
+  }
+  if (metaTitleEn !== undefined || metaTitleAr !== undefined) {
+    payload.metaTitle = { en: String(metaTitleEn ?? "").trim(), ar: String(metaTitleAr ?? "").trim() };
+  }
+  if (metaDescriptionEn !== undefined || metaDescriptionAr !== undefined) {
+    payload.metaDescription = { en: String(metaDescriptionEn ?? "").trim(), ar: String(metaDescriptionAr ?? "").trim() };
   }
   if (sizes !== undefined) {
     const sizeArr = Array.isArray(sizes) ? sizes.map((s) => String(s).trim()).filter(Boolean) : [];
@@ -525,12 +614,32 @@ function mapBodyToProduct(body: Record<string, unknown>) {
   if (videos !== undefined && Array.isArray(videos)) {
     payload.videos = videos.map((v) => String(v).trim()).filter(Boolean);
   }
+  if (tags !== undefined) {
+    payload.tags = Array.isArray(tags) ? tags.map((t) => String(t).trim()).filter(Boolean) : [];
+  }
+  if (vendor !== undefined) {
+    payload.vendor = String(vendor ?? "").trim();
+  }
+  if (slug !== undefined) {
+    payload.slug = String(slug ?? "").trim().toLowerCase();
+  }
+  if (costPerItem !== undefined) {
+    payload.costPerItem = costPerItem;
+  }
+  if (weight !== undefined) {
+    payload.weight = weight;
+  }
+  if (weightUnit !== undefined) {
+    payload.weightUnit = weightUnit;
+  }
   return payload;
 }
 
 export const createProduct = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const product = await Product.create(mapBodyToProduct(req.body));
+  const mapped = mapBodyToProduct(req.body);
+  const product = new Product(mapped);
+  await product.save(); // pre-save hook generates slug if missing
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
   sendResponse(res, req.locale, { status: 201, message: "success.product.created", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
 });

@@ -34,6 +34,10 @@ const ProductsPage = () => {
   const [newArrivalFilter, setNewArrivalFilter] = useState(false);
   const [sortFilter, setSortFilter] = useState<ProductSort | "">("");
   const [ratingFilter, setRatingFilter] = useState<string>("");
+  const [minPriceFilter, setMinPriceFilter] = useState<string>("");
+  const [maxPriceFilter, setMaxPriceFilter] = useState<string>("");
+  const [vendorFilter, setVendorFilter] = useState("");
+  const [onSaleFilter, setOnSaleFilter] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<Record<
@@ -48,7 +52,11 @@ const ProductsPage = () => {
     availabilityFilter !== "all" ||
     newArrivalFilter ||
     sortFilter ||
-    ratingFilter
+    ratingFilter ||
+    minPriceFilter ||
+    maxPriceFilter ||
+    vendorFilter ||
+    onSaleFilter
   );
 
   const clearFilters = () => {
@@ -59,6 +67,10 @@ const ProductsPage = () => {
     setNewArrivalFilter(false);
     setSortFilter("");
     setRatingFilter("");
+    setMinPriceFilter("");
+    setMaxPriceFilter("");
+    setVendorFilter("");
+    setOnSaleFilter(false);
     setPage(1);
   };
 
@@ -76,6 +88,10 @@ const ProductsPage = () => {
         newArrival: newArrivalFilter || undefined,
         sort: sortFilter || undefined,
         minRating: ratingFilter ? Number(ratingFilter) : undefined,
+        minPrice: minPriceFilter ? Number(minPriceFilter) : undefined,
+        maxPrice: maxPriceFilter ? Number(maxPriceFilter) : undefined,
+        vendor: vendorFilter || undefined,
+        hasDiscount: onSaleFilter || undefined,
       });
       setProducts(res.data ?? []);
       setTotal(res.pagination?.total ?? 0);
@@ -112,10 +128,26 @@ const ProductsPage = () => {
     newArrivalFilter,
     sortFilter,
     ratingFilter,
+    minPriceFilter,
+    maxPriceFilter,
+    vendorFilter,
+    onSaleFilter,
   ]);
   useEffect(() => {
     loadCategories();
   }, []);
+
+  // If server says the selected category doesn't exist (categoryName null), clear filter so we don't keep sending invalid ID
+  useEffect(() => {
+    if (
+      appliedFilters &&
+      appliedFilters.categoryId != null &&
+      appliedFilters.categoryName == null &&
+      categoryFilter === appliedFilters.categoryId
+    ) {
+      setCategoryFilter("");
+    }
+  }, [appliedFilters, categoryFilter]);
 
   const setStatus = async (id: string, status: "ACTIVE" | "INACTIVE") => {
     setError(null);
@@ -232,6 +264,7 @@ const ProductsPage = () => {
             <option value="">{t("products.all_statuses")}</option>
             <option value="ACTIVE">{t("common.active")}</option>
             <option value="INACTIVE">{t("common.inactive")}</option>
+            <option value="DRAFT">{t("products.draft")}</option>
           </select>
           <select
             value={categoryFilter}
@@ -291,10 +324,7 @@ const ProductsPage = () => {
             <option value="bestSelling">
               {t("products.sort_best_selling")}
             </option>
-            <option value="highestSelling">
-              {t("products.highest_selling")}
-            </option>
-            <option value="lowSelling">{t("products.low_sale")}</option>
+            <option value="leastSelling">{t("products.sort_least_selling")}</option>
           </select>
           <select
             value={ratingFilter}
@@ -309,6 +339,48 @@ const ProductsPage = () => {
             <option value="3">{t("products.rating_3_stars")}</option>
             <option value="2">{t("products.rating_2_stars")}</option>
           </select>
+          <input
+            type="number"
+            placeholder={t("products.filter_price_min")}
+            value={minPriceFilter}
+            min={0}
+            onChange={(e) => {
+              setMinPriceFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{ maxWidth: 100 }}
+          />
+          <input
+            type="number"
+            placeholder={t("products.filter_price_max")}
+            value={maxPriceFilter}
+            min={0}
+            onChange={(e) => {
+              setMaxPriceFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{ maxWidth: 100 }}
+          />
+          <input
+            placeholder={t("products.filter_vendor")}
+            value={vendorFilter}
+            onChange={(e) => {
+              setVendorFilter(e.target.value);
+              setPage(1);
+            }}
+            style={{ maxWidth: 140 }}
+          />
+          <label className="filters-checkbox">
+            <input
+              type="checkbox"
+              checked={onSaleFilter}
+              onChange={(e) => {
+                setOnSaleFilter(e.target.checked);
+                setPage(1);
+              }}
+            />
+            <span>{t("products.on_sale_only")}</span>
+          </label>
           {hasFilters && (
             <button className="clear-filters-btn" onClick={clearFilters}>
               {t("common.clear_filters", "Clear filters")}
@@ -326,7 +398,19 @@ const ProductsPage = () => {
           >
             {t("products.applied_filters", "Applied")}:{" "}
             {Object.entries(appliedFilters)
-              .map(([k, v]) => `${k}=${String(v)}`)
+              .filter(([k]) => k !== "categoryName" || appliedFilters.categoryId != null)
+              .map(([k, v]) => {
+                if (k === "categoryName") {
+                  const name = v as { en?: string; ar?: string } | null | undefined;
+                  const label = name?.en || name?.ar
+                    ? localized({ en: name.en ?? "", ar: name.ar ?? "" })
+                    : t("common.unknown", "Unknown");
+                  return `category=${label}`;
+                }
+                if (k === "categoryId") return null;
+                return `${k}=${String(v)}`;
+              })
+              .filter(Boolean)
               .join(", ")}
           </p>
         )}
@@ -341,6 +425,7 @@ const ProductsPage = () => {
                   <th>{t("dashboard.status")}</th>
                   <th>{t("products.price")}</th>
                   <th>{t("products.discount_price", "Discount")}</th>
+                  <th>{t("products.vendor")}</th>
                   <th>{t("products.stock")}</th>
                   <th>{t("products.best_selling")}</th>
                   <th>{t("products.rating")}</th>
@@ -394,11 +479,13 @@ const ProductsPage = () => {
                     </td>
                     <td>
                       <span
-                        className={`badge ${product.status === "ACTIVE" ? "badge-success" : "badge-muted"}`}
+                        className={`badge ${product.status === "ACTIVE" ? "badge-success" : product.status === "DRAFT" ? "badge-warning" : "badge-muted"}`}
                       >
                         {product.status === "ACTIVE"
                           ? t("common.active")
-                          : t("common.inactive")}
+                          : product.status === "DRAFT"
+                            ? t("products.draft")
+                            : t("common.inactive")}
                       </span>
                     </td>
                     <td>{formatPriceEGP(product.price)}</td>
@@ -407,6 +494,7 @@ const ProductsPage = () => {
                         ? formatPriceEGP(product.discountPrice)
                         : "—"}
                     </td>
+                    <td>{product.vendor || "—"}</td>
                     <td>
                       <span
                         className={

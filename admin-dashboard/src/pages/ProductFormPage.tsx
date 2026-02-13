@@ -26,9 +26,10 @@ type ProductForm = {
   descriptionAr: string;
   price: number;
   discountPrice: number | undefined;
+  costPerItem: number | undefined;
   stock: number;
   category: string;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "INACTIVE" | "DRAFT";
   isNewArrival: boolean;
   images: string[];
   imageColors: string[];
@@ -44,11 +45,27 @@ type ProductForm = {
   /** Optional styling tip for storefront. */
   stylingTipEn: string;
   stylingTipAr: string;
+  /** SEO meta title (EN/AR). */
+  metaTitleEn: string;
+  metaTitleAr: string;
+  /** SEO meta description (EN/AR). */
+  metaDescriptionEn: string;
+  metaDescriptionAr: string;
   sizes: string[];
   sizeDescriptions: string[];
   colors: string[];
   /** Shopify-style variants: each size×color combination with individual stock */
   variants: VariantInventory[];
+  /** URL-friendly slug (auto-generated from name). */
+  slug: string;
+  /** Free-form tags. */
+  tags: string[];
+  /** Brand / manufacturer. */
+  vendor: string;
+  /** Product weight for shipping. */
+  weight: number | undefined;
+  /** Weight unit. */
+  weightUnit: "g" | "kg";
 };
 
 const emptyForm: ProductForm = {
@@ -58,6 +75,7 @@ const emptyForm: ProductForm = {
   descriptionAr: "",
   price: 0,
   discountPrice: undefined,
+  costPerItem: undefined,
   stock: 0,
   category: "",
   status: "ACTIVE",
@@ -71,10 +89,19 @@ const emptyForm: ProductForm = {
   detailsAr: "",
   stylingTipEn: "",
   stylingTipAr: "",
+  metaTitleEn: "",
+  metaTitleAr: "",
+  metaDescriptionEn: "",
+  metaDescriptionAr: "",
   sizes: [],
   sizeDescriptions: [],
   colors: [],
   variants: [],
+  slug: "",
+  tags: [],
+  vendor: "",
+  weight: undefined,
+  weightUnit: "g",
 };
 
 const ProductFormPage = () => {
@@ -94,6 +121,7 @@ const ProductFormPage = () => {
   const [colorInput, setColorInput] = useState("");
   const [uploadForColor, setUploadForColor] = useState("");
   const [imageFilterColor, setImageFilterColor] = useState("");
+  const [tagInput, setTagInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,12 +158,13 @@ const ProductFormPage = () => {
         descriptionAr: desc.ar ?? "",
         price: p.price,
         discountPrice: p.discountPrice,
+        costPerItem: p.costPerItem,
         stock: p.stock,
         category:
           typeof p.category === "object" && p.category && "_id" in p.category
             ? (p.category as { _id: string })._id
             : String(p.category ?? ""),
-        status: p.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+        status: p.status === "INACTIVE" ? "INACTIVE" : p.status === "DRAFT" ? "DRAFT" : "ACTIVE",
         isNewArrival: Boolean(p.isNewArrival),
         images: p.images ?? [],
         imageColors:
@@ -159,6 +188,14 @@ const ProductFormPage = () => {
           (p.stylingTip && typeof p.stylingTip === "object"
             ? p.stylingTip.ar
             : "") ?? "",
+        metaTitleEn:
+          (p.metaTitle && typeof p.metaTitle === "object" ? p.metaTitle.en : "") ?? "",
+        metaTitleAr:
+          (p.metaTitle && typeof p.metaTitle === "object" ? p.metaTitle.ar : "") ?? "",
+        metaDescriptionEn:
+          (p.metaDescription && typeof p.metaDescription === "object" ? p.metaDescription.en : "") ?? "",
+        metaDescriptionAr:
+          (p.metaDescription && typeof p.metaDescription === "object" ? p.metaDescription.ar : "") ?? "",
         sizes: p.sizes ?? [],
         sizeDescriptions: (() => {
           const sz = p.sizes ?? [];
@@ -178,6 +215,11 @@ const ProductFormPage = () => {
                 outOfStock: v.outOfStock ?? false,
               }))
             : [],
+        slug: p.slug ?? "",
+        tags: p.tags ?? [],
+        vendor: p.vendor ?? "",
+        weight: p.weight,
+        weightUnit: p.weightUnit ?? "g",
       });
     } catch (err) {
       setError(
@@ -212,6 +254,7 @@ const ProductFormPage = () => {
         descriptionAr: form.descriptionAr.trim() || undefined,
         price: form.price,
         discountPrice: form.discountPrice || undefined,
+        costPerItem: form.costPerItem || undefined,
         stock: totalStock,
         category: form.category || undefined,
         status: form.status,
@@ -225,10 +268,19 @@ const ProductFormPage = () => {
         detailsAr: form.detailsAr.trim() || undefined,
         stylingTipEn: form.stylingTipEn.trim() || undefined,
         stylingTipAr: form.stylingTipAr.trim() || undefined,
+        metaTitleEn: form.metaTitleEn.trim() || undefined,
+        metaTitleAr: form.metaTitleAr.trim() || undefined,
+        metaDescriptionEn: form.metaDescriptionEn.trim() || undefined,
+        metaDescriptionAr: form.metaDescriptionAr.trim() || undefined,
         sizes: form.sizes.length ? form.sizes : undefined,
         sizeDescriptions: form.sizes.length ? form.sizeDescriptions : undefined,
         colors: form.colors.length ? form.colors : undefined,
         variants: form.variants.length ? form.variants : undefined,
+        slug: form.slug.trim() || undefined,
+        tags: form.tags.length ? form.tags : undefined,
+        vendor: form.vendor.trim() || undefined,
+        weight: form.weight || undefined,
+        weightUnit: form.weightUnit,
       };
       if (isEdit && id) {
         await api.updateProduct(id, payload);
@@ -572,6 +624,68 @@ const ProductFormPage = () => {
                 placeholder={t("products.styling_tip_placeholder")}
               />
             </div>
+            <div className="product-form-field">
+              <label htmlFor="product-vendor">{t("products.vendor")}</label>
+              <input
+                id="product-vendor"
+                value={form.vendor}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, vendor: e.target.value }))
+                }
+                placeholder={t("products.vendor_placeholder")}
+              />
+            </div>
+            <div className="product-form-field">
+              <label htmlFor="product-slug">{t("products.slug")}</label>
+              <input
+                id="product-slug"
+                value={form.slug}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/--+/g, "-") }))
+                }
+                placeholder={t("products.slug_placeholder")}
+              />
+              {form.slug && (
+                <p className="product-form-hint" style={{ marginTop: 4 }}>
+                  {t("products.url_preview")}: /products/{form.slug}
+                </p>
+              )}
+            </div>
+            <div className="product-form-field product-form-grid-full">
+              <label>{t("products.tags")}</label>
+              <div className="product-form-tag-input-row">
+                <input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const v = tagInput.trim().toLowerCase();
+                      if (v && !form.tags.includes(v)) {
+                        setForm((f) => ({ ...f, tags: [...f.tags, v] }));
+                      }
+                      setTagInput("");
+                    }
+                  }}
+                  placeholder={t("products.tags_placeholder")}
+                />
+              </div>
+              <div className="product-form-tags" style={{ marginTop: 8 }}>
+                {form.tags.map((tag) => (
+                  <span key={tag} className="product-form-tag">
+                    {tag}
+                    <button
+                      type="button"
+                      className="product-form-tag-remove"
+                      onClick={() => setForm((f) => ({ ...f, tags: f.tags.filter((t) => t !== tag) }))}
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
             <div className="product-form-field product-form-grid-full">
               <label htmlFor="product-category">{t("products.category")}</label>
               <select
@@ -606,6 +720,96 @@ const ProductFormPage = () => {
               </p>
             </div>
           </div>
+        </section>
+
+        <section className="product-form-section">
+          <h2 className="product-form-section-title">
+            {t("products.section_seo")}
+          </h2>
+          <div className="product-form-grid">
+            <div className="product-form-field">
+              <label htmlFor="product-meta-title-en">
+                {t("products.meta_title_en")}
+                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                  {form.metaTitleEn.length}/60
+                </span>
+              </label>
+              <input
+                id="product-meta-title-en"
+                value={form.metaTitleEn}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, metaTitleEn: e.target.value }))
+                }
+                maxLength={60}
+              />
+              <p className="product-form-hint">{t("products.meta_title_hint")}</p>
+            </div>
+            <div className="product-form-field">
+              <label htmlFor="product-meta-title-ar">
+                {t("products.meta_title_ar")}
+                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                  {form.metaTitleAr.length}/60
+                </span>
+              </label>
+              <input
+                id="product-meta-title-ar"
+                value={form.metaTitleAr}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, metaTitleAr: e.target.value }))
+                }
+                maxLength={60}
+              />
+            </div>
+            <div className="product-form-field">
+              <label htmlFor="product-meta-desc-en">
+                {t("products.meta_description_en")}
+                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                  {form.metaDescriptionEn.length}/160
+                </span>
+              </label>
+              <textarea
+                id="product-meta-desc-en"
+                value={form.metaDescriptionEn}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, metaDescriptionEn: e.target.value }))
+                }
+                maxLength={160}
+                rows={2}
+              />
+              <p className="product-form-hint">{t("products.meta_description_hint")}</p>
+            </div>
+            <div className="product-form-field">
+              <label htmlFor="product-meta-desc-ar">
+                {t("products.meta_description_ar")}
+                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                  {form.metaDescriptionAr.length}/160
+                </span>
+              </label>
+              <textarea
+                id="product-meta-desc-ar"
+                value={form.metaDescriptionAr}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, metaDescriptionAr: e.target.value }))
+                }
+                maxLength={160}
+                rows={2}
+              />
+            </div>
+          </div>
+          {(form.metaTitleEn || form.nameEn) && (
+            <div style={{ marginTop: 16, padding: 16, backgroundColor: "#f1f5f9", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{t("products.seo_preview")}</p>
+              <p style={{ fontSize: 16, color: "#1a0dab", margin: "0 0 4px 0", fontWeight: 500 }}>
+                {form.metaTitleEn || form.nameEn}
+              </p>
+              <p style={{ fontSize: 13, color: "#006621", margin: "0 0 4px 0" }}>
+                yourstore.com/products/{form.slug || "..."}
+              </p>
+              <p style={{ fontSize: 13, color: "#545454", margin: 0 }}>
+                {form.metaDescriptionEn || form.descriptionEn || "No description set"}
+              </p>
+            </div>
+          )}
         </section>
 
         <section className="product-form-section">
@@ -683,6 +887,29 @@ const ProductFormPage = () => {
                   </p>
                 )}
             </div>
+            <div className="product-form-field">
+              <label htmlFor="product-cost">{t("products.cost_per_item")} (EGP)</label>
+              <input
+                id="product-cost"
+                type="number"
+                step={0.01}
+                min={0}
+                value={form.costPerItem ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, costPerItem: e.target.value ? Number(e.target.value) : undefined }))
+                }
+              />
+              {form.costPerItem != null && form.costPerItem > 0 && (
+                <p className="product-form-hint" style={{ marginTop: 6 }}>
+                  {t("products.profit_margin")}: {(() => {
+                    const effectivePrice = form.discountPrice ?? form.price;
+                    if (effectivePrice <= 0) return "N/A";
+                    const margin = ((effectivePrice - form.costPerItem) / effectivePrice * 100).toFixed(1);
+                    return `${margin}% (${formatPriceEGP(effectivePrice - form.costPerItem)} profit)`;
+                  })()}
+                </p>
+              )}
+            </div>
           </div>
         </section>
 
@@ -725,13 +952,42 @@ const ProductFormPage = () => {
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
-                    status: e.target.value as "ACTIVE" | "INACTIVE",
+                    status: e.target.value as "ACTIVE" | "INACTIVE" | "DRAFT",
                   }))
                 }
               >
                 <option value="ACTIVE">{t("common.active")}</option>
                 <option value="INACTIVE">{t("common.inactive")}</option>
+                <option value="DRAFT">{t("products.draft")}</option>
               </select>
+            </div>
+          </div>
+          <div className="product-form-row" style={{ marginTop: 16 }}>
+            <div className="product-form-field">
+              <label htmlFor="product-weight">{t("products.weight")}</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  id="product-weight"
+                  type="number"
+                  step={1}
+                  min={0}
+                  value={form.weight ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, weight: e.target.value ? Number(e.target.value) : undefined }))
+                  }
+                  style={{ flex: 1 }}
+                />
+                <select
+                  value={form.weightUnit}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, weightUnit: e.target.value as "g" | "kg" }))
+                  }
+                  style={{ width: 80 }}
+                >
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                </select>
+              </div>
             </div>
           </div>
         </section>

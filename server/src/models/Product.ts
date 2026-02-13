@@ -12,14 +12,26 @@ export interface VariantInventory {
   stock: number;
   /** When true, this variant is marked as out of stock (overrides stock number). */
   outOfStock?: boolean;
+  /** Stock Keeping Unit for this variant (e.g. ABY-BLK-S). */
+  sku?: string;
+  /** Barcode (EAN/UPC) for this variant. */
+  barcode?: string;
 }
 
 export interface ProductDocument {
   name: LocalizedString;
   description?: LocalizedString;
   category: mongoose.Types.ObjectId;
+  /** URL-friendly slug (auto-generated from name.en if not provided). Must be unique. */
+  slug: string;
+  /** Free-form tags for filtering, search, and grouping (e.g. ["summer", "bestseller"]). */
+  tags: string[];
+  /** Brand or manufacturer name (e.g. "Al-noon Originals"). */
+  vendor: string;
   price: number;
   discountPrice?: number;
+  /** Cost per item for profit margin calculations. Not shown to customers. */
+  costPerItem?: number;
   images: string[];
   /** Main image for product card/listing (defaults to images[0] if not set). */
   viewImage?: string;
@@ -34,7 +46,7 @@ export interface ProductDocument {
   /** Preferred media type for hover display on product cards. If "video", uses video; if "image" (default), uses second image or first image. */
   hoverMediaType: "image" | "video";
   stock: number;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "INACTIVE" | "DRAFT";
   /** When true, product appears in "New Arrivals" on the storefront. */
   isNewArrival: boolean;
   sizes: string[];
@@ -47,6 +59,14 @@ export interface ProductDocument {
   details?: LocalizedString;
   /** Optional styling tip for storefront. */
   stylingTip?: LocalizedString;
+  /** SEO meta title override (falls back to product name if empty). */
+  metaTitle?: LocalizedString;
+  /** SEO meta description override (falls back to product description if empty). */
+  metaDescription?: LocalizedString;
+  /** Product weight for shipping calculation. */
+  weight?: number;
+  /** Weight unit: grams or kilograms. */
+  weightUnit?: "g" | "kg";
   deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -58,7 +78,9 @@ const variantInventorySchema = new Schema({
   color: { type: String },
   size: { type: String },
   stock: { type: Number, required: true, default: 0 },
-  outOfStock: { type: Boolean, default: false }
+  outOfStock: { type: Boolean, default: false },
+  sku: { type: String },
+  barcode: { type: String }
 }, { _id: false });
 
 const productSchema = new Schema<ProductDocument>(
@@ -66,8 +88,12 @@ const productSchema = new Schema<ProductDocument>(
     name: { type: localizedSchema, required: true },
     description: { type: localizedSchema },
     category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
+    slug: { type: String, unique: true, sparse: true },
+    tags: { type: [String], default: [] },
+    vendor: { type: String, default: "" },
     price: { type: Number, required: true },
     discountPrice: { type: Number },
+    costPerItem: { type: Number },
     images: { type: [String], default: [] },
     viewImage: { type: String },
     hoverImage: { type: String },
@@ -76,7 +102,7 @@ const productSchema = new Schema<ProductDocument>(
     defaultMediaType: { type: String, enum: ["image", "video"], default: "image" },
     hoverMediaType: { type: String, enum: ["image", "video"], default: "image" },
     stock: { type: Number, required: true, default: 0 },
-    status: { type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" },
+    status: { type: String, enum: ["ACTIVE", "INACTIVE", "DRAFT"], default: "ACTIVE" },
     isNewArrival: { type: Boolean, default: false },
     sizes: { type: [String], default: [] },
     sizeDescriptions: { type: [String], default: [] },
@@ -84,6 +110,10 @@ const productSchema = new Schema<ProductDocument>(
     variants: { type: [variantInventorySchema], default: [] },
     details: { type: localizedSchema },
     stylingTip: { type: localizedSchema },
+    metaTitle: { type: localizedSchema },
+    metaDescription: { type: localizedSchema },
+    weight: { type: Number },
+    weightUnit: { type: String, enum: ["g", "kg"], default: "g" },
     deletedAt: { type: Date }
   },
   { timestamps: true }
@@ -91,5 +121,38 @@ const productSchema = new Schema<ProductDocument>(
 
 productSchema.index({ deletedAt: 1 });
 productSchema.index({ status: 1, deletedAt: 1 });
+productSchema.index({ slug: 1 });
+productSchema.index({ tags: 1 });
+productSchema.index({ vendor: 1 });
+
+/** Generate a URL-friendly slug from a string. */
+function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\u0600-\u06FF-]+/g, "")
+    .replace(/--+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
+
+/** Auto-generate slug from name.en before saving if not already set. */
+productSchema.pre("save", async function (next) {
+  if (this.slug) return next();
+  const base = slugify(this.name?.en || "product");
+  let candidate = base;
+  let counter = 1;
+  // eslint-disable-next-line @typescript-eslint/no-this-alias
+  const doc = this;
+  const Model = doc.constructor as typeof Product;
+  while (await Model.findOne({ slug: candidate, _id: { $ne: doc._id } })) {
+    counter++;
+    candidate = `${base}-${counter}`;
+  }
+  this.slug = candidate;
+  next();
+});
 
 export const Product = mongoose.model<ProductDocument>("Product", productSchema);
