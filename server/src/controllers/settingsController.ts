@@ -49,6 +49,7 @@ const defaults = {
   aiAssistant: {
     enabled: false,
     geminiApiKey: "",
+    assistantName: "alnoon-admin",
     greeting: { en: "Hi! How can I help you today?", ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟" },
     systemPrompt: "",
     suggestedQuestions: [
@@ -318,6 +319,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
     toSet.aiAssistant = {
       enabled: Boolean(ai.enabled),
       geminiApiKey: String(ai.geminiApiKey ?? "").trim(),
+      assistantName: String(ai.assistantName ?? "alnoon-admin").trim() || "alnoon-admin",
       greeting: {
         en: String(ai.greetingEn ?? ai.greeting?.en ?? "").trim(),
         ar: String(ai.greetingAr ?? ai.greeting?.ar ?? "").trim()

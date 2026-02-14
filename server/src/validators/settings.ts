@@ -69,6 +69,7 @@ export const updateSettingsSchema = z.object({
     aiAssistant: z.object({
       enabled: z.boolean().optional(),
       geminiApiKey: z.string().optional(),
+      assistantName: z.string().optional(),
       greetingEn: z.string().optional(),
       greetingAr: z.string().optional(),
       systemPrompt: z.string().optional(),

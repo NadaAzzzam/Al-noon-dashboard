@@ -9,6 +9,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
 import { detectIntent } from "../utils/chatIntents.js";
 import { buildResponse, type ChatResponseData } from "../utils/chatResponses.js";
+import { callGemini, buildSystemPromptFromContext, type ChatTurn } from "../utils/aiService.js";
+import { logger } from "../utils/logger.js";
 
 /** Strip HTML tags for plain-text context. */
 function stripHtml(html: string): string {
@@ -46,6 +48,8 @@ function buildStoreInfoSummary(settings: Record<string, unknown> | null): string
   }
   const instaPay = (settings.instaPayNumber as string)?.trim();
   if (instaPay) parts.push(`InstaPay number: ${instaPay}.`);
+  const contactEmail = (settings.orderNotificationEmail as string)?.trim();
+  if (contactEmail) parts.push(`Contact email: ${contactEmail}.`);
   const social = settings.socialLinks as { facebook?: string; instagram?: string } | undefined;
   if (social) {
     if (social.facebook?.trim()) parts.push(`Facebook: ${social.facebook.trim()}.`);
@@ -101,7 +105,7 @@ async function getCitiesSummary(): Promise<string> {
     .join("\n");
 }
 
-/** Product catalog line includes ID and image so AI can output [id:xxx] for product cards. */
+/** Product catalog line includes ID, image, sizes, colors so AI can answer product-detail questions. */
 type ProductForCatalog = {
   _id?: unknown;
   name?: { en?: string; ar?: string };
@@ -109,12 +113,14 @@ type ProductForCatalog = {
   price?: number;
   discountPrice?: number;
   images?: string[];
+  sizes?: string[];
+  colors?: string[];
 };
 
-/** Search products by keywords and return catalog summary with ID and image for each product. */
+/** Search products by keywords and return catalog summary with ID, image, sizes, colors for each product. */
 async function getProductCatalogSummary(keywords: string[]): Promise<string> {
   if (!isDbConnected()) return "";
-  const select = "name description price discountPrice images";
+  const select = "name description price discountPrice images sizes colors";
   if (keywords.length === 0) {
     const products = await Product.find({ deletedAt: null, status: "ACTIVE" })
       .select(select)
@@ -155,7 +161,10 @@ function formatProductSummary(products: ProductForCatalog[]): string {
       const price = p.discountPrice ?? p.price ?? 0;
       const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : "";
       const link = id ? `/product/${id}` : "";
-      return `- ${name} | Price: ${price} EGP | ID: ${id} | Link: ${link}${img ? ` | Image: ${img}` : ""}${desc ? ` | ${desc}` : ""}`;
+      const sizes = Array.isArray(p.sizes) && p.sizes.length > 0 ? p.sizes.join(", ") : "";
+      const colors = Array.isArray(p.colors) && p.colors.length > 0 ? p.colors.join(", ") : "";
+      const extra = [sizes && `Sizes: ${sizes}`, colors && `Colors: ${colors}`].filter(Boolean).join(" | ");
+      return `- ${name} | Price: ${price} EGP | ID: ${id} | Link: ${link}${img ? ` | Image: ${img}` : ""}${extra ? ` | ${extra}` : ""}${desc ? ` | ${desc}` : ""}`;
     })
     .join("\n");
 }
@@ -228,7 +237,7 @@ export const getAiSettings = asyncHandler(async (req, res) => {
   });
 });
 
-/** Public: send a chat message and get response (rule-based, no AI). */
+/** Public: send a chat message and get response. Uses Gemini AI when API key is set, otherwise rule-based. */
 export const postChat = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
     throw new ApiError(503, "Service unavailable", { code: "errors.common.db_unavailable" });
@@ -256,6 +265,89 @@ export const postChat = asyncHandler(async (req, res) => {
     City.find().select("name deliveryFee").sort({ "name.en": 1 }).lean(),
     Category.find({ status: "visible" }).select("name").lean()
   ]);
+
+  let session = clientSessionId
+    ? await ChatSession.findOne({ sessionId: clientSessionId }).lean()
+    : null;
+  if (!session) {
+    const newSessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const created = await ChatSession.create({
+      sessionId: newSessionId,
+      messages: [],
+      status: "active"
+    });
+    session = created.toObject();
+  }
+
+  const apiKey = (
+    String((ai as { geminiApiKey?: string }).geminiApiKey ?? "").trim() ||
+    String(process.env.GEMINI_API_KEY ?? "").trim()
+  ).trim();
+  if (apiKey) {
+    const keywords = extractKeywords(message);
+    const [contentSummary, storeInfoSummary, categoriesSummary, citiesSummary, productCatalogSummary] = await Promise.all([
+      Promise.resolve(buildContentSummary(contentPages)),
+      Promise.resolve(buildStoreInfoSummary(settings as Record<string, unknown>)),
+      getCategoriesSummary(),
+      getCitiesSummary(),
+      getProductCatalogSummary(keywords)
+    ]);
+    const storeNameEn = storeName?.en ?? "Store";
+    const storeNameAr = storeName?.ar ?? "المتجر";
+    const aiCfg = ai as { systemPrompt?: string; assistantName?: string };
+    const ctx = {
+      storeNameEn,
+      storeNameAr,
+      storeInfoSummary,
+      contentPagesSummary: contentSummary,
+      categoriesSummary,
+      citiesSummary,
+      productCatalogSummary,
+      customSystemPrompt: aiCfg.systemPrompt ?? "",
+      responseLocale,
+      assistantName: aiCfg.assistantName ?? "alnoon-admin"
+    };
+    const systemPrompt = buildSystemPromptFromContext(ctx);
+    const existingMessages = (session as { messages?: { role: string; content: string }[] }).messages ?? [];
+    const maxTurns = 10;
+    const recent = existingMessages.slice(-maxTurns);
+    const messages: ChatTurn[] = recent.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+    messages.push({ role: "user", content: message });
+    let assistantText: string;
+    try {
+      assistantText = await callGemini(apiKey, systemPrompt, messages);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn({ err, message: msg }, "Gemini API error in chat");
+      if (msg === "INVALID_API_KEY") throw new ApiError(401, "Invalid API key", { code: "errors.ai.invalid_api_key" });
+      if (msg === "RATE_LIMIT") throw new ApiError(429, "Too many requests", { code: "errors.ai.rate_limit" });
+      throw new ApiError(502, "AI service temporarily unavailable", { code: "errors.ai.unavailable" });
+    }
+    const productIds = extractProductIdsFromResponse(assistantText);
+    const productCards = await getProductCardsForIds(productIds);
+    const displayText = stripProductIdTags(assistantText);
+    const sessionId = (session as { sessionId: string }).sessionId;
+    await ChatSession.updateOne(
+      { sessionId },
+      {
+        $push: {
+          messages: [
+            { role: "user", content: message, timestamp: new Date() },
+            {
+              role: "assistant",
+              content: displayText,
+              timestamp: new Date(),
+              ...(productCards.length > 0 && { productCards })
+            }
+          ]
+        },
+        $set: { updatedAt: new Date() }
+      }
+    );
+    return sendResponse(res, req.locale, {
+      data: { sessionId, response: displayText, productCards, responseFormat: "html" }
+    });
+  }
 
   const responseData: ChatResponseData = {
     storeName: { en: storeName.en ?? "Store", ar: storeName.ar ?? "المتجر" },
@@ -312,19 +404,6 @@ export const postChat = asyncHandler(async (req, res) => {
     });
   }
 
-  let session = clientSessionId
-    ? await ChatSession.findOne({ sessionId: clientSessionId }).lean()
-    : null;
-  if (!session) {
-    const newSessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
-    const created = await ChatSession.create({
-      sessionId: newSessionId,
-      messages: [],
-      status: "active"
-    });
-    session = created.toObject();
-  }
-
   const sessionId = (session as { sessionId: string }).sessionId;
   await ChatSession.updateOne(
     { sessionId },
@@ -348,7 +427,8 @@ export const postChat = asyncHandler(async (req, res) => {
     data: {
       sessionId,
       response: assistantText,
-      productCards
+      productCards,
+      responseFormat: "html"
     }
   });
 });

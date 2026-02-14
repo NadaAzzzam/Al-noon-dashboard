@@ -186,7 +186,7 @@ export function getStockForColorSize(
   const c = normalized(color);
   const s = normalized(size);
   const v = variants.find(
-    (v) => normalized(v.color) === c && normalized(v.size) === s
+    (v) => normalized(v.color ?? "") === c && normalized(v.size ?? "") === s
   );
   if (!v || v.outOfStock) return 0;
   return v.stock ?? 0;
@@ -370,6 +370,7 @@ export type Settings = {
   aiAssistant?: {
     enabled: boolean;
     geminiApiKey: string;
+    assistantName: string;
     greeting: LocalizedString;
     systemPrompt: string;
     suggestedQuestions: LocalizedString[];
@@ -429,6 +430,7 @@ export type SettingsPayload = Partial<{
   aiAssistant?: {
     enabled?: boolean;
     geminiApiKey?: string;
+    assistantName?: string;
     greetingEn?: string;
     greetingAr?: string;
     systemPrompt?: string;

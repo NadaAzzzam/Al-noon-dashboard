@@ -184,12 +184,14 @@ export { loadSeedVideos, getProductGalleryImages };
 const DEFAULT_AI_ASSISTANT = {
   enabled: false,
   geminiApiKey: "",
+  assistantName: "alnoon-admin",
   greeting: { en: "Hi! How can I help you today?", ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟" },
   systemPrompt: "",
   suggestedQuestions: [
     { en: "What are your shipping options?", ar: "ما خيارات الشحن لديكم؟" },
     { en: "How can I return an item?", ar: "كيف أستطيع إرجاع منتج؟" },
     { en: "Show me new arrivals", ar: "أرني الوصول الجديد" },
+    { en: "What sizes are available for Melton Dress?", ar: "إيه المقاسات المتاحة لفستان ميلتون؟" },
     { en: "Do you ship to Cairo?", ar: "بتشحنوا لـ القاهرة؟" },
     { en: "Show me black abayas", ar: "عايزة أشوف العبايات السودا" }
   ]
@@ -353,7 +355,7 @@ async function seed() {
       { label: { en: "About", ar: "من نحن" }, url: "/page/about" },
       { label: { en: "Contact", ar: "اتصل بنا" }, url: "/page/contact" }
     ],
-    socialLinks: { facebook: "https://facebook.com", instagram: "https://instagram.com" },
+    socialLinks: { facebook: "https://www.facebook.com/alnoonstore", instagram: "https://www.instagram.com/alnoonstore" },
     newsletterEnabled: true,
     hero: {
       images: [heroImage, IMAGES.hero2, IMAGES.hero3],

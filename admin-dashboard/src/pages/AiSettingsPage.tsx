@@ -5,6 +5,7 @@ import { api, ApiError, Settings } from "../services/api";
 type AiForm = {
   enabled: boolean;
   geminiApiKey: string;
+  assistantName: string;
   greetingEn: string;
   greetingAr: string;
   systemPrompt: string;
@@ -16,6 +17,7 @@ const AiSettingsPage = () => {
   const [form, setForm] = useState<AiForm>({
     enabled: false,
     geminiApiKey: "",
+    assistantName: "alnoon-admin",
     greetingEn: "Hi! How can I help you today?",
     greetingAr: "مرحباً! كيف يمكنني مساعدتك اليوم؟",
     systemPrompt: "",
@@ -41,6 +43,7 @@ const AiSettingsPage = () => {
           setForm({
             enabled: Boolean(ai.enabled),
             geminiApiKey: ai.geminiApiKey ?? "",
+            assistantName: ai.assistantName ?? "alnoon-admin",
             greetingEn: ai.greeting?.en ?? "",
             greetingAr: ai.greeting?.ar ?? "",
             systemPrompt: ai.systemPrompt ?? "",
@@ -67,6 +70,7 @@ const AiSettingsPage = () => {
         aiAssistant: {
           enabled: form.enabled,
           geminiApiKey: form.geminiApiKey.trim(),
+          assistantName: form.assistantName.trim() || "alnoon-admin",
           greetingEn: form.greetingEn.trim(),
           greetingAr: form.greetingAr.trim(),
           systemPrompt: form.systemPrompt.trim(),
@@ -162,6 +166,19 @@ const AiSettingsPage = () => {
                 </div>
                 <p className="settings-hint" style={{ marginTop: 4 }}>
                   {t("settings.ai_gemini_api_key_hint")}
+                </p>
+              </div>
+              <div className="form-group">
+                <label htmlFor="ai-assistant-name">{t("settings.ai_assistant_name")}</label>
+                <input
+                  id="ai-assistant-name"
+                  type="text"
+                  value={form.assistantName}
+                  onChange={(e) => setForm((f) => ({ ...f, assistantName: e.target.value }))}
+                  placeholder={t("settings.ai_assistant_name_placeholder")}
+                />
+                <p className="settings-hint" style={{ marginTop: 4 }}>
+                  {t("settings.ai_assistant_name_hint")}
                 </p>
               </div>
               <div className="form-group">

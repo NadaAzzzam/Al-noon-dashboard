@@ -73,6 +73,7 @@
       "invalid_api_key": "Invalid Gemini API key. Check Settings > AI Assistant.",
       "rate_limit": "Too many requests. Please try again in a minute.",
       "unavailable": "AI is temporarily unavailable. Please try again.",
+      "insufficient_balance": "AI provider account has no credit.",
       "session_not_found": "Chat session not found"
     },
     "settings": {

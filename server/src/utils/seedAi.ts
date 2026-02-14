@@ -18,6 +18,7 @@ import { loadSeedImages } from "./seedData.js";
 const defaultAiAssistant = {
   enabled: false,
   geminiApiKey: "",
+  assistantName: "alnoon-admin",
   greeting: {
     en: "Hi! How can I help you today?",
     ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟"

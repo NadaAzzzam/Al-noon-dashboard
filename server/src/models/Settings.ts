@@ -77,6 +77,7 @@ export interface SettingsDocument {
   aiAssistant?: {
     enabled: boolean;
     geminiApiKey: string;
+    assistantName: string;
     greeting: LocalizedString;
     systemPrompt: string;
     suggestedQuestions: LocalizedString[];
@@ -174,6 +175,7 @@ const settingsSchema = new Schema<SettingsDocument>(
     aiAssistant: {
       enabled: { type: Boolean, default: false },
       geminiApiKey: { type: String, default: "" },
+      assistantName: { type: String, default: "alnoon-admin" },
       greeting: { type: localizedSchema, default: () => ({ en: "Hi! How can I help you today?", ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟" }) },
       systemPrompt: { type: String, default: "" },
       suggestedQuestions: {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getStoredLanguage, setStoredLanguage, type Lang } from "../i18n";
-import { api, clearToken } from "../services/api";
+import { api, clearToken, getUploadsBaseUrl, DEFAULT_LOGO_PATH } from "../services/api";
 import { initGoogleAnalytics, sendPageView } from "../utils/googleAnalytics";
 
 /* ===== SVG Icon components ===== */
@@ -314,14 +314,18 @@ const Layout = () => {
       .getSettings()
       .then((res: unknown) => {
         const d = res as {
-          data?: { settings?: { googleAnalyticsId?: string } };
-          settings?: { googleAnalyticsId?: string };
+          data?: { settings?: { googleAnalyticsId?: string; logo?: string } };
+          settings?: { googleAnalyticsId?: string; logo?: string };
         };
         const settings = d.data?.settings ?? d.settings;
         const gaId =
           settings?.googleAnalyticsId?.trim() ||
           import.meta.env.VITE_GA_MEASUREMENT_ID;
         if (gaId) initGoogleAnalytics(gaId);
+        const logoPath = settings?.logo?.trim();
+        const faviconHref = getUploadsBaseUrl() + (logoPath || DEFAULT_LOGO_PATH);
+        const link = document.getElementById("dashboard-favicon") as HTMLLinkElement | null;
+        if (link) link.href = faviconHref;
       })
       .catch(() => {});
   }, []);
