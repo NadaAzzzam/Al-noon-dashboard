@@ -314,17 +314,65 @@ export const postChat = asyncHandler(async (req, res) => {
     const messages: ChatTurn[] = recent.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
     messages.push({ role: "user", content: message });
     let assistantText: string;
+    let fallbackProductCards: { id: string; name: { en: string; ar: string }; image: string; productUrl: string }[] | null = null;
     try {
       assistantText = await callGemini(apiKey, systemPrompt, messages);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.warn({ err, message: msg }, "Gemini API error in chat");
-      if (msg === "INVALID_API_KEY") throw new ApiError(401, "Invalid API key", { code: "errors.ai.invalid_api_key" });
-      if (msg === "RATE_LIMIT") throw new ApiError(429, "Too many requests", { code: "errors.ai.rate_limit" });
-      throw new ApiError(502, "AI service temporarily unavailable", { code: "errors.ai.unavailable" });
+      logger.warn({ err, message: msg }, "Gemini API error in chat; falling back to rule-based response");
+      // Fallback: answer the user with rule-based intent so they still get a reply
+      const responseData: ChatResponseData = {
+        storeName: { en: storeNameEn, ar: storeNameAr },
+        contentPages: contentPages.map((p) => ({
+          slug: p.slug,
+          title: { en: p.title?.en, ar: p.title?.ar },
+          content: { en: p.content?.en, ar: p.content?.ar }
+        })),
+        paymentMethods: { cod: Boolean(paymentMethods.cod), instaPay: Boolean(paymentMethods.instaPay) },
+        instaPayNumber,
+        socialLinks: { facebook: socialLinks.facebook, instagram: socialLinks.instagram },
+        cities: cities.map((c) => ({
+          name: { en: (c as { name?: { en?: string } }).name?.en, ar: (c as { name?: { ar?: string } }).name?.ar },
+          deliveryFee: (c as { deliveryFee?: number }).deliveryFee ?? 0
+        })),
+        categories: categories.map((c) => ({
+          name: { en: (c as { name?: { en?: string } }).name?.en, ar: (c as { name?: { ar?: string } }).name?.ar }
+        }))
+      };
+      const intentMatch = detectIntent(message);
+      assistantText = buildResponse(intentMatch.intent, responseData, responseLocale, intentMatch.extractedData);
+      if (intentMatch.intent === "product_search" && intentMatch.extractedData?.productKeywords) {
+        const keywords = intentMatch.extractedData.productKeywords as string[];
+        const products = await Product.find({
+          deletedAt: null,
+          status: "ACTIVE",
+          $or: keywords.flatMap((k) => [
+            { "name.en": { $regex: k, $options: "i" } },
+            { "name.ar": { $regex: k, $options: "i" } },
+            { "description.en": { $regex: k, $options: "i" } },
+            { "description.ar": { $regex: k, $options: "i" } }
+          ])
+        })
+          .select("_id name images")
+          .limit(6)
+          .lean();
+        fallbackProductCards = products.map((p) => {
+          const id = String((p as { _id: unknown })._id);
+          const name = (p as { name?: { en?: string; ar?: string } }).name ?? { en: "", ar: "" };
+          const img = Array.isArray((p as { images?: string[] }).images) && (p as { images: string[] }).images[0]
+            ? (p as { images: string[] }).images[0]
+            : "";
+          return {
+            id,
+            name: { en: name.en ?? "", ar: name.ar ?? "" },
+            image: img,
+            productUrl: `/product/${id}`
+          };
+        });
+      }
     }
     const productIds = extractProductIdsFromResponse(assistantText);
-    const productCards = await getProductCardsForIds(productIds);
+    const productCards = fallbackProductCards ?? (await getProductCardsForIds(productIds));
     const displayText = stripProductIdTags(assistantText);
     const sessionId = (session as { sessionId: string }).sessionId;
     await ChatSession.updateOne(
