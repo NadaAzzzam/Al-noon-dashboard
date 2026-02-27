@@ -12,7 +12,7 @@ import {
   uploadProductVideos
 } from "../controllers/productsController.js";
 import { updateStock } from "../controllers/inventoryController.js";
-import { authenticate, requireRole } from "../middlewares/auth.js";
+import { authenticate, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import { uploadProductImages as multerProductImages, uploadProductVideos as multerProductVideos } from "../middlewares/upload.js";
 import {
@@ -30,13 +30,13 @@ router.get("/", validate(productQuerySchema), listProducts);
 router.get("/:id/related", validate(productParamsSchema), getRelatedProducts);
 router.get("/:id", validate(productParamsSchema), getProduct);
 
-router.use(authenticate, requireRole(["ADMIN"]));
-router.post("/images", multerProductImages, uploadProductImages);
-router.post("/videos", multerProductVideos, uploadProductVideos);
-router.post("/", validate(productSchema), createProduct);
-router.put("/:id", validate(productSchema.merge(productParamsSchema)), updateProduct);
-router.patch("/:id/status", validate(productStatusSchema), setProductStatus);
-router.patch("/:id/stock", validate(stockUpdateSchema), updateStock);
-router.delete("/:id", validate(productParamsSchema), deleteProduct);
+router.use(authenticate);
+router.post("/images", requirePermission(["products.manage"]), multerProductImages, uploadProductImages);
+router.post("/videos", requirePermission(["products.manage"]), multerProductVideos, uploadProductVideos);
+router.post("/", requirePermission(["products.manage"]), validate(productSchema), createProduct);
+router.put("/:id", requirePermission(["products.manage"]), validate(productSchema.merge(productParamsSchema)), updateProduct);
+router.patch("/:id/status", requirePermission(["products.manage"]), validate(productStatusSchema), setProductStatus);
+router.patch("/:id/stock", requirePermission(["inventory.manage"]), validate(stockUpdateSchema), updateStock);
+router.delete("/:id", requirePermission(["products.manage"]), validate(productParamsSchema), deleteProduct);
 
 export default router;

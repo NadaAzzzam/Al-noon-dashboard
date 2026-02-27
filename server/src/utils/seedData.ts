@@ -25,6 +25,7 @@ import { Subscriber } from "../models/Subscriber.js";
 import { ProductFeedback } from "../models/ProductFeedback.js";
 import { Payment } from "../models/Payment.js";
 import { ChatSession, type ProductCardInMessage } from "../models/ChatSession.js";
+import { ensureDefaultRoles } from "./ensureDefaultRoles.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -240,6 +241,8 @@ function buildChatSessions(products: { _id: mongoose.Types.ObjectId; name: { en:
 async function seed() {
   await connectDatabase();
   console.log("Seeding data (reference: Sawdah.eg)...\n");
+
+   await ensureDefaultRoles();
 
   const { IMAGES, paymentProofUrl } = loadSeedImages();
   const localVideoUrl = await loadSeedVideos();

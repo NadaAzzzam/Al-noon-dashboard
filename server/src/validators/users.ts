@@ -8,7 +8,7 @@ export const userParamsSchema = z.object({
 
 export const updateRoleSchema = z.object({
   body: z.object({
-    role: z.enum(["ADMIN", "USER"])
+    role: z.string().min(1)
   }),
   params: z.object({
     id: z.string().min(1)

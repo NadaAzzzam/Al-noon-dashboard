@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { listSubscribers } from "../controllers/subscribersController.js";
-import { authenticate, requireRole } from "../middlewares/auth.js";
+import { authenticate, requirePermission } from "../middlewares/auth.js";
 
 const router = Router();
 
-router.use(authenticate, requireRole(["ADMIN"]));
+router.use(authenticate, requirePermission(["subscribers.view"]));
 router.get("/", listSubscribers);
 
 export default router;

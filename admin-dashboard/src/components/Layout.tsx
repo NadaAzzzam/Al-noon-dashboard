@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getStoredLanguage, setStoredLanguage, type Lang } from "../i18n";
-import { api, clearToken, getUploadsBaseUrl, DEFAULT_LOGO_PATH } from "../services/api";
+import { api, clearToken, getUploadsBaseUrl, DEFAULT_LOGO_PATH, setCurrentUser, type CurrentUser } from "../services/api";
 import { initGoogleAnalytics, sendPageView } from "../utils/googleAnalytics";
 
 /* ===== SVG Icon components ===== */
@@ -154,6 +154,20 @@ const IconUsers = () => (
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
+const IconRoles = () => (
+  <svg
+    className="nav-link-icon"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 22c0-4 3-7 8-7s8 3 8 7" />
+  </svg>
+);
 const IconSubscribers = () => (
   <svg
     className="nav-link-icon"
@@ -252,6 +266,7 @@ const getBreadcrumb = (pathname: string): string => {
     "/orders": "nav.orders",
     "/customers": "nav.customers",
     "/users": "nav.users",
+    "/roles": "nav.roles_permissions",
     "/subscribers": "nav.subscribers",
     "/contact": "nav.contact",
     "/feedback": "nav.feedback",
@@ -275,9 +290,7 @@ const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const [user, setUser] = useState<{ name: string; email: string } | null>(
-    null,
-  );
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [notifications, setNotifications] = useState<{
     lowStock: number;
     newOrders?: number;
@@ -289,11 +302,14 @@ const Layout = () => {
       .getProfile()
       .then((res: unknown) => {
         const d = res as {
-          data?: { user?: { name: string; email: string } };
-          user?: { name: string; email: string };
+          data?: { user?: CurrentUser };
+          user?: CurrentUser;
         };
-        const user = d.data?.user ?? d.user;
-        if (user) setUser(user);
+        const u = d.data?.user ?? d.user;
+        if (u) {
+          setUser(u);
+          setCurrentUser(u);
+        }
       })
       .catch(() => {});
     api
@@ -404,6 +420,9 @@ const Layout = () => {
           </NavLink>
           <NavLink className="nav-link" to="/users">
             <IconUsers /> {t("nav.users")}
+          </NavLink>
+          <NavLink className="nav-link" to="/roles">
+            <IconRoles /> {t("nav.roles_permissions")}
           </NavLink>
           <NavLink className="nav-link" to="/subscribers">
             <IconSubscribers /> {t("nav.subscribers")}

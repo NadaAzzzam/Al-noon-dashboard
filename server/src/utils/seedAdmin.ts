@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { connectDatabase } from "../config/db.js";
 import { User } from "../models/User.js";
+import { ensureDefaultRoles } from "./ensureDefaultRoles.js";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@localhost";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin123";
@@ -8,6 +9,9 @@ const ADMIN_NAME = process.env.ADMIN_NAME ?? "Admin";
 
 async function seedAdmin() {
   await connectDatabase();
+
+  // Ensure core roles & permissions exist before creating admin user
+  await ensureDefaultRoles();
 
   const existing = await User.findOne({ email: ADMIN_EMAIL });
 

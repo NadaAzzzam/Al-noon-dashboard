@@ -32,9 +32,32 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role: "ADMIN" | "USER";
+  /** Role key from backend (e.g. "ADMIN", "USER", "STAFF"). */
+  role: string;
   avatar?: string;
   createdAt?: string;
+};
+
+export type CurrentUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  permissions?: string[];
+};
+
+let currentUser: CurrentUser | null = null;
+
+export const setCurrentUser = (user: CurrentUser | null) => {
+  currentUser = user;
+};
+
+export const getCurrentUser = (): CurrentUser | null => currentUser;
+
+export const hasPermission = (permission: string): boolean => {
+  if (!currentUser) return false;
+  const perms = currentUser.permissions ?? [];
+  return perms.includes(permission);
 };
 
 export type LocalizedString = { en: string; ar: string };
@@ -1007,6 +1030,16 @@ export const api = {
     if (params.category) sp.set("category", params.category);
     return request(`/reports?${sp.toString()}`);
   },
+
+  // Roles & permissions
+  listRoles: () => request("/roles"),
+  getRole: (id: string) => request(`/roles/${id}`),
+  createRole: (payload: { name: string; key: string; description?: string; permissionIds?: string[] }) =>
+    request("/roles", { method: "POST", body: JSON.stringify(payload) }),
+  updateRole: (id: string, payload: Partial<{ name: string; description?: string; status?: "ACTIVE" | "INACTIVE"; permissionIds?: string[] }>) =>
+    request(`/roles/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteRole: (id: string) => request(`/roles/${id}`, { method: "DELETE" }),
+  listRolePermissions: () => request("/roles/permissions"),
 
   /** Upload promotional banner image. Returns image path. */
   uploadPromoImage: async (file: File): Promise<string> => {

@@ -7,7 +7,7 @@ import {
   updateOrderStatus
 } from "../controllers/ordersController.js";
 import { attachPaymentProof, confirmPayment } from "../controllers/paymentsController.js";
-import { authenticate, optionalAuthenticate, requireRole } from "../middlewares/auth.js";
+import { authenticate, optionalAuthenticate, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   orderParamsSchema,
@@ -26,11 +26,11 @@ router.post("/", optionalAuthenticate, validate(orderSchema), createOrder);
 // All other order routes require authentication
 router.use(authenticate);
 
-router.get("/", validate(orderQuerySchema), listOrders);
-router.get("/:id", validate(orderParamsSchema), getOrder);
-router.patch("/:id/status", requireRole(["ADMIN"]), validate(orderStatusSchema), updateOrderStatus);
-router.post("/:id/cancel", requireRole(["ADMIN"]), validate(orderParamsSchema), cancelOrder);
-router.post("/:id/payment-proof", requireRole(["ADMIN"]), validate(orderParamsSchema), uploadPaymentProof, attachPaymentProof);
-router.post("/:id/payments/confirm", requireRole(["ADMIN"]), validate(paymentConfirmSchema), confirmPayment);
+router.get("/", requirePermission(["orders.view"]), validate(orderQuerySchema), listOrders);
+router.get("/:id", requirePermission(["orders.view"]), validate(orderParamsSchema), getOrder);
+router.patch("/:id/status", requirePermission(["orders.manage"]), validate(orderStatusSchema), updateOrderStatus);
+router.post("/:id/cancel", requirePermission(["orders.manage"]), validate(orderParamsSchema), cancelOrder);
+router.post("/:id/payment-proof", requirePermission(["orders.manage"]), validate(orderParamsSchema), uploadPaymentProof, attachPaymentProof);
+router.post("/:id/payments/confirm", requirePermission(["orders.manage"]), validate(paymentConfirmSchema), confirmPayment);
 
 export default router;

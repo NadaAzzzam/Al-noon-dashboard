@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getAiSettings, postChat, listSessions, getSessionById, deleteSession } from "../controllers/aiController.js";
-import { authenticate, requireRole } from "../middlewares/auth.js";
+import { authenticate, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import { chatRequestSchema, sessionIdParamSchema, listSessionsQuerySchema } from "../validators/ai.js";
 
@@ -12,10 +12,10 @@ router.get("/settings", getAiSettings);
 router.post("/chat", validate(chatRequestSchema), postChat);
 
 /** Admin: list chat sessions */
-router.get("/sessions", authenticate, requireRole(["ADMIN"]), validate(listSessionsQuerySchema), listSessions);
+router.get("/sessions", authenticate, requirePermission(["ai_chats.view"]), validate(listSessionsQuerySchema), listSessions);
 /** Admin: get one session with messages */
-router.get("/sessions/:id", authenticate, requireRole(["ADMIN"]), validate(sessionIdParamSchema), getSessionById);
+router.get("/sessions/:id", authenticate, requirePermission(["ai_chats.view"]), validate(sessionIdParamSchema), getSessionById);
 /** Admin: delete a session */
-router.delete("/sessions/:id", authenticate, requireRole(["ADMIN"]), validate(sessionIdParamSchema), deleteSession);
+router.delete("/sessions/:id", authenticate, requirePermission(["ai_chats.manage"]), validate(sessionIdParamSchema), deleteSession);
 
 export default router;

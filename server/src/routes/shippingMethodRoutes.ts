@@ -1,4 +1,4 @@
-import express from 'express';
+import express from "express";
 import {
   getShippingMethods,
   getShippingMethodById,
@@ -6,19 +6,19 @@ import {
   updateShippingMethod,
   deleteShippingMethod,
   toggleShippingMethod,
-} from '../controllers/shippingMethodController';
-import { authenticate, requireRole } from "../middlewares/auth.js";
+} from "../controllers/shippingMethodController";
+import { authenticate, requirePermission } from "../middlewares/auth.js";
 
 const router = express.Router();
 
 // Public route (for storefront)
-router.get('/', getShippingMethods);
+router.get("/", getShippingMethods);
 
 // Admin routes
-router.get('/:id', authenticate, requireRole(["ADMIN"]), getShippingMethodById);
-router.post('/', authenticate, requireRole(["ADMIN"]), createShippingMethod);
-router.put('/:id', authenticate, requireRole(["ADMIN"]), updateShippingMethod);
-router.delete('/:id', authenticate, requireRole(["ADMIN"]), deleteShippingMethod);
-router.patch('/:id/toggle', authenticate, requireRole(["ADMIN"]), toggleShippingMethod);
+router.get("/:id", authenticate, requirePermission(["shipping_methods.view"]), getShippingMethodById);
+router.post("/", authenticate, requirePermission(["shipping_methods.manage"]), createShippingMethod);
+router.put("/:id", authenticate, requirePermission(["shipping_methods.manage"]), updateShippingMethod);
+router.delete("/:id", authenticate, requirePermission(["shipping_methods.manage"]), deleteShippingMethod);
+router.patch("/:id/toggle", authenticate, requirePermission(["shipping_methods.manage"]), toggleShippingMethod);
 
 export default router;

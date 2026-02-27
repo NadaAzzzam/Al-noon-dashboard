@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed:admin": "tsx src/utils/seedAdmin.ts",
+    "seed:roles": "tsx src/utils/seedRoles.ts",
     "seed": "tsx src/utils/seedData.ts",
     "seed:reset": "tsx src/utils/seedData.ts",
     "seed:categories": "tsx src/seeders/categorySeeder.ts",

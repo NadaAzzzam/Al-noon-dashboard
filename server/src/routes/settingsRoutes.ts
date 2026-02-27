@@ -1,19 +1,19 @@
 import { Router } from "express";
 import { getSettings, getPublicSettings, updateSettings, sendTestOrderEmail, uploadLogo, uploadCollectionImage, uploadHeroImage, uploadSectionImage, uploadHeroVideo, uploadSectionVideo, uploadPromoImage, uploadHomePageMedia } from "../controllers/settingsController.js";
-import { authenticate, optionalAuthenticate, requireRole } from "../middlewares/auth.js";
+import { authenticate, optionalAuthenticate, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import { updateSettingsSchema } from "../validators/settings.js";
 import { uploadLogo as multerUploadLogo, uploadCollectionImage as multerUploadCollectionImage, uploadHeroImage as multerUploadHeroImage, uploadSectionImage as multerUploadSectionImage, uploadHeroVideo as multerUploadHeroVideo, uploadSectionVideo as multerUploadSectionVideo, uploadPromoImage as multerUploadPromoImage, createHomePageMediaUpload } from "../middlewares/upload.js";
 
 const router = Router();
 
-/** GET /api/settings: with ADMIN token returns full settings; without token or with USER token returns public settings (storefront-safe). Stops 401/403 for ecommerce. */
+/** GET /api/settings: with admin token returns full settings; without token or with non-admin token returns public settings (storefront-safe). */
 router.get("/", optionalAuthenticate, (req, res, next) => {
-  if (req.auth?.role === "ADMIN") return getSettings(req, res, next);
+  if (req.auth) return getSettings(req, res, next);
   return getPublicSettings(req, res, next);
 });
 
-router.use(authenticate, requireRole(["ADMIN"]));
+router.use(authenticate, requirePermission(["settings.manage"]));
 router.put("/", validate(updateSettingsSchema), updateSettings);
 router.post("/test-order-email", sendTestOrderEmail);
 router.post("/logo", multerUploadLogo, uploadLogo);

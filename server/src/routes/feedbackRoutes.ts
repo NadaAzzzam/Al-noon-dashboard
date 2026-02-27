@@ -8,7 +8,7 @@ import {
   setFeedbackApproved,
   uploadFeedbackImage
 } from "../controllers/feedbackController.js";
-import { authenticate, requireRole } from "../middlewares/auth.js";
+import { authenticate, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   createFeedbackSchema,
@@ -21,14 +21,14 @@ import { uploadFeedbackImage as multerUploadFeedbackImage } from "../middlewares
 
 const router = Router();
 
-router.use(authenticate, requireRole(["ADMIN"]));
+router.use(authenticate);
 
-router.get("/", validate(listFeedbackQuerySchema), listFeedback);
-router.post("/upload-image", multerUploadFeedbackImage, uploadFeedbackImage);
-router.post("/", validate(createFeedbackSchema), createFeedback);
-router.get("/:id", validate(feedbackIdParamSchema), getFeedback);
-router.put("/:id", validate(updateFeedbackSchema), updateFeedback);
-router.delete("/:id", validate(feedbackIdParamSchema), deleteFeedback);
-router.patch("/:id/approve", validate(approveFeedbackSchema), setFeedbackApproved);
+router.get("/", requirePermission(["feedback.view"]), validate(listFeedbackQuerySchema), listFeedback);
+router.post("/upload-image", requirePermission(["feedback.manage"]), multerUploadFeedbackImage, uploadFeedbackImage);
+router.post("/", requirePermission(["feedback.manage"]), validate(createFeedbackSchema), createFeedback);
+router.get("/:id", requirePermission(["feedback.view"]), validate(feedbackIdParamSchema), getFeedback);
+router.put("/:id", requirePermission(["feedback.manage"]), validate(updateFeedbackSchema), updateFeedback);
+router.delete("/:id", requirePermission(["feedback.manage"]), validate(feedbackIdParamSchema), deleteFeedback);
+router.patch("/:id/approve", requirePermission(["feedback.manage"]), validate(approveFeedbackSchema), setFeedbackApproved);
 
 export default router;

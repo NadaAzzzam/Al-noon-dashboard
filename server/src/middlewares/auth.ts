@@ -2,10 +2,14 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { ApiError } from "../utils/apiError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { isDbConnected } from "../config/db.js";
+import { Permission, Role, RolePermission } from "../models/Role.js";
 
 export type AuthPayload = {
   userId: string;
-  role: "ADMIN" | "USER";
+  /** Role key stored on the user (e.g. "ADMIN", "USER", "STAFF"). */
+  role: string;
 };
 
 declare module "express-serve-static-core" {
@@ -64,3 +68,33 @@ export const requireRole = (roles: Array<AuthPayload["role"]>) => (req: Request,
   }
   next();
 };
+
+/**
+ * Require that the current user's role has at least one of the given permission keys.
+ * Falls back to allowing access when the database is not connected (DEV_WITHOUT_DB mode).
+ */
+export const requirePermission = (permissions: string[]) =>
+  asyncHandler(async (req, _res, next) => {
+    if (!req.auth) {
+      throw new ApiError(401, "Unauthorized", { code: "errors.auth.unauthorized" });
+    }
+
+    if (!isDbConnected()) {
+      // In dev-without-db mode we cannot look up roles; allow and rely on JWT role only.
+      return next();
+    }
+
+    const role = await Role.findOne({ key: req.auth.role }).lean<{ _id: typeof Role.prototype._id } | null>();
+    if (!role) {
+      throw new ApiError(403, "Forbidden", { code: "errors.common.forbidden" });
+    }
+    const rolePerms = await RolePermission.find({ roleId: role._id }).lean<{ permissionId: typeof Permission.prototype._id }[]>();
+    const ids = rolePerms.map((rp) => rp.permissionId);
+    const userPermissions = await Permission.find({ _id: { $in: ids } }).lean<{ key: string }[]>();
+    const hasAny = userPermissions.some((p) => permissions.includes(p.key));
+    if (!hasAny) {
+      throw new ApiError(403, "Forbidden", { code: "errors.common.forbidden" });
+    }
+    next();
+  });
+

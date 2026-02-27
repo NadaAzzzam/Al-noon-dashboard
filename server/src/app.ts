@@ -26,6 +26,7 @@ import aiRoutes from "./routes/aiRoutes.js";
 import checkoutRoutes from "./routes/checkoutRoutes.js";
 import translationRoutes from "./routes/translationRoutes.js";
 import shippingMethodRoutes from "./routes/shippingMethodRoutes.js";
+import roleRoutes from "./routes/roleRoutes.js";
 import paymentMethodRoutes from "./routes/paymentMethodRoutes.js";
 import { swaggerSpec } from "./swagger.js";
 import { isDbConnected } from "./config/db.js";
@@ -180,6 +181,7 @@ export const createApp = () => {
   app.use("/api/translations", translationRoutes);
   app.use("/api/shipping-methods", shippingMethodRoutes);
   app.use("/api/payment-methods", paymentMethodRoutes);
+  app.use("/api/roles", roleRoutes);
   app.use("/api", checkoutRoutes);
 
   const clientBuildPath = path.resolve(__dirname, "../../admin-dashboard/dist");

@@ -23,6 +23,7 @@ import AiChatHistoryPage from "./pages/AiChatHistoryPage";
 import SubscribersPage from "./pages/SubscribersPage";
 import ReportsPage from "./pages/ReportsPage";
 import UsersPage from "./pages/UsersPage";
+import RolesPage from "./pages/RolesPage";
 import { getToken } from "./services/api";
 
 const RequireAuth = ({ children }: { children: JSX.Element }) => {
@@ -57,6 +58,7 @@ const App = () => (
       <Route path="customers" element={<CustomersPage />} />
       <Route path="customers/:id" element={<CustomerDetailPage />} />
       <Route path="users" element={<UsersPage />} />
+      <Route path="roles" element={<RolesPage />} />
       <Route path="subscribers" element={<SubscribersPage />} />
       <Route path="contact" element={<ContactSubmissionsPage />} />
       <Route path="feedback" element={<FeedbackPage />} />
