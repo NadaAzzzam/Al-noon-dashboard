@@ -24,6 +24,7 @@ import SubscribersPage from "./pages/SubscribersPage";
 import ReportsPage from "./pages/ReportsPage";
 import UsersPage from "./pages/UsersPage";
 import RolesPage from "./pages/RolesPage";
+import RoleFormPage from "./pages/RoleFormPage";
 import { getToken } from "./services/api";
 
 const RequireAuth = ({ children }: { children: JSX.Element }) => {
@@ -59,6 +60,8 @@ const App = () => (
       <Route path="customers/:id" element={<CustomerDetailPage />} />
       <Route path="users" element={<UsersPage />} />
       <Route path="roles" element={<RolesPage />} />
+      <Route path="roles/new" element={<RoleFormPage />} />
+      <Route path="roles/:id/edit" element={<RoleFormPage />} />
       <Route path="subscribers" element={<SubscribersPage />} />
       <Route path="contact" element={<ContactSubmissionsPage />} />
       <Route path="feedback" element={<FeedbackPage />} />

@@ -125,7 +125,7 @@ export const PERMISSIONS: PermissionDefinition[] = [
     label: "Create, edit, enable/disable, and delete shipping methods",
   },
 
-  // Settings & translations
+  // Settings
   {
     key: "settings.view",
     group: "Settings",
@@ -134,7 +134,27 @@ export const PERMISSIONS: PermissionDefinition[] = [
   {
     key: "settings.manage",
     group: "Settings",
-    label: "Update store settings and home page",
+    label: "Update general store settings",
+  },
+  {
+    key: "home_page.view",
+    group: "Settings",
+    label: "View home page settings (hero, collections, etc.)",
+  },
+  {
+    key: "home_page.manage",
+    group: "Settings",
+    label: "Edit home page settings (hero, collections, sections)",
+  },
+  {
+    key: "content_pages.view",
+    group: "Settings",
+    label: "View content pages (privacy, about, etc.)",
+  },
+  {
+    key: "content_pages.manage",
+    group: "Settings",
+    label: "Edit content pages (privacy, return policy, etc.)",
   },
   {
     key: "translations.manage",
@@ -161,9 +181,14 @@ export const PERMISSIONS: PermissionDefinition[] = [
 
   // Roles & permissions
   {
+    key: "roles.view",
+    group: "Administration",
+    label: "View roles and permissions",
+  },
+  {
     key: "roles.manage",
     group: "Administration",
-    label: "Manage roles and permissions",
+    label: "Create, edit, and delete roles",
   },
 ] as const;
 

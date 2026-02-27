@@ -2860,3 +2860,119 @@ html {
   color: var(--color-text-secondary);
   margin: 4px 0 0;
 }
+
+/* ===== Generic form tabs (reusable) ===== */
+.form-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 20px;
+}
+
+.form-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+
+.form-tab:hover {
+  color: var(--color-text);
+  background: #f1f5f9;
+}
+
+.form-tab.active {
+  color: var(--color-text);
+  background: var(--color-border);
+}
+
+.form-tab .badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.form-tab.active .badge {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* Generic checkbox group ===== */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.checkbox-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.checkbox-group input {
+  accent-color: var(--color-primary);
+}
+
+/* Generic hint block ===== */
+.hint-block {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+}
+
+.hint-block label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.hint-block .hint {
+  margin: 6px 0 0 50px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* Generic scroll panel ===== */
+.scroll-panel {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Empty tab content ===== */
+.tab-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+/* Section block with header (reusable) ===== */
+.section-block {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.section-block:last-child {
+  border-bottom: none;
+}

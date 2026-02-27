@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, hasPermission } from "../services/api";
+import { Link } from "react-router-dom";
+import { api, ApiError, getCurrentUser } from "../services/api";
+import { TableActionsDropdown } from "../components/TableActionsDropdown";
 
 type Role = {
   id: string;
@@ -8,57 +10,26 @@ type Role = {
   key: string;
   status?: "ACTIVE" | "INACTIVE";
   description?: string;
-  /** Permission IDs assigned to this role. */
   permissionIds: string[];
   permissionsCount: number;
 };
 
-type PermissionDefinition = {
-  id: string;
-  key: string;
-  group: string;
-  label: string;
-  description?: string;
-};
-
 type RolesResponse = { data?: { roles: Role[] }; roles?: Role[] };
-type PermsResponse = { data?: { permissions: PermissionDefinition[] }; permissions?: PermissionDefinition[] };
 
 const RolesPage = () => {
   const { t } = useTranslation();
   const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<PermissionDefinition[]>([]);
-  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
 
   const load = async () => {
     setError(null);
     try {
-      const [rolesRes, permsRes] = (await Promise.all([api.listRoles(), api.listRolePermissions()])) as [
-        RolesResponse,
-        PermsResponse
-      ];
+      const rolesRes = (await api.listRoles()) as RolesResponse;
       const r = rolesRes.data?.roles ?? rolesRes.roles ?? [];
-      const p = permsRes.data?.permissions ?? permsRes.permissions ?? [];
       setRoles(r);
-      setPermissions(p);
-      if (!selectedRoleId && r.length > 0) {
-        setSelectedRoleId(r[0].id);
-        setEditingRole(r[0]);
-      } else if (selectedRoleId) {
-        const found = r.find((role) => role.id === selectedRoleId);
-        setEditingRole(found ?? null);
-      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
-        // No roles endpoint yet or no roles seeded – show empty state without hard error.
         setRoles([]);
-        setPermissions([]);
-        setEditingRole(null);
-        setSelectedRoleId(null);
         setError(null);
         return;
       }
@@ -70,100 +41,21 @@ const RolesPage = () => {
     load();
   }, []);
 
-  const onSelectRole = (role: Role) => {
-    setIsCreating(false);
-    setSelectedRoleId(role.id);
-    setEditingRole(role);
-  };
-
-  const togglePermission = (permissionId: string) => {
-    if (!editingRole) return;
-    const has = editingRole.permissionIds.includes(permissionId);
-    const updated: Role = {
-      ...editingRole,
-      permissionIds: has
-        ? editingRole.permissionIds.filter((p) => p !== permissionId)
-        : [...editingRole.permissionIds, permissionId],
-      permissionsCount: has
-        ? editingRole.permissionsCount - 1
-        : editingRole.permissionsCount + 1,
-    };
-    setEditingRole(updated);
-    setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-  };
-
-  const handleSave = async () => {
-    if (!editingRole) return;
-    setSaving(true);
-    setError(null);
-    try {
-      if (isCreating || !editingRole.id) {
-        await api.createRole({
-          name: editingRole.name,
-          key: editingRole.key,
-          description: editingRole.description,
-          permissionIds: editingRole.permissionIds,
-        });
-      } else {
-        await api.updateRole(editingRole.id, {
-          name: editingRole.name,
-          description: editingRole.description,
-          permissionIds: editingRole.permissionIds,
-        });
-      }
-      setIsCreating(false);
-      await load();
-    } catch (err) {
-      const key =
-        isCreating && err instanceof ApiError
-          ? "roles.failed_create"
-          : "roles.failed_save";
-      setError(err instanceof ApiError ? err.message : t(key, "Failed to save role"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCreate = () => {
-    setIsCreating(true);
-    setSelectedRoleId(null);
-    setEditingRole({
-      id: "",
-      name: "",
-      key: "",
-      description: "",
-      status: "ACTIVE",
-      permissionIds: [],
-      permissionsCount: 0,
-    });
-  };
+  const canManageRoles = getCurrentUser()?.role === "ADMIN";
 
   const handleDelete = async (role: Role) => {
     if (!confirm(t("roles.delete_confirm", "Delete this role? This cannot be undone."))) return;
-    setSaving(true);
     setError(null);
     try {
       await api.deleteRole(role.id);
-      setSelectedRoleId(null);
-      setEditingRole(null);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("roles.failed_delete", "Failed to delete role"));
-    } finally {
-      setSaving(false);
     }
   };
 
-  const groupedPermissions = permissions.reduce<Record<string, PermissionDefinition[]>>((acc, perm) => {
-    if (!acc[perm.group]) acc[perm.group] = [];
-    acc[perm.group].push(perm);
-    return acc;
-  }, {});
-
-  const canManageRoles = hasPermission("roles.manage");
-
   return (
-    <div className="roles-page">
+    <div>
       {error && (
         <div className="error" style={{ marginBottom: 16 }}>
           {error}
@@ -174,136 +66,105 @@ const RolesPage = () => {
           <h1>{t("roles.title", "Roles & permissions")}</h1>
           <p>{t("roles.subtitle", "Control which parts of the dashboard each role can access.")}</p>
         </div>
-        <button className="button" type="button" onClick={handleCreate} disabled={saving}>
-          {t("roles.new_role", "New role")}
-        </button>
+        {canManageRoles && (
+          <Link to="/roles/new" className="button">
+            <svg
+              className="button-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            {t("roles.new_role", "New role")}
+          </Link>
+        )}
       </div>
-      <div className="card roles-layout">
-        <div className="roles-list">
-          <h3>{t("roles.roles_list", "Roles")}</h3>
-          <ul>
-            {roles.map((role) => (
-              <li
-                key={role.id}
-                className={role.id === selectedRoleId ? "roles-list-item active" : "roles-list-item"}
-                onClick={() => onSelectRole(role)}
-              >
-                <div className="roles-list-item-main">
-                  <span className="roles-list-name">{role.name}</span>
-                  <span className="roles-list-key">{role.key}</span>
-                  <span className="roles-list-count badge">
-                    {role.permissionsCount}{" "}
-                    {t("roles.permissions_count_label", "perms")}
-                  </span>
-                </div>
-                {role.description && <div className="roles-list-desc">{role.description}</div>}
-                {canManageRoles && role.key !== "ADMIN" && (
-                  <button
-                    type="button"
-                    className="link-button roles-delete-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(role);
-                    }}
-                  >
-                    {t("roles.delete", "Delete")}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="roles-permissions">
-          {editingRole ? (
-            <>
-              <div className="roles-permissions-header">
-                <div>
-                  <h3>
-                    {isCreating
-                      ? t("roles.new_role", "New role")
-                      : editingRole.name || t("roles.unnamed_role", "Unnamed role")}
-                  </h3>
-                  <p className="roles-permissions-key">
-                    {t("roles.role_key", "Key")}: {editingRole.key}
-                  </p>
-                </div>
-              </div>
-              <div className="roles-permissions-meta">
-                <div className="form-group">
-                  <label>{t("roles.name_label", "Role name")}</label>
-                  <input
-                    value={editingRole.name}
-                    onChange={(e) =>
-                      setEditingRole({ ...editingRole, name: e.target.value })
-                    }
-                    placeholder={t("roles.name_placeholder", "Store manager")}
-                    disabled={!canManageRoles}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>{t("roles.key_label", "Role key")}</label>
-                  <input
-                    value={editingRole.key}
-                    onChange={(e) =>
-                      setEditingRole({
-                        ...editingRole,
-                        key: e.target.value.toUpperCase().replace(/\s+/g, "_"),
-                      })
-                    }
-                    placeholder={t("roles.key_placeholder", "MANAGER")}
-                    disabled={!canManageRoles || !isCreating}
-                  />
-                  <p className="settings-hint">
-                    {t(
-                      "roles.key_hint",
-                      "Used internally in tokens. Uppercase letters, numbers, and underscores."
-                    )}
-                  </p>
-                </div>
-              </div>
-              {Object.entries(groupedPermissions).map(([group, perms]) => (
-                <div key={group} className="roles-permissions-group">
-                  <h4>{group}</h4>
-                  <div className="roles-permissions-grid">
-                    {perms.map((perm) => {
-                      const checked = editingRole.permissionIds.includes(perm.id);
-                      return (
-                        <label key={perm.id} className="roles-permission-item">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={!canManageRoles}
-                            onChange={() => togglePermission(perm.id)}
-                          />
-                          <span className="roles-permission-label">{perm.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
+      <div className="card">
+        {roles.length > 0 ? (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t("roles.name_label", "Name")}</th>
+                <th>{t("roles.role_key", "Key")}</th>
+                <th>{t("dashboard.status")}</th>
+                <th>{t("roles.permissions", "Permissions")}</th>
+                {canManageRoles && <th>{t("common.actions")}</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {roles.map((role) => (
+                <tr key={role.id}>
+                  <td>{role.name}</td>
+                  <td>
+                    <span className="badge" style={{ fontFamily: "ui-monospace, monospace" }}>
+                      {role.key}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`badge ${role.status === "ACTIVE" ? "badge-success" : "badge-muted"}`}
+                    >
+                      {role.status === "ACTIVE" ? t("common.active") : t("common.inactive")}
+                    </span>
+                  </td>
+                  <td>{role.permissionsCount}</td>
+                  {canManageRoles && (
+                    <td>
+                      <TableActionsDropdown
+                        ariaLabel={t("common.actions")}
+                        actions={[
+                          {
+                            label: t("common.edit"),
+                            to: `/roles/${role.id}/edit`,
+                          },
+                          ...(role.key !== "ADMIN"
+                            ? [
+                                {
+                                  label: t("common.delete"),
+                                  onClick: () => handleDelete(role),
+                                  danger: true,
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
+                    </td>
+                  )}
+                </tr>
               ))}
-              {canManageRoles && (
-                <div style={{ marginTop: 16 }}>
-                  <button className="button" type="button" onClick={handleSave} disabled={saving}>
-                    {saving
-                      ? t("common.saving")
-                      : isCreating
-                      ? t("common.create")
-                      : t("common.save")}
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="empty-state">
-              <h3>{t("roles.no_role_selected", "Select a role to edit its permissions")}</h3>
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                <line x1="7" y1="7" x2="7.01" y2="7" />
+              </svg>
             </div>
-          )}
-        </div>
+            <h3>{t("roles.no_roles", "No roles found")}</h3>
+            <p>{t("roles.no_roles_desc", "Create your first role to get started")}</p>
+            {canManageRoles && (
+              <Link to="/roles/new" className="button">
+                {t("roles.new_role", "New role")}
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default RolesPage;
-

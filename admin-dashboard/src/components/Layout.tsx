@@ -283,6 +283,9 @@ const getBreadcrumb = (pathname: string): string => {
   if (pathname.startsWith("/products/new")) return "products.new_product";
   if (pathname.startsWith("/orders/")) return "order_detail.order_id";
   if (pathname.startsWith("/customers/")) return "customer_detail.customer";
+  if (pathname === "/roles/new") return "roles.new_role";
+  if (pathname.startsWith("/roles/") && pathname.includes("/edit"))
+    return "roles.edit_role";
   return "nav.overview";
 };
 
@@ -421,9 +424,11 @@ const Layout = () => {
           <NavLink className="nav-link" to="/users">
             <IconUsers /> {t("nav.users")}
           </NavLink>
-          <NavLink className="nav-link" to="/roles">
-            <IconRoles /> {t("nav.roles_permissions")}
-          </NavLink>
+          {user?.role === "ADMIN" && (
+            <NavLink className="nav-link" to="/roles">
+              <IconRoles /> {t("nav.roles_permissions")}
+            </NavLink>
+          )}
           <NavLink className="nav-link" to="/subscribers">
             <IconSubscribers /> {t("nav.subscribers")}
           </NavLink>

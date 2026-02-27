@@ -865,6 +865,263 @@ function buildPaths() {
     },
   };
 
+  // --- Roles (Admin) ---
+  paths["/api/roles"] = {
+    get: {
+      operationId: "listRoles",
+      tags: ["Roles"],
+      summary: "List all roles (Admin)",
+      security: [{ bearerAuth: [] }],
+      responses: {
+        "200": {
+          description: "List of roles with permission counts",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              data: {
+                type: "object",
+                properties: {
+                  roles: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        name: { type: "string" },
+                        key: { type: "string" },
+                        status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
+                        description: { type: "string", nullable: true },
+                        permissionIds: { type: "array", items: { type: "string" } },
+                        permissionsCount: { type: "integer" },
+                        createdAt: { type: "string", format: "date-time" },
+                        updatedAt: { type: "string", format: "date-time" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        },
+        "401": errDesc("Unauthorized"),
+        "403": errDesc("Forbidden"),
+      },
+    },
+    post: {
+      operationId: "createRole",
+      tags: ["Roles"],
+      summary: "Create a new role (Admin)",
+      security: [{ bearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["name", "key"],
+              properties: {
+                name: { type: "string", description: "Role display name" },
+                key: { type: "string", description: "Stable key (e.g. MANAGER). Uppercase letters, numbers, underscores." },
+                description: { type: "string", nullable: true },
+                permissionIds: { type: "array", items: { type: "string" }, description: "Permission IDs to assign" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Role created",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              message: { type: "string" },
+              data: {
+                type: "object",
+                properties: {
+                  role: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      name: { type: "string" },
+                      key: { type: "string" },
+                      status: { type: "string" },
+                      description: { type: "string", nullable: true },
+                      permissionIds: { type: "array", items: { type: "string" } },
+                      permissionsCount: { type: "integer" },
+                      createdAt: { type: "string", format: "date-time" },
+                      updatedAt: { type: "string", format: "date-time" },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        },
+        "400": errDesc("Validation error"),
+        "401": errDesc("Unauthorized"),
+        "403": errDesc("Forbidden"),
+        "409": errDesc("Role key already exists"),
+      },
+    },
+  };
+
+  paths["/api/roles/permissions"] = {
+    get: {
+      operationId: "listPermissionDefinitions",
+      tags: ["Roles"],
+      summary: "List all permission definitions (Admin)",
+      security: [{ bearerAuth: [] }],
+      responses: {
+        "200": {
+          description: "List of permission definitions",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              data: {
+                type: "object",
+                properties: {
+                  permissions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        key: { type: "string" },
+                        label: { type: "string" },
+                        group: { type: "string" },
+                        description: { type: "string", nullable: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        },
+        "401": errDesc("Unauthorized"),
+        "403": errDesc("Forbidden"),
+      },
+    },
+  };
+
+  paths["/api/roles/{id}"] = {
+    get: {
+      operationId: "getRole",
+      tags: ["Roles"],
+      summary: "Get role by ID (Admin)",
+      security: [{ bearerAuth: [] }],
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      responses: {
+        "200": {
+          description: "Role with permission IDs",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              data: {
+                type: "object",
+                properties: {
+                  role: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      name: { type: "string" },
+                      key: { type: "string" },
+                      status: { type: "string" },
+                      description: { type: "string", nullable: true },
+                      permissionIds: { type: "array", items: { type: "string" } },
+                      permissionsCount: { type: "integer" },
+                      createdAt: { type: "string", format: "date-time" },
+                      updatedAt: { type: "string", format: "date-time" },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        },
+        "401": errDesc("Unauthorized"),
+        "403": errDesc("Forbidden"),
+        "404": errDesc("Role not found"),
+      },
+    },
+    put: {
+      operationId: "updateRole",
+      tags: ["Roles"],
+      summary: "Update role (Admin)",
+      security: [{ bearerAuth: [] }],
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                description: { type: "string", nullable: true },
+                status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
+                permissionIds: { type: "array", items: { type: "string" } },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Role updated",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              message: { type: "string" },
+              data: {
+                type: "object",
+                properties: {
+                  role: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      name: { type: "string" },
+                      key: { type: "string" },
+                      status: { type: "string" },
+                      description: { type: "string", nullable: true },
+                      permissionIds: { type: "array", items: { type: "string" } },
+                      permissionsCount: { type: "integer" },
+                      createdAt: { type: "string", format: "date-time" },
+                      updatedAt: { type: "string", format: "date-time" },
+                    },
+                  },
+                },
+              },
+            },
+          }),
+        },
+        "400": errDesc("Validation error"),
+        "401": errDesc("Unauthorized"),
+        "403": errDesc("Forbidden"),
+        "404": errDesc("Role not found"),
+      },
+    },
+    delete: {
+      operationId: "deleteRole",
+      tags: ["Roles"],
+      summary: "Delete role (Admin)",
+      security: [{ bearerAuth: [] }],
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      responses: {
+        "204": { description: "Role deleted" },
+        "400": errDesc("Cannot delete ADMIN role"),
+        "401": errDesc("Unauthorized"),
+        "403": errDesc("Forbidden"),
+        "404": errDesc("Role not found"),
+      },
+    },
+  };
+
   // --- Cities ---
   const cityItemSchema = {
     type: "object",
