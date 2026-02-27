@@ -12,6 +12,7 @@ import storeRoutes from "./routes/storeRoutes.js";
 import newsletterRoutes from "./routes/newsletterRoutes.js";
 import subscribersRoutes from "./routes/subscribersRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import customerRoutes from "./routes/customerRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
@@ -27,6 +28,7 @@ import checkoutRoutes from "./routes/checkoutRoutes.js";
 import translationRoutes from "./routes/translationRoutes.js";
 import shippingMethodRoutes from "./routes/shippingMethodRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
+import departmentRoutes from "./routes/departmentRoutes.js";
 import paymentMethodRoutes from "./routes/paymentMethodRoutes.js";
 import { swaggerSpec } from "./swagger.js";
 import { isDbConnected } from "./config/db.js";
@@ -167,6 +169,7 @@ export const createApp = () => {
   app.use("/api/newsletter", newsletterRoutes);
   app.use("/api/subscribers", subscribersRoutes);
   app.use("/api/users", userRoutes);
+  app.use("/api/customers", customerRoutes);
   app.use("/api/products", productRoutes);
   app.use("/api/categories", categoryRoutes);
   app.use("/api/orders", orderRoutes);
@@ -182,6 +185,7 @@ export const createApp = () => {
   app.use("/api/shipping-methods", shippingMethodRoutes);
   app.use("/api/payment-methods", paymentMethodRoutes);
   app.use("/api/roles", roleRoutes);
+  app.use("/api/departments", departmentRoutes);
   app.use("/api", checkoutRoutes);
 
   const clientBuildPath = path.resolve(__dirname, "../../admin-dashboard/dist");

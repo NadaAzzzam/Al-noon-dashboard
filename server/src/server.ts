@@ -3,6 +3,7 @@ import { connectDatabase } from "./config/db.js";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import { ensureDefaultRoles } from "./utils/ensureDefaultRoles.js";
+import { ensureDefaultDepartments } from "./utils/ensureDefaultDepartments.js";
 
 let httpServer: ReturnType<ReturnType<typeof createApp>["listen"]> | null = null;
 
@@ -49,6 +50,7 @@ const start = async () => {
     await connectDatabase();
     logger.info("MongoDB connected");
     await ensureDefaultRoles();
+    await ensureDefaultDepartments();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.warn({ err, msg }, "Database connection failed; running without MongoDB");

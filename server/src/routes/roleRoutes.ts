@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../middlewares/auth.js";
+import { authenticate, requirePermission, requireRole } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   createRole,
@@ -13,15 +13,17 @@ import { idParamsSchema, roleCreateSchema, roleUpdateSchema } from "../validator
 
 const router = Router();
 
-// ADMIN users can manage roles; backend prevents deleting ADMIN role.
-router.use(authenticate, requireRole(["ADMIN"]));
+router.use(authenticate);
 
-router.get("/", listRoles);
+// List roles: allow roles.view OR departments.manage (for department form dropdown)
+router.get("/", requirePermission(["roles.view", "departments.manage"]), listRoles);
 router.get("/permissions", listPermissionDefinitions);
-router.get("/:id", validate(idParamsSchema), getRole);
-router.post("/", validate(roleCreateSchema), createRole);
-router.put("/:id", validate(roleUpdateSchema), updateRole);
-router.delete("/:id", validate(idParamsSchema), deleteRole);
+router.get("/:id", requirePermission(["roles.view", "departments.manage"]), validate(idParamsSchema), getRole);
+
+// Create, update, delete: ADMIN only
+router.post("/", requireRole(["ADMIN"]), validate(roleCreateSchema), createRole);
+router.put("/:id", requireRole(["ADMIN"]), validate(roleUpdateSchema), updateRole);
+router.delete("/:id", requireRole(["ADMIN"]), validate(idParamsSchema), deleteRole);
 
 export default router;
 

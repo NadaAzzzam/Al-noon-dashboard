@@ -179,6 +179,18 @@ export const PERMISSIONS: PermissionDefinition[] = [
     label: "Manage AI assistant settings",
   },
 
+  // Departments
+  {
+    key: "departments.view",
+    group: "Administration",
+    label: "View departments",
+  },
+  {
+    key: "departments.manage",
+    group: "Administration",
+    label: "Create, edit, and delete departments",
+  },
+
   // Roles & permissions
   {
     key: "roles.view",

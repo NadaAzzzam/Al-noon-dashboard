@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, User, getProductImageUrl } from "../services/api";
+import { api, ApiError, Customer, getProductImageUrl } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { ImageLightbox } from "../components/ImageLightbox";
 
 const CustomersPage = () => {
   const { t } = useTranslation();
-  const [users, setUsers] = useState<User[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
 
@@ -14,8 +14,8 @@ const CustomersPage = () => {
     const load = async () => {
       setError(null);
       try {
-        const response = (await api.listUsers()) as { data?: { users: User[] }; users?: User[] };
-        setUsers(response.data?.users ?? response.users ?? []);
+        const response = (await api.listCustomers()) as { data?: { customers: Customer[] }; customers?: Customer[] };
+        setCustomers(response.data?.customers ?? response.customers ?? []);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           window.location.href = "/login";
@@ -54,9 +54,9 @@ const CustomersPage = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => {
-              const avatarUrl = user.avatar ? getProductImageUrl(user.avatar) : null;
-              const initials = (user.name || "?")
+            {customers.map((customer) => {
+              const avatarUrl = customer.avatar ? getProductImageUrl(customer.avatar) : null;
+              const initials = (customer.name || "?")
                 .trim()
                 .split(/\s+/)
                 .map((s) => s[0])
@@ -64,7 +64,7 @@ const CustomersPage = () => {
                 .toUpperCase()
                 .slice(0, 2);
               return (
-                <tr key={user.id}>
+                <tr key={customer.id}>
                   <td>
                     <button
                       type="button"
@@ -82,12 +82,12 @@ const CustomersPage = () => {
                       )}
                     </button>
                   </td>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td><span className="badge">{user.role}</span></td>
+                  <td>{customer.name}</td>
+                  <td>{customer.email}</td>
+                  <td><span className="badge">{customer.role}</span></td>
                   <td>
-                    {user.createdAt
-                      ? new Date(user.createdAt).toLocaleDateString(undefined, {
+                    {customer.createdAt
+                      ? new Date(customer.createdAt).toLocaleDateString(undefined, {
                           year: "numeric",
                           month: "short",
                           day: "numeric"
@@ -97,7 +97,7 @@ const CustomersPage = () => {
                   <td>
                     <TableActionsDropdown
                       ariaLabel={t("common.actions")}
-                      actions={[{ label: t("common.view"), to: `/customers/${user.id}` }]}
+                      actions={[{ label: t("common.view"), to: `/customers/${customer.id}` }]}
                     />
                   </td>
                 </tr>

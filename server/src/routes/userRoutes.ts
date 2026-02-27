@@ -1,21 +1,25 @@
 import { Router } from "express";
 import {
-  getCustomer,
-  getCustomerOrders,
+  createUser,
+  listDepartmentOptions,
+  listRoleOptions,
   listUsers,
+  updateUser,
   updateUserRole
 } from "../controllers/usersController.js";
 import { authenticate, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
-import { updateRoleSchema, userParamsSchema } from "../validators/users.js";
+import { createUserSchema, updateRoleSchema, updateUserSchema, userParamsSchema } from "../validators/users.js";
 
 const router = Router();
 
 router.use(authenticate);
 
 router.get("/", requirePermission(["users.view"]), listUsers);
-router.get("/:id", requirePermission(["customers.view"]), validate(userParamsSchema), getCustomer);
-router.get("/:id/orders", requirePermission(["customers.view"]), validate(userParamsSchema), getCustomerOrders);
+router.get("/role-options", requirePermission(["users.manage"]), listRoleOptions);
+router.get("/department-options", requirePermission(["users.manage"]), listDepartmentOptions);
+router.post("/", requirePermission(["users.manage"]), validate(createUserSchema), createUser);
+router.put("/:id", requirePermission(["users.manage"]), validate(updateUserSchema), updateUser);
 router.patch("/:id/role", requirePermission(["users.manage"]), validate(updateRoleSchema), updateUserRole);
 
 export default router;

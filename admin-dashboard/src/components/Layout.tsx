@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getStoredLanguage, setStoredLanguage, type Lang } from "../i18n";
-import { api, clearToken, getUploadsBaseUrl, DEFAULT_LOGO_PATH, setCurrentUser, type CurrentUser } from "../services/api";
+import { api, clearToken, getUploadsBaseUrl, DEFAULT_LOGO_PATH, setCurrentUser, hasPermission, type CurrentUser } from "../services/api";
 import { initGoogleAnalytics, sendPageView } from "../utils/googleAnalytics";
 
 /* ===== SVG Icon components ===== */
@@ -168,6 +168,20 @@ const IconRoles = () => (
     <path d="M4 22c0-4 3-7 8-7s8 3 8 7" />
   </svg>
 );
+const IconDepartments = () => (
+  <svg
+    className="nav-link-icon"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
 const IconSubscribers = () => (
   <svg
     className="nav-link-icon"
@@ -267,6 +281,7 @@ const getBreadcrumb = (pathname: string): string => {
     "/customers": "nav.customers",
     "/users": "nav.users",
     "/roles": "nav.roles_permissions",
+    "/departments": "nav.departments",
     "/subscribers": "nav.subscribers",
     "/contact": "nav.contact",
     "/feedback": "nav.feedback",
@@ -286,6 +301,9 @@ const getBreadcrumb = (pathname: string): string => {
   if (pathname === "/roles/new") return "roles.new_role";
   if (pathname.startsWith("/roles/") && pathname.includes("/edit"))
     return "roles.edit_role";
+  if (pathname === "/departments/new") return "departments.new_department";
+  if (pathname.startsWith("/departments/") && pathname.includes("/edit"))
+    return "departments.edit_department";
   return "nav.overview";
 };
 
@@ -396,62 +414,97 @@ const Layout = () => {
         </div>
         <nav>
           <p className="nav-group-label">{t("nav.overview")}</p>
-          <NavLink className="nav-link" to="/" end>
-            <IconDashboard /> {t("nav.overview")}
-          </NavLink>
-          <NavLink className="nav-link" to="/reports">
-            <IconReports /> {t("nav.reports")}
-          </NavLink>
+          {hasPermission("dashboard.view") && (
+            <NavLink className="nav-link" to="/" end>
+              <IconDashboard /> {t("nav.overview")}
+            </NavLink>
+          )}
+          {hasPermission("reports.view") && (
+            <NavLink className="nav-link" to="/reports">
+              <IconReports /> {t("nav.reports")}
+            </NavLink>
+          )}
 
           <p className="nav-group-label">{t("nav.store_group", "Store")}</p>
-          <NavLink className="nav-link" to="/products">
-            <IconProducts /> {t("nav.products")}
-          </NavLink>
-          <NavLink className="nav-link" to="/categories">
-            <IconCategories /> {t("nav.categories")}
-          </NavLink>
-          <NavLink className="nav-link" to="/inventory">
-            <IconInventory /> {t("nav.inventory")}
-          </NavLink>
-          <NavLink className="nav-link" to="/orders">
-            <IconOrders /> {t("nav.orders")}
-          </NavLink>
+          {hasPermission("products.view") && (
+            <NavLink className="nav-link" to="/products">
+              <IconProducts /> {t("nav.products")}
+            </NavLink>
+          )}
+          {hasPermission("categories.view") && (
+            <NavLink className="nav-link" to="/categories">
+              <IconCategories /> {t("nav.categories")}
+            </NavLink>
+          )}
+          {hasPermission("inventory.view") && (
+            <NavLink className="nav-link" to="/inventory">
+              <IconInventory /> {t("nav.inventory")}
+            </NavLink>
+          )}
+          {hasPermission("orders.view") && (
+            <NavLink className="nav-link" to="/orders">
+              <IconOrders /> {t("nav.orders")}
+            </NavLink>
+          )}
 
           <p className="nav-group-label">{t("nav.people_group", "People")}</p>
-          <NavLink className="nav-link" to="/customers">
-            <IconCustomers /> {t("nav.customers")}
-          </NavLink>
-          <NavLink className="nav-link" to="/users">
-            <IconUsers /> {t("nav.users")}
-          </NavLink>
-          {user?.role === "ADMIN" && (
+          {hasPermission("customers.view") && (
+            <NavLink className="nav-link" to="/customers">
+              <IconCustomers /> {t("nav.customers")}
+            </NavLink>
+          )}
+          {hasPermission("users.view") && (
+            <NavLink className="nav-link" to="/users">
+              <IconUsers /> {t("nav.users")}
+            </NavLink>
+          )}
+          {hasPermission("departments.view") && (
+            <NavLink className="nav-link" to="/departments">
+              <IconDepartments /> {t("nav.departments")}
+            </NavLink>
+          )}
+          {hasPermission("roles.view") && (
             <NavLink className="nav-link" to="/roles">
               <IconRoles /> {t("nav.roles_permissions")}
             </NavLink>
           )}
-          <NavLink className="nav-link" to="/subscribers">
-            <IconSubscribers /> {t("nav.subscribers")}
-          </NavLink>
+          {hasPermission("subscribers.view") && (
+            <NavLink className="nav-link" to="/subscribers">
+              <IconSubscribers /> {t("nav.subscribers")}
+            </NavLink>
+          )}
 
           <p className="nav-group-label">{t("nav.content_group", "Content")}</p>
-          <NavLink className="nav-link" to="/contact">
-            <IconContact /> {t("nav.contact")}
-          </NavLink>
-          <NavLink className="nav-link" to="/feedback">
-            <IconFeedback /> {t("nav.feedback")}
-          </NavLink>
-          <NavLink className="nav-link" to="/ai-chats">
-            <IconContact /> {t("nav.ai_chats")}
-          </NavLink>
-          <NavLink className="nav-link" to="/cities">
-            <IconCities /> {t("nav.cities")}
-          </NavLink>
-          <NavLink className="nav-link" to="/shipping-methods">
-            <IconShipping /> {t("nav.shipping_methods")}
-          </NavLink>
-          <NavLink className="nav-link" to="/settings">
-            <IconSettings /> {t("nav.settings")}
-          </NavLink>
+          {hasPermission("contact.view") && (
+            <NavLink className="nav-link" to="/contact">
+              <IconContact /> {t("nav.contact")}
+            </NavLink>
+          )}
+          {hasPermission("feedback.view") && (
+            <NavLink className="nav-link" to="/feedback">
+              <IconFeedback /> {t("nav.feedback")}
+            </NavLink>
+          )}
+          {hasPermission("ai_chats.view") && (
+            <NavLink className="nav-link" to="/ai-chats">
+              <IconContact /> {t("nav.ai_chats")}
+            </NavLink>
+          )}
+          {hasPermission("cities.view") && (
+            <NavLink className="nav-link" to="/cities">
+              <IconCities /> {t("nav.cities")}
+            </NavLink>
+          )}
+          {hasPermission("shipping_methods.view") && (
+            <NavLink className="nav-link" to="/shipping-methods">
+              <IconShipping /> {t("nav.shipping_methods")}
+            </NavLink>
+          )}
+          {hasPermission("settings.view") && (
+            <NavLink className="nav-link" to="/settings">
+              <IconSettings /> {t("nav.settings")}
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-footer">
           <button className="button" onClick={handleLogout}>

@@ -7,6 +7,8 @@ export interface RoleDocument {
   /** Stable key stored on the user & JWT payload (e.g. "ADMIN"). */
   key: string;
   description?: string;
+  /** Optional department this role belongs to. */
+  department?: Types.ObjectId;
   /** Whether role can be used for new users. */
   status: RoleStatus;
   createdAt: Date;
@@ -18,6 +20,7 @@ const roleSchema = new Schema<RoleDocument>(
     name: { type: String, required: true },
     key: { type: String, required: true, unique: true },
     description: { type: String },
+    department: { type: Schema.Types.ObjectId, ref: "Department", required: false },
     status: { type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" },
   },
   { timestamps: true }

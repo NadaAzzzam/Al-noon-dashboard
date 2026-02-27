@@ -34,6 +34,21 @@ export type User = {
   email: string;
   /** Role key from backend (e.g. "ADMIN", "USER", "STAFF"). */
   role: string;
+  departmentId?: string | null;
+  departmentName?: string | null;
+  departmentKey?: string | null;
+  avatar?: string;
+  createdAt?: string;
+  /** True when this is the static Super Admin (cannot be edited/deleted). */
+  isSuperAdmin?: boolean;
+};
+
+/** Storefront customer (role USER). */
+export type Customer = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
   avatar?: string;
   createdAt?: string;
 };
@@ -635,8 +650,17 @@ export const api = {
   signOut: () => request("/auth/sign-out", { method: "POST" }),
 
   listUsers: () => request("/users"),
-  getCustomer: (id: string) => request(`/users/${id}`),
-  getCustomerOrders: (id: string) => request(`/users/${id}/orders`),
+  listUserRoleOptions: () => request("/users/role-options"),
+  listUserDepartmentOptions: () => request("/users/department-options"),
+  listCustomers: () => request("/customers"),
+  getCustomer: (id: string) => request(`/customers/${id}`),
+  getCustomerOrders: (id: string) => request(`/customers/${id}/orders`),
+  createUser: (payload: { name: string; email: string; password: string; role: string; departmentId?: string }) =>
+    request("/users", { method: "POST", body: JSON.stringify(payload) }),
+  updateUser: (id: string, payload: Partial<{ name: string; email: string; password: string; role: string; departmentId?: string | null }>) =>
+    request(`/users/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  updateUserRole: (id: string, role: string) =>
+    request(`/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) }),
 
   listProducts: (params?: {
     page?: number;
@@ -1030,6 +1054,15 @@ export const api = {
     if (params.category) sp.set("category", params.category);
     return request(`/reports?${sp.toString()}`);
   },
+
+  // Departments
+  listDepartments: () => request("/departments"),
+  getDepartment: (id: string) => request(`/departments/${id}`),
+  createDepartment: (payload: { name: string; roleIds?: string[] }) =>
+    request("/departments", { method: "POST", body: JSON.stringify(payload) }),
+  updateDepartment: (id: string, payload: Partial<{ name: string; status?: "ACTIVE" | "INACTIVE"; roleIds?: string[] }>) =>
+    request(`/departments/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteDepartment: (id: string) => request(`/departments/${id}`, { method: "DELETE" }),
 
   // Roles & permissions
   listRoles: () => request("/roles"),
