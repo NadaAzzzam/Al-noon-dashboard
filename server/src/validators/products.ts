@@ -49,7 +49,14 @@ export const productSchema = z.object({
     /** Weight unit: grams or kilograms. */
     weightUnit: z.enum(["g", "kg"]).optional()
   }))
-});
+}).refine(
+  (data) => {
+    const { discountPrice, price } = data.body;
+    if (discountPrice == null) return true;
+    return discountPrice < price;
+  },
+  { message: "Discount price must be less than regular price", path: ["body", "discountPrice"] }
+);
 
 export const productParamsSchema = z.object({
   params: z.object({

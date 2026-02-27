@@ -21,8 +21,13 @@
     "seed:ai": "tsx src/utils/seedAi.ts",
     "seed:translations": "tsx src/seeders/translationSeeder.ts",
     "seed:shipping": "tsx src/seeders/shippingMethodSeeder.ts",
+    "seed:test": "tsx src/utils/seedTestData.ts",
     "download-seed-images": "tsx scripts/downloadSeedImages.ts",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -44,6 +49,11 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/supertest": "^6.0.2",
+    "@vitest/coverage-v8": "^2.1.0",
+    "mongodb-memory-server": "^10.0.0",
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",

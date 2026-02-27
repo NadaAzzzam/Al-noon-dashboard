@@ -43,6 +43,7 @@ const LoginPage = () => {
         <h1>{t("auth.login_title")}</h1>
         <p>{t("auth.login_subtitle")}</p>
         <input
+          data-testid="login-email"
           type="email"
           placeholder={t("auth.email")}
           value={email}
@@ -50,6 +51,7 @@ const LoginPage = () => {
           required
         />
         <input
+          data-testid="login-password"
           type="password"
           placeholder={t("auth.password")}
           value={password}
@@ -57,7 +59,7 @@ const LoginPage = () => {
           required
         />
         {error && <div className="error">{error}</div>}
-        <button className="button" type="submit" disabled={loading} style={{ width: "100%", marginTop: 12 }}>
+        <button data-testid="login-submit" className="button" type="submit" disabled={loading} style={{ width: "100%", marginTop: 12 }}>
           {loading ? t("auth.signing_in") : t("auth.sign_in")}
         </button>
       </form>

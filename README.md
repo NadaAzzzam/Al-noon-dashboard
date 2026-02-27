@@ -75,19 +75,40 @@ If the user exists, they are promoted to ADMIN; otherwise a new admin is created
 
 ### Features
 
-- JWT authentication with roles (ADMIN, USER)
-- REST APIs under `/api/*`
-- Zod validation
-- Centralized error handling
-- Modular folder structure
+- **Authentication:** JWT with roles (ADMIN, USER, STAFF), RBAC permissions
+- **REST APIs** under `/api/*` with rate limiting
+- **Zod validation** on all inputs
+- **Centralized error handling** with i18n messages (en/ar)
+- **Swagger/OpenAPI** docs at `/api-docs`
+- **Modular folder structure** (controllers, routes, models, validators, middlewares)
 
 ### API modules
 
-- `/api/auth`
-- `/api/users`
-- `/api/products`
-- `/api/categories`
-- `/api/orders`
+| Module | Description |
+|--------|-------------|
+| `/api/auth` | Sign-in, sign-up, profile, sign-out |
+| `/api/users` | User CRUD, roles, departments |
+| `/api/customers` | Customer list and details |
+| `/api/products` | Products CRUD, media, variants |
+| `/api/categories` | Category management |
+| `/api/orders` | Orders list and details |
+| `/api/inventory` | Stock management |
+| `/api/dashboard` | Stats, low stock, orders today |
+| `/api/settings` | Store settings, logo, Google Analytics |
+| `/api/cities` | City/delivery areas |
+| `/api/contact` | Contact form submissions |
+| `/api/feedback` | Product feedback |
+| `/api/reports` | Sales and analytics reports |
+| `/api/ai` | AI chat assistant settings |
+| `/api/translations` | i18n translations |
+| `/api/shipping-methods` | Shipping methods |
+| `/api/payment-methods` | Payment methods |
+| `/api/roles` | RBAC roles and permissions |
+| `/api/departments` | Department management |
+| `/api/newsletter` | Newsletter signup |
+| `/api/subscribers` | Newsletter subscribers |
+| `/api/store` | Storefront public API |
+| `/api` (checkout) | Checkout flow |
 
 ---
 
@@ -95,12 +116,88 @@ If the user exists, they are promoted to ADMIN; otherwise a new admin is created
 
 ### Features
 
-- Admin login via backend JWT
-- Products CRUD
-- Orders management
-- Users list
-- Dashboard analytics
-- Modern, Shopify-inspired UI
+- **Authentication:** Admin login via backend JWT, protected routes
+- **Dashboard:** Overview, stats, low stock alerts, orders today
+- **Products:** Full CRUD, media (images/videos), variants, discounts
+- **Categories:** Category management
+- **Orders:** Order list, detail view, status updates
+- **Inventory:** Stock levels, variants
+- **Customers:** Customer list and detail
+- **Users:** User management with roles and departments
+- **Roles & Permissions:** RBAC role CRUD
+- **Departments:** Department CRUD
+- **Cities:** City/delivery area management
+- **Shipping methods:** Shipping configuration
+- **Subscribers:** Newsletter subscriber list
+- **Contact:** Contact form submissions
+- **Feedback:** Product feedback management
+- **AI Chat history:** AI assistant chat logs
+- **Reports:** Sales and analytics
+- **Settings:** Store settings, home page config, content pages, AI assistant config
+- **i18n:** English and Arabic (RTL support)
+- **Modern UI:** Shopify-inspired design
+
+---
+
+## Testing
+
+The project uses **Vitest** for unit and integration tests, and **Cypress** for end-to-end tests.
+
+### Test commands
+
+| Command | Description |
+|--------|-------------|
+| `npm run test` | Run all unit tests (server + admin) |
+| `npm run test:server` | Backend unit & API tests |
+| `npm run test:admin` | Frontend unit tests |
+| `npm run test:e2e` | Cypress E2E tests (headless) |
+| `npm run test:e2e:open` | Cypress interactive runner |
+| `npm run test:coverage` | Run with coverage (in each package) |
+
+### Backend testing (server)
+
+- **Vitest** + **Supertest** for API tests
+- Unit tests: validators (Zod schemas), utils (response, etc.)
+- API tests: health endpoint, auth validation
+
+```bash
+cd server
+npm install
+npm run test
+npm run test:coverage   # Coverage report in coverage/
+```
+
+### Frontend testing (admin-dashboard)
+
+- **Vitest** + **React Testing Library** + **jsdom**
+- Unit tests: utils (format, api helpers), components
+
+```bash
+cd admin-dashboard
+npm install
+npm run test
+npm run test:coverage
+```
+
+### End-to-end testing (Cypress)
+
+- **Cypress** for full user flows (login, dashboard navigation)
+- Requires **backend** and **admin dashboard** running
+
+```bash
+# Terminal 1: start backend
+cd server && npm run dev
+
+# Terminal 2: start admin
+cd admin-dashboard && npm run dev
+
+# Terminal 3: run E2E tests
+cd admin-dashboard && npm run test:e2e
+# Or open Cypress UI:
+npm run test:e2e:open
+```
+
+E2E specs: `admin-dashboard/cypress/e2e/*.cy.ts`
 
 ---
 

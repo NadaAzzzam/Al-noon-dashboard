@@ -202,6 +202,8 @@ export type Product = {
   ratingCount?: number;
   /** Present on GET /products/:id. Colors include hasImage/imageUrl when product has color-specific images. */
   availability?: ProductAvailabilityDetail;
+  /** Variant-level stock (color/size/stock). Returned by API when product has variant records. */
+  variants?: Array<{ color?: string; size?: string; stock: number; outOfStock?: boolean }>;
 };
 
 /** Default image URL for a product (media.default.url or first image). */
