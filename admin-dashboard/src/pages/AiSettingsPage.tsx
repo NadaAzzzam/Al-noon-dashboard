@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, Settings } from "../services/api";
+import { api, ApiError, Settings, hasPermission } from "../services/api";
 
 type AiForm = {
   enabled: boolean;
@@ -14,6 +14,7 @@ type AiForm = {
 
 const AiSettingsPage = () => {
   const { t } = useTranslation();
+  const canEdit = hasPermission("ai_settings.manage") || hasPermission("settings.manage");
   const [form, setForm] = useState<AiForm>({
     enabled: false,
     geminiApiKey: "",
@@ -132,6 +133,7 @@ const AiSettingsPage = () => {
       </div>
       <div className="card settings-card">
         <form onSubmit={handleSubmit} className="settings-form">
+          <fieldset disabled={!canEdit} style={{ border: "none", padding: 0, margin: 0 }}>
           <section className="settings-section">
             <h3 className="settings-section-title">{t("settings.tab_ai_assistant")}</h3>
             <div className="settings-fields">
@@ -253,11 +255,14 @@ const AiSettingsPage = () => {
               </div>
             </div>
           </section>
+          </fieldset>
+          {canEdit && (
           <div style={{ marginTop: 24 }}>
             <button type="submit" className="button primary">
               {t("common.save")}
             </button>
           </div>
+          )}
         </form>
       </div>
     </div>

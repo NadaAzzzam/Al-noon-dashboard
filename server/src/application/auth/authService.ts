@@ -125,8 +125,7 @@ export async function getMe(userId: string): Promise<AuthUser | null> {
     return { id: userId, name: env.adminName, email: env.adminEmail, role: "ADMIN", permissions };
   }
   if (!isDbConnected()) {
-    const permissions = await getPermissionsForRole("ADMIN");
-    return { id: userId, name: env.adminName, email: env.adminEmail, role: "ADMIN", permissions };
+    return null;
   }
   const user = await User.findById(userId).select("name email role").lean();
   if (!user) return null;

@@ -9,6 +9,7 @@ import {
   OrderStatus,
   getProductImageUrl,
   getUploadsBaseUrl,
+  hasPermission,
 } from "../services/api";
 
 /** Full URL for payment proof (relative path or absolute URL). */
@@ -152,7 +153,8 @@ const OrderDetailPage = () => {
     | { method?: string; status?: string; instaPayProofUrl?: string }
     | undefined;
   const isInstaPay = payment?.method === "INSTAPAY";
-  const canCancel = order.status === "PENDING" || order.status === "CONFIRMED";
+  const canManageOrders = hasPermission("orders.manage");
+  const canCancel = canManageOrders && (order.status === "PENDING" || order.status === "CONFIRMED");
   const days = daysSinceOrder(order.createdAt);
   const showLongWaitNotice = isLongWait(days, order.status);
 
@@ -235,6 +237,7 @@ const OrderDetailPage = () => {
         </p>
         <p>
           <strong>{t("order_detail.status")}:</strong>{" "}
+          {canManageOrders ? (
           <select
             value={order.status}
             onChange={(e) => updateStatus(e.target.value as OrderStatus)}
@@ -245,6 +248,9 @@ const OrderDetailPage = () => {
               </option>
             ))}
           </select>
+          ) : (
+            <span className="badge">{order.status}</span>
+          )}
         </p>
         {canCancel && (
           <button
@@ -266,7 +272,7 @@ const OrderDetailPage = () => {
           <strong>{t("order_detail.status")}:</strong>{" "}
           <span className="badge">{payment?.status ?? "UNPAID"}</span>
         </p>
-        {isInstaPay && (
+        {isInstaPay && canManageOrders && (
           <div className="form-group" style={{ marginTop: 8 }}>
             <label htmlFor="order-payment-proof" style={{ display: "block", marginBottom: 4 }}>
               <strong>{t("order_detail.proof")}</strong>

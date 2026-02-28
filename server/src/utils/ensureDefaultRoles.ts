@@ -1,3 +1,7 @@
+/**
+ * Ensures default roles (ADMIN, USER/Staff) and all permissions from config exist.
+ * ADMIN gets all permissions; USER/Staff gets none. Run npm run seed:roles to sync.
+ */
 import { isDbConnected } from "../config/db.js";
 import { PERMISSIONS } from "../config/permissions.js";
 import { Permission, Role, RolePermission } from "../models/Role.js";

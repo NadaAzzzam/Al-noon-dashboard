@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, Order, OrderStatus } from "../services/api";
+import { api, ApiError, Order, OrderStatus, hasPermission } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { formatPriceEGP } from "../utils/format";
 import { daysSinceOrder, isLongWait } from "../utils/orderUtils";
@@ -28,6 +28,7 @@ const OrdersPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const hasFilters = !!(statusFilter || paymentFilter);
+  const canManageOrders = hasPermission("orders.manage");
 
   const clearFilters = () => {
     setStatusFilter("");
@@ -127,7 +128,7 @@ const OrdersPage = () => {
                   <th>{t("dashboard.status")}</th>
                   <th>{t("orders.payment")}</th>
                   <th>{t("dashboard.total")}</th>
-                  <th>{t("common.update")}</th>
+                  {canManageOrders && <th>{t("common.update")}</th>}
                   <th></th>
                 </tr>
               </thead>
@@ -174,6 +175,7 @@ const OrdersPage = () => {
                       </span>
                     </td>
                     <td style={{ fontWeight: 600 }}>{formatPriceEGP(order.total)}</td>
+                    {canManageOrders && (
                     <td>
                       {order.status !== "CANCELLED" && (
                         <select
@@ -189,6 +191,7 @@ const OrdersPage = () => {
                         </select>
                       )}
                     </td>
+                    )}
                     <td>
                       <TableActionsDropdown
                         ariaLabel={t("common.actions")}

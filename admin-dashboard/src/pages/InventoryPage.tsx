@@ -8,12 +8,14 @@ import {
   getProductImageUrl,
   getProductDefaultImageUrl,
   isVideoUrl,
+  hasPermission,
 } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
 
 const InventoryPage = () => {
   const { t } = useTranslation();
+  const canManageStock = hasPermission("inventory.manage");
   const localized = useLocalized();
   const [lowStock, setLowStock] = useState<Product[]>([]);
   const [outOfStock, setOutOfStock] = useState<Product[]>([]);
@@ -102,13 +104,13 @@ const InventoryPage = () => {
               <th>{t("inventory.image")}</th>
               <th>{t("order_detail.product")}</th>
               <th>{t("products.stock")}</th>
-              <th>{t("common.update")}</th>
+              {canManageStock && <th>{t("common.update")}</th>}
             </tr>
           </thead>
           <tbody>
             {lowStock.length === 0 && (
               <tr>
-                <td colSpan={4}>{t("common.none")}</td>
+                <td colSpan={canManageStock ? 4 : 3}>{t("common.none")}</td>
               </tr>
             )}
             {lowStock.map((p) => (
@@ -151,6 +153,7 @@ const InventoryPage = () => {
                 <td>
                   <span className="badge badge-warning">{p.stock}</span>
                 </td>
+                {canManageStock && (
                 <td>
                   <input
                     type="number"
@@ -175,6 +178,7 @@ const InventoryPage = () => {
                     ]}
                   />
                 </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -188,13 +192,13 @@ const InventoryPage = () => {
               <th>{t("inventory.image")}</th>
               <th>{t("order_detail.product")}</th>
               <th>{t("products.stock")}</th>
-              <th>{t("common.update")}</th>
+              {canManageStock && <th>{t("common.update")}</th>}
             </tr>
           </thead>
           <tbody>
             {outOfStock.length === 0 && (
               <tr>
-                <td colSpan={4}>{t("common.none")}</td>
+                <td colSpan={canManageStock ? 4 : 3}>{t("common.none")}</td>
               </tr>
             )}
             {outOfStock.map((p) => (
@@ -237,6 +241,7 @@ const InventoryPage = () => {
                 <td>
                   <span className="badge badge-danger">0</span>
                 </td>
+                {canManageStock && (
                 <td>
                   <input
                     type="number"
@@ -261,6 +266,7 @@ const InventoryPage = () => {
                     ]}
                   />
                 </td>
+                )}
               </tr>
             ))}
           </tbody>

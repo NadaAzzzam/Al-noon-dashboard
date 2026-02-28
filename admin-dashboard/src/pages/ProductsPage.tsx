@@ -13,6 +13,7 @@ import {
   getProductImageUrl,
   getProductDefaultImageUrl,
   isVideoUrl,
+  hasPermission,
 } from "../services/api";
 import { formatPriceEGP } from "../utils/format";
 import { useLocalized } from "../utils/localized";
@@ -170,6 +171,8 @@ const ProductsPage = () => {
     }
   };
 
+  const canManageProducts = hasPermission("products.manage");
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const startItem = (page - 1) * PAGE_SIZE + 1;
   const endItem = Math.min(page * PAGE_SIZE, total);
@@ -211,6 +214,7 @@ const ProductsPage = () => {
           <h1>{t("products.title")}</h1>
           <p>{t("products.subtitle")}</p>
         </div>
+        {canManageProducts && (
         <Link to="/products/new" className="button">
           <svg
             className="button-icon"
@@ -225,6 +229,7 @@ const ProductsPage = () => {
           </svg>
           {t("products.new_product")}
         </Link>
+        )}
       </div>
 
       <div className="card">
@@ -425,7 +430,7 @@ const ProductsPage = () => {
                   <th>{t("products.stock")}</th>
                   <th>{t("products.best_selling")}</th>
                   <th>{t("products.rating")}</th>
-                  <th>{t("common.actions")}</th>
+                  {canManageProducts && <th>{t("common.actions")}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -522,6 +527,7 @@ const ProductsPage = () => {
                         "—"
                       )}
                     </td>
+                    {canManageProducts && (
                     <td>
                       <TableActionsDropdown
                         ariaLabel={t("common.actions")}
@@ -551,6 +557,7 @@ const ProductsPage = () => {
                         ]}
                       />
                     </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -619,7 +626,7 @@ const ProductsPage = () => {
                     "Create your first product to get started",
                   )}
             </p>
-            {!hasFilters && (
+            {!hasFilters && canManageProducts && (
               <Link to="/products/new" className="button">
                 <svg
                   className="button-icon"

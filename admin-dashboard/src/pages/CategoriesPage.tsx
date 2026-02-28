@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, Category } from "../services/api";
+import { api, ApiError, Category, hasPermission } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
 
@@ -10,6 +10,7 @@ const emptyForm: CategoryForm = { nameEn: "", nameAr: "", descriptionEn: "", des
 
 const CategoriesPage = () => {
   const { t } = useTranslation();
+  const canManage = hasPermission("categories.manage");
   const localized = useLocalized();
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState<CategoryForm>({ ...emptyForm });
@@ -99,7 +100,7 @@ const CategoriesPage = () => {
           <h1>{t("categories.title")}</h1>
           <p>{t("categories.subtitle")}</p>
         </div>
-        <button className="button" onClick={openAdd}>{t("categories.add_category")}</button>
+        {canManage && <button className="button" onClick={openAdd}>{t("categories.add_category")}</button>}
       </div>
       <div className="card">
         <table className="table">
@@ -107,7 +108,7 @@ const CategoriesPage = () => {
             <tr>
               <th>{t("categories.name")}</th>
               <th>{t("dashboard.status")}</th>
-              <th>{t("common.actions")}</th>
+              {canManage && <th>{t("common.actions")}</th>}
             </tr>
           </thead>
           <tbody>
@@ -119,6 +120,7 @@ const CategoriesPage = () => {
                     {c.status === "visible" ? t("categories.visible") : t("categories.hidden")}
                   </span>
                 </td>
+                {canManage && (
                 <td>
                   <TableActionsDropdown
                     ariaLabel={t("common.actions")}
@@ -129,6 +131,7 @@ const CategoriesPage = () => {
                     ]}
                   />
                 </td>
+                )}
               </tr>
             ))}
           </tbody>

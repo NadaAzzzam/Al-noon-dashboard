@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
-import { api, ApiError, getProductImageUrl, getUploadsBaseUrl } from "../services/api";
+import { api, ApiError, getProductImageUrl, getUploadsBaseUrl, hasPermission } from "../services/api";
 
 type SessionSummary = {
   id: string;
@@ -32,6 +32,7 @@ const LIMIT = 20;
 
 const AiChatHistoryPage = () => {
   const { t } = useTranslation();
+  const canManage = hasPermission("ai_chats.manage");
   const navigate = useNavigate();
   const { id: selectedId } = useParams<{ id: string }>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -164,6 +165,7 @@ const AiChatHistoryPage = () => {
                   >
                     {t("ai_chats.view")}
                   </button>
+                  {canManage && (
                   <button
                     type="button"
                     className="button secondary"
@@ -173,6 +175,7 @@ const AiChatHistoryPage = () => {
                   >
                     {deletingId === s.id ? t("common.loading") : t("ai_chats.delete")}
                   </button>
+                  )}
                 </td>
               </tr>
             ))}

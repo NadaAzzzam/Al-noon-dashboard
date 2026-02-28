@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { api, ApiError, setToken } from "../services/api";
+import { api, ApiError, setToken, setCurrentUser } from "../services/api";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -16,9 +16,11 @@ const LoginPage = () => {
     setError("");
     setLoading(true);
     try {
-      const response = (await api.signIn(email, password)) as { data?: { token: string }; token?: string };
+      const response = (await api.signIn(email, password)) as { data?: { token: string; user?: { id: string; name: string; email: string; role: string; permissions?: string[] } }; token?: string };
       const token = response?.data?.token ?? response?.token;
+      const user = response?.data?.user;
       if (token) setToken(token);
+      if (user) setCurrentUser(user);
       navigate("/");
     } catch (err) {
       if (err instanceof ApiError) {

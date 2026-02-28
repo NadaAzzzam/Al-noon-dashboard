@@ -7,6 +7,7 @@ import {
   Product,
   ProductFeedback,
   getUploadsBaseUrl,
+  hasPermission,
 } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 
@@ -44,6 +45,7 @@ const getProductName = (p: ProductFeedback): string => {
 
 const FeedbackPage = () => {
   const { t } = useTranslation();
+  const canManage = hasPermission("feedback.manage");
   const [list, setList] = useState<ProductFeedback[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -227,9 +229,11 @@ const FeedbackPage = () => {
           <h1>{t("feedback.title")}</h1>
           <p>{t("feedback.subtitle")}</p>
         </div>
+        {canManage && (
         <button type="button" className="button" onClick={openCreate}>
           {t("feedback.add")}
         </button>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -268,13 +272,13 @@ const FeedbackPage = () => {
               <th>{t("feedback.rating")}</th>
               <th>{t("feedback.screenshot")}</th>
               <th>{t("feedback.approved")}</th>
-              <th style={{ width: 80 }}></th>
+              {canManage && <th style={{ width: 80 }}></th>}
             </tr>
           </thead>
           <tbody>
             {list.length === 0 && (
               <tr>
-                <td colSpan={7}>{t("feedback.no_items")}</td>
+                <td colSpan={canManage ? 7 : 6}>{t("feedback.no_items")}</td>
               </tr>
             )}
             {list.map((item) => (
@@ -319,6 +323,7 @@ const FeedbackPage = () => {
                     : "—"}
                 </td>
                 <td>
+                  {canManage ? (
                   <button
                     type="button"
                     className={`button small ${item.approved ? "secondary" : ""}`}
@@ -333,7 +338,11 @@ const FeedbackPage = () => {
                       ? t("feedback.approved_yes")
                       : t("feedback.approved_no")}
                   </button>
+                  ) : (
+                    item.approved ? t("feedback.approved_yes") : t("feedback.approved_no")
+                  )}
                 </td>
+                {canManage && (
                 <td>
                   <TableActionsDropdown
                     ariaLabel={t("common.actions")}
@@ -350,6 +359,7 @@ const FeedbackPage = () => {
                     ]}
                   />
                 </td>
+                )}
               </tr>
             ))}
           </tbody>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, ApiError, getCurrentUser } from "../services/api";
+import { api, ApiError, hasPermission } from "../services/api";
 
 type Role = {
   id: string;
@@ -43,7 +43,7 @@ const RoleFormPage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canManageRoles = getCurrentUser()?.role === "ADMIN";
+  const canManageRoles = hasPermission("roles.manage");
 
   const loadPermissions = async () => {
     try {

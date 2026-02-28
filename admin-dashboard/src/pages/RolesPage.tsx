@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { api, ApiError, getCurrentUser } from "../services/api";
+import { api, ApiError, hasPermission } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 
 type Role = {
@@ -41,7 +41,7 @@ const RolesPage = () => {
     load();
   }, []);
 
-  const canManageRoles = getCurrentUser()?.role === "ADMIN";
+  const canManageRoles = hasPermission("roles.manage");
 
   const handleDelete = async (role: Role) => {
     if (!confirm(t("roles.delete_confirm", "Delete this role? This cannot be undone."))) return;

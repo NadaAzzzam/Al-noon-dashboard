@@ -7,6 +7,7 @@ import {
   Settings,
   getUploadsBaseUrl,
   DEFAULT_LOGO_PATH,
+  hasPermission,
 } from "../services/api";
 
 type QuickLinkForm = { labelEn: string; labelAr: string; url: string };
@@ -32,6 +33,7 @@ type SettingsForm = {
 
 const SettingsPage = () => {
   const { t } = useTranslation();
+  const canEdit = hasPermission("settings.manage");
   const [form, setForm] = useState<SettingsForm>({
     storeNameEn: "",
     storeNameAr: "",
@@ -191,6 +193,7 @@ const SettingsPage = () => {
       </div>
       <div className="card settings-card">
         <form onSubmit={handleSubmit} className="settings-form">
+          <fieldset disabled={!canEdit} style={{ border: "none", padding: 0, margin: 0 }}>
           <section className="settings-section">
             <h3 className="settings-section-title">
               {t("settings.section_store")}
@@ -629,11 +632,14 @@ const SettingsPage = () => {
               </div>
             </div>
           </section>
+          </fieldset>
+          {canEdit && (
           <div className="settings-actions">
             <button className="button" type="submit">
               {t("settings.save_settings")}
             </button>
           </div>
+          )}
         </form>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, City } from "../services/api";
+import { api, ApiError, City, hasPermission } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
 
@@ -8,6 +8,7 @@ type CityForm = { nameEn: string; nameAr: string; deliveryFee: number };
 
 const CitiesPage = () => {
   const { t } = useTranslation();
+  const canManage = hasPermission("cities.manage");
   const localized = useLocalized();
   const [cities, setCities] = useState<City[]>([]);
   const [form, setForm] = useState<CityForm>({ nameEn: "", nameAr: "", deliveryFee: 0 });
@@ -78,7 +79,7 @@ const CitiesPage = () => {
           <h1>{t("cities.title")}</h1>
           <p>{t("cities.subtitle")}</p>
         </div>
-        <button className="button" onClick={openAdd}>{t("cities.add_city")}</button>
+        {canManage && <button className="button" onClick={openAdd}>{t("cities.add_city")}</button>}
       </div>
       <div className="card">
         <table className="table">
@@ -86,19 +87,20 @@ const CitiesPage = () => {
             <tr>
               <th>{t("cities.name")}</th>
               <th>{t("cities.delivery_fee")}</th>
-              <th>{t("common.actions")}</th>
+              {canManage && <th>{t("common.actions")}</th>}
             </tr>
           </thead>
           <tbody>
             {cities.length === 0 && (
               <tr>
-                <td colSpan={3}>{t("cities.no_cities")}</td>
+                <td colSpan={canManage ? 3 : 2}>{t("cities.no_cities")}</td>
               </tr>
             )}
             {cities.map((c) => (
               <tr key={c._id}>
                 <td>{localized(c.name)}</td>
                 <td>{Number(c.deliveryFee ?? 0).toFixed(2)} EGP</td>
+                {canManage && (
                 <td>
                   <TableActionsDropdown
                     ariaLabel={t("common.actions")}
@@ -108,6 +110,7 @@ const CitiesPage = () => {
                     ]}
                   />
                 </td>
+                )}
               </tr>
             ))}
           </tbody>

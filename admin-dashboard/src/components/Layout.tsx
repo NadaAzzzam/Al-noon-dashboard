@@ -312,6 +312,7 @@ const Layout = () => {
   const location = useLocation();
   const { t } = useTranslation();
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [notifications, setNotifications] = useState<{
     lowStock: number;
     newOrders?: number;
@@ -331,8 +332,11 @@ const Layout = () => {
           setUser(u);
           setCurrentUser(u);
         }
+        setAuthReady(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        setAuthReady(true);
+      });
     api
       .getDashboardStats(1)
       .then((res: unknown) => {
@@ -377,6 +381,7 @@ const Layout = () => {
       .catch(() => {})
       .finally(() => {
         clearToken();
+        setCurrentUser(null);
         navigate("/login");
       });
   };
@@ -401,6 +406,20 @@ const Layout = () => {
         .slice(0, 2)
     : "";
 
+  const hasOverview = hasPermission("dashboard.view") || hasPermission("reports.view");
+  const hasStore = hasPermission("products.view") || hasPermission("categories.view") || hasPermission("inventory.view") || hasPermission("orders.view");
+  const hasPeople = hasPermission("customers.view") || hasPermission("users.view") || hasPermission("departments.view") || hasPermission("roles.view") || hasPermission("subscribers.view");
+  const hasContent = hasPermission("contact.view") || hasPermission("feedback.view") || hasPermission("ai_chats.view") || hasPermission("cities.view") || hasPermission("shipping_methods.view");
+  const hasSettings = hasPermission("settings.view") || hasPermission("settings.manage") || hasPermission("home_page.view") || hasPermission("home_page.manage") || hasPermission("content_pages.view") || hasPermission("content_pages.manage") || hasPermission("ai_settings.manage");
+
+  if (!authReady) {
+    return (
+      <div className="dashboard" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <p>{t("common.loading")}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard">
       <aside className="sidebar">
@@ -413,7 +432,7 @@ const Layout = () => {
           </h2>
         </div>
         <nav>
-          <p className="nav-group-label">{t("nav.overview")}</p>
+          {hasOverview && <p className="nav-group-label">{t("nav.overview")}</p>}
           {hasPermission("dashboard.view") && (
             <NavLink className="nav-link" to="/" end>
               <IconDashboard /> {t("nav.overview")}
@@ -425,7 +444,7 @@ const Layout = () => {
             </NavLink>
           )}
 
-          <p className="nav-group-label">{t("nav.store_group", "Store")}</p>
+          {hasStore && <p className="nav-group-label">{t("nav.store_group", "Store")}</p>}
           {hasPermission("products.view") && (
             <NavLink className="nav-link" to="/products">
               <IconProducts /> {t("nav.products")}
@@ -447,7 +466,7 @@ const Layout = () => {
             </NavLink>
           )}
 
-          <p className="nav-group-label">{t("nav.people_group", "People")}</p>
+          {hasPeople && <p className="nav-group-label">{t("nav.people_group", "People")}</p>}
           {hasPermission("customers.view") && (
             <NavLink className="nav-link" to="/customers">
               <IconCustomers /> {t("nav.customers")}
@@ -474,7 +493,7 @@ const Layout = () => {
             </NavLink>
           )}
 
-          <p className="nav-group-label">{t("nav.content_group", "Content")}</p>
+          {hasContent && <p className="nav-group-label">{t("nav.content_group", "Content")}</p>}
           {hasPermission("contact.view") && (
             <NavLink className="nav-link" to="/contact">
               <IconContact /> {t("nav.contact")}
@@ -500,7 +519,7 @@ const Layout = () => {
               <IconShipping /> {t("nav.shipping_methods")}
             </NavLink>
           )}
-          {hasPermission("settings.view") && (
+          {hasSettings && (
             <NavLink className="nav-link" to="/settings">
               <IconSettings /> {t("nav.settings")}
             </NavLink>

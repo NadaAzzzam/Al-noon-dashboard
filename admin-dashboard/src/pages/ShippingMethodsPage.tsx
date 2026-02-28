@@ -6,6 +6,7 @@ import {
   City,
   ShippingMethod,
   ShippingMethodPayload,
+  hasPermission,
 } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
@@ -40,6 +41,7 @@ const emptyForm: FormState = {
 
 const ShippingMethodsPage = () => {
   const { t } = useTranslation();
+  const canManage = hasPermission("shipping_methods.manage");
   const localized = useLocalized();
   const [list, setList] = useState<ShippingMethod[]>([]);
   const [cities, setCities] = useState<City[]>([]);
@@ -211,9 +213,11 @@ const ShippingMethodsPage = () => {
           <h1>{t("shipping_methods.title")}</h1>
           <p>{t("shipping_methods.subtitle")}</p>
         </div>
+        {canManage && (
         <button className="button" onClick={openAdd}>
           {t("shipping_methods.add_method")}
         </button>
+        )}
       </div>
       <div className="card">
         <table className="table">
@@ -224,13 +228,13 @@ const ShippingMethodsPage = () => {
               <th>{t("shipping_methods.price")}</th>
               <th>{t("shipping_methods.enabled")}</th>
               <th>{t("shipping_methods.order")}</th>
-              <th>{t("common.actions")}</th>
+              {canManage && <th>{t("common.actions")}</th>}
             </tr>
           </thead>
           <tbody>
             {list.length === 0 && (
               <tr>
-                <td colSpan={6}>{t("shipping_methods.no_methods")}</td>
+                <td colSpan={canManage ? 6 : 5}>{t("shipping_methods.no_methods")}</td>
               </tr>
             )}
             {list.map((m) => (
@@ -269,6 +273,7 @@ const ShippingMethodsPage = () => {
                 </td>
                 <td>{m.enabled ? t("common.active") : t("common.inactive")}</td>
                 <td>{m.order ?? 0}</td>
+                {canManage && (
                 <td>
                   <TableActionsDropdown
                     ariaLabel={t("common.actions")}
@@ -288,6 +293,7 @@ const ShippingMethodsPage = () => {
                     ]}
                   />
                 </td>
+                )}
               </tr>
             ))}
           </tbody>

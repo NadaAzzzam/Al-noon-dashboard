@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, Settings, getUploadsBaseUrl } from "../services/api";
+import { api, ApiError, Settings, getUploadsBaseUrl, hasPermission } from "../services/api";
 
 /** Default announcement bar background: CSS color or gradient. */
 const DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND =
@@ -125,6 +125,7 @@ const getMediaUrl = (path: string) =>
 
 const HomePageSettingsPage = () => {
   const { t } = useTranslation();
+  const canEdit = hasPermission("home_page.manage") || hasPermission("settings.manage");
   const [form, setForm] = useState<HomePageForm>({
     announcementBar: {
       textEn: "",
@@ -693,6 +694,7 @@ const HomePageSettingsPage = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="home-page-settings-form">
+        <fieldset disabled={!canEdit} style={{ border: "none", padding: 0, margin: 0 }}>
         {/* ——— Announcement Bar ——— */}
         <section className="home-section-card card">
           <h2 className="home-section-card-title">
@@ -1855,11 +1857,14 @@ const HomePageSettingsPage = () => {
           </div>
         </section>
 
+        </fieldset>
+        {canEdit && (
         <div className="settings-actions home-page-actions">
           <button className="button" type="submit">
             {t("settings.save_settings")}
           </button>
         </div>
+        )}
       </form>
     </div>
   );

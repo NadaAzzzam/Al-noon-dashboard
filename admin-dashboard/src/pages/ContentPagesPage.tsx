@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import { api, ApiError, Settings } from "../services/api";
+import { api, ApiError, Settings, hasPermission } from "../services/api";
 
 const CONTENT_SLUGS = [
   { slug: "privacy", labelKey: "settings.content_privacy" },
@@ -42,6 +42,7 @@ const quillFormats = [
 
 const ContentPagesPage = () => {
   const { t } = useTranslation();
+  const canEdit = hasPermission("content_pages.manage") || hasPermission("settings.manage");
   const [activeSlug, setActiveSlug] = useState<string>(CONTENT_SLUGS[0].slug);
   const [pages, setPages] = useState<PageForm[]>(
     CONTENT_SLUGS.map(({ slug }) => ({
@@ -141,6 +142,7 @@ const ContentPagesPage = () => {
         </div>
       </div>
       <form onSubmit={handleSubmit} className="content-pages-form">
+        <fieldset disabled={!canEdit} style={{ border: "none", padding: 0, margin: 0 }}>
         <nav
           className="content-pages-tabs"
           aria-label={t("settings.content_pages_tabs_label")}
@@ -226,11 +228,14 @@ const ContentPagesPage = () => {
             );
           })}
         </div>
+        </fieldset>
+        {canEdit && (
         <div className="settings-actions content-pages-actions">
           <button className="button" type="submit">
             {t("settings.save_settings")}
           </button>
         </div>
+        )}
       </form>
     </div>
   );
