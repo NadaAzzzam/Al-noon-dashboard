@@ -13,6 +13,7 @@ import { withProductMedia } from "../types/productMedia.js";
 import { toStorefrontProduct } from "../utils/toStorefrontProduct.js";
 import { parseRichText } from "../utils/richTextFormatter.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
+import { getDefaultLocale } from "../i18n.js";
 
 /** @deprecated Use withProductMedia from types/productMedia for full media structure. Kept for store home API compatibility. */
 export const withViewHoverVideo = withProductMedia;
@@ -25,12 +26,11 @@ const SORT_FILTERS_SHOPIFY: { value: string; labelEn: string; labelAr: string }[
   { value: "PRICE_DESC", labelEn: "Price: High to Low", labelAr: "السعر: عالي إلى منخفض" },
   { value: "TITLE_ASC", labelEn: "Name A–Z", labelAr: "الاسم أ–ي" },
   { value: "TITLE_DESC", labelEn: "Name Z–A", labelAr: "الاسم ي–أ" },
-  { value: "MANUAL", labelEn: "Manual", labelAr: "يدوي" },
 ];
 
 /** GET /api/products/filters/sort — returns sort options in Shopify format (ProductCollectionSortKeys-style). */
 export const getSortFilters = asyncHandler(async (req, res) => {
-  sendResponse(res, req.locale, {
+  sendResponse(res, req.locale ?? getDefaultLocale(), {
     data: SORT_FILTERS_SHOPIFY,
   });
 });
@@ -60,30 +60,33 @@ function normalizeSort(sort: string): string {
 
 export const listProducts = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, {
+    return sendResponse(res, req.locale ?? getDefaultLocale(), {
       data: [],
       pagination: { total: 0, page: 1, limit: 20, totalPages: 0 }
     });
   }
-  const page = Number(req.query.page) || 1;
-  const limit = Math.min(Number(req.query.limit) || 20, 100);
-  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
-  const status = req.query.status as string | undefined;
-  const category = req.query.category as string | undefined;
-  const newArrival = req.query.newArrival as string | undefined;
-  const availability = req.query.availability as string | undefined;
-  const color = typeof req.query.color === "string" ? req.query.color.trim() : "";
-  const minPrice = req.query.minPrice != null ? Number(req.query.minPrice) : undefined;
-  const maxPrice = req.query.maxPrice != null ? Number(req.query.maxPrice) : undefined;
-  const sort = normalizeSort((req.query.sort as string) || "newest");
-  const minRating = req.query.minRating != null ? Number(req.query.minRating) : undefined;
-  const tagsParam = typeof req.query.tags === "string" ? req.query.tags.trim() : "";
-  const vendorParam = typeof req.query.vendor === "string" ? req.query.vendor.trim() : "";
-  const hasDiscount = req.query.hasDiscount as string | undefined;
+  const query = req.query ?? {};
+  const page = Number(query.page) || 1;
+  const limit = Math.min(Number(query.limit) || 20, 100);
+  const search = typeof query.search === "string" ? query.search.trim() : "";
+  const status = query.status as string | undefined;
+  const category = query.category as string | undefined;
+  const newArrival = query.newArrival as string | undefined;
+  const availability = query.availability as string | undefined;
+  const color = typeof query.color === "string" ? query.color.trim() : "";
+  const minPrice = query.minPrice != null ? Number(query.minPrice) : undefined;
+  const maxPrice = query.maxPrice != null ? Number(query.maxPrice) : undefined;
+  const sort = normalizeSort((query.sort as string) || "newest");
+  const minRating = query.minRating != null ? Number(query.minRating) : undefined;
+  const tagsParam = typeof query.tags === "string" ? query.tags.trim() : "";
+  const vendorParam = typeof query.vendor === "string" ? query.vendor.trim() : "";
+  const hasDiscount = query.hasDiscount as string | undefined;
+  const slugParam = typeof query.slug === "string" ? query.slug.trim().toLowerCase() : "";
 
   const filter: Record<string, unknown> = { deletedAt: null };
   if (status === "ACTIVE" || status === "INACTIVE" || status === "DRAFT") filter.status = status;
   if (category) filter.category = category;
+  if (slugParam && slugParam !== "*") filter.slug = slugParam;
   if (newArrival === "true") filter.isNewArrival = true;
   if (availability === "inStock") filter.stock = { $gt: 0 };
   if (availability === "outOfStock") filter.stock = 0;
@@ -163,7 +166,7 @@ export const listProducts = asyncHandler(async (req, res) => {
     const ratedProductIds = ratingAgg.map((r) => r._id);
     filter._id = { $in: ratedProductIds };
     if (ratedProductIds.length === 0) {
-      return sendResponse(res, req.locale, {
+      return sendResponse(res, req.locale ?? getDefaultLocale(), {
         data: [],
         pagination: { total: 0, page, limit, totalPages: 0 }
       });
@@ -198,16 +201,16 @@ export const listProducts = asyncHandler(async (req, res) => {
   if (vendorParam) appliedFilters.vendor = vendorParam;
   if (hasDiscount === "true" || hasDiscount === "false") appliedFilters.hasDiscount = hasDiscount;
 
-  const useEffectivePriceSort = sort === "priceAsc" || sort === "priceDesc";
+  const usediscountPriceSort = sort === "priceAsc" || sort === "priceDesc";
   const useSalesSort = sort === "bestSelling" || sort === "leastSelling";
   let products: unknown[];
 
-  if (useEffectivePriceSort) {
-    const effectivePriceSort = sort === "priceAsc" ? 1 : -1;
+  if (usediscountPriceSort) {
+    const discountPriceSort = sort === "priceAsc" ? 1 : -1;
     products = await Product.aggregate([
       { $match: filter },
-      { $addFields: { effectivePrice: { $ifNull: ["$discountPrice", "$price"] } } },
-      { $sort: { effectivePrice: effectivePriceSort as 1 | -1 } },
+      { $addFields: { discountPrice: { $ifNull: ["$discountPrice", "$price"] } } },
+      { $sort: { discountPrice: discountPriceSort as 1 | -1 } },
       { $skip: (page - 1) * limit },
       { $limit: limit },
       { $lookup: { from: "categories", localField: "category", foreignField: "_id", as: "categoryDoc" } },
@@ -328,11 +331,11 @@ export const listProducts = asyncHandler(async (req, res) => {
     };
   });
 
-  let data = (products as Record<string, unknown>[]).map((p) => withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true }));
-  if (req.query.for === "storefront") {
-    data = data.map((p) => toStorefrontProduct(p as Record<string, unknown>));
+  let data: Record<string, unknown>[] = (products as Record<string, unknown>[]).map((p) => withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true }) as Record<string, unknown>);
+  if (query.for === "storefront") {
+    data = data.map((p) => toStorefrontProduct(p));
   }
-  sendResponse(res, req.locale, {
+  sendResponse(res, req.locale ?? getDefaultLocale(), {
     data,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     appliedFilters
@@ -341,7 +344,8 @@ export const listProducts = asyncHandler(async (req, res) => {
 
 export const getProduct = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const product = await Product.findOne({ _id: req.params.id, deletedAt: null }).populate(
+  const productId = req.params?.id;
+  const product = await Product.findOne({ _id: productId, deletedAt: null }).populate(
     "category",
     "name status"
   );
@@ -350,7 +354,8 @@ export const getProduct = asyncHandler(async (req, res) => {
   }
 
   // Get color parameter from query string for color-specific images
-  const requestedColor = typeof req.query.color === "string" ? req.query.color.trim() : undefined;
+  const query = req.query ?? {};
+  const requestedColor = typeof query.color === "string" ? query.color.trim() : undefined;
 
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
 
@@ -390,26 +395,26 @@ export const getProduct = asyncHandler(async (req, res) => {
   const hasRealVariants = variants.length > 0;
   const variantList: Array<{ color: string; size: string; stock: number; outOfStock: boolean }> = hasRealVariants
     ? (variants as { color?: string; size?: string; stock?: number; outOfStock?: boolean }[]).map(v => ({
-        color: v.color ?? "",
-        size: v.size ?? "",
-        stock: v.stock ?? 0,
-        outOfStock: v.outOfStock ?? false
-      }))
+      color: v.color ?? "",
+      size: v.size ?? "",
+      stock: v.stock ?? 0,
+      outOfStock: v.outOfStock ?? false
+    }))
     : (() => {
-        const n = colors.length * sizes.length;
-        if (n === 0) return [];
-        const base = Math.floor(totalStock / n);
-        let remainder = totalStock - base * n;
-        const out: Array<{ color: string; size: string; stock: number; outOfStock: boolean }> = [];
-        for (const color of colors) {
-          for (const size of sizes) {
-            const extra = remainder > 0 ? 1 : 0;
-            if (remainder > 0) remainder--;
-            out.push({ color, size, stock: base + extra, outOfStock: false });
-          }
+      const n = colors.length * sizes.length;
+      if (n === 0) return [];
+      const base = Math.floor(totalStock / n);
+      let remainder = totalStock - base * n;
+      const out: Array<{ color: string; size: string; stock: number; outOfStock: boolean }> = [];
+      for (const color of colors) {
+        for (const size of sizes) {
+          const extra = remainder > 0 ? 1 : 0;
+          if (remainder > 0) remainder--;
+          out.push({ color, size, stock: base + extra, outOfStock: false });
         }
-        return out;
-      })();
+      }
+      return out;
+    })();
 
   // Calculate availability for each color and size
   const availability = {
@@ -458,10 +463,10 @@ export const getProduct = asyncHandler(async (req, res) => {
     ...(discountPercent != null ? { discountPercent } : {}),
     ...(formattedDetails ? { formattedDetails } : {})
   };
-  if (req.query.for === "storefront") {
+  if (query.for === "storefront") {
     payload = toStorefrontProduct(payload as Record<string, unknown>) as typeof payload;
   }
-  sendResponse(res, req.locale, {
+  sendResponse(res, req.locale ?? getDefaultLocale(), {
     data: { product: payload }
   });
 });
@@ -557,13 +562,15 @@ function isSizeOutOfStock(size: string, variants: unknown[], colors: string[]): 
 
 export const getRelatedProducts = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, { data: [] });
+    return sendResponse(res, req.locale ?? getDefaultLocale(), { data: [] });
   }
-  const productId = req.params.id;
-  const limit = Math.min(Math.max(1, Number(req.query.limit) || 4), 20);
+  const params = req.params ?? {};
+  const query = req.query ?? {};
+  const productId = params.id;
+  const limit = Math.min(Math.max(1, Number(query.limit) || 4), 20);
   const product = await Product.findOne({ _id: productId, deletedAt: null }).select("category").lean();
   if (!product || !product.category) {
-    return sendResponse(res, req.locale, { data: [] });
+    return sendResponse(res, req.locale ?? getDefaultLocale(), { data: [] });
   }
   const categoryId = typeof product.category === "object" && product.category && "_id" in product.category
     ? (product.category as { _id: unknown })._id
@@ -578,7 +585,7 @@ export const getRelatedProducts = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
-  let data = (products as Record<string, unknown>[]).map((p) => {
+  let data: Record<string, unknown>[] = (products as Record<string, unknown>[]).map((p) => {
     const price = typeof p.price === "number" ? p.price : 0;
     const discountPrice = typeof p.discountPrice === "number" ? p.discountPrice : undefined;
     const stock = typeof p.stock === "number" ? p.stock : 0;
@@ -586,17 +593,17 @@ export const getRelatedProducts = asyncHandler(async (req, res) => {
       discountPrice != null && price > 0 && discountPrice < price
         ? Math.round((1 - discountPrice / price) * 100)
         : undefined;
-    const withMedia = withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true });
+    const withMedia = withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true }) as Record<string, unknown>;
     return {
       ...withMedia,
       inStock: stock > 0,
       ...(discountPercent != null ? { discountPercent } : {})
     };
   });
-  if (req.query.for === "storefront") {
-    data = data.map((p) => toStorefrontProduct(p as Record<string, unknown>));
+  if (query.for === "storefront") {
+    data = data.map((p) => toStorefrontProduct(p));
   }
-  sendResponse(res, req.locale, { data });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { data });
 });
 
 function mapBodyToProduct(body: Record<string, unknown>) {
@@ -669,31 +676,33 @@ function mapBodyToProduct(body: Record<string, unknown>) {
 
 export const createProduct = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const mapped = mapBodyToProduct(req.body);
+  const mapped = mapBodyToProduct((req.body ?? {}) as Record<string, unknown>);
   const product = new Product(mapped);
   await product.save(); // pre-save hook generates slug if missing
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { status: 201, message: "success.product.created", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { status: 201, message: "success.product.created", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
 });
 
 export const updateProduct = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  const params = req.params ?? {};
   const product = await Product.findOneAndUpdate(
-    { _id: req.params.id, deletedAt: null },
-    mapBodyToProduct(req.body),
+    { _id: params.id, deletedAt: null },
+    mapBodyToProduct((req.body ?? {}) as Record<string, unknown>),
     { new: true }
   );
   if (!product) {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { message: "success.product.updated", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message: "success.product.updated", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
 });
 
 export const deleteProduct = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  const params = req.params ?? {};
   const product = await Product.findOneAndUpdate(
-    { _id: req.params.id, deletedAt: null },
+    { _id: params.id, deletedAt: null },
     { deletedAt: new Date() },
     { new: true }
   );
@@ -701,33 +710,35 @@ export const deleteProduct = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { message: "success.product.deleted", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message: "success.product.deleted", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
 });
 
 export const setProductStatus = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  const params = req.params ?? {};
+  const body = (req.body ?? {}) as Record<string, unknown>;
   const product = await Product.findOneAndUpdate(
-    { _id: req.params.id, deletedAt: null },
-    { status: req.body.status },
+    { _id: params.id, deletedAt: null },
+    { status: body.status },
     { new: true }
   );
   if (!product) {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
-  sendResponse(res, req.locale, { message: "success.product.status_updated", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message: "success.product.status_updated", data: { product: withProductMedia(productObj as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }) } });
 });
 
 export const uploadProductImages = asyncHandler(async (req: Request, res) => {
   const files = req.files as Express.Multer.File[] | undefined;
   if (!files?.length) throw new ApiError(400, "No images uploaded", { code: "errors.upload.no_image" });
   const paths = files.map((f) => productImagePath(f.filename));
-  sendResponse(res, req.locale, { message: "success.product.images_uploaded", data: { paths } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message: "success.product.images_uploaded", data: { paths } });
 });
 
 export const uploadProductVideos = asyncHandler(async (req: Request, res) => {
   const files = req.files as Express.Multer.File[] | undefined;
   if (!files?.length) throw new ApiError(400, "No videos uploaded", { code: "errors.upload.no_video" });
   const paths = files.map((f) => productVideoPath(f.filename));
-  sendResponse(res, req.locale, { message: "success.product.videos_uploaded", data: { paths } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message: "success.product.videos_uploaded", data: { paths } });
 });

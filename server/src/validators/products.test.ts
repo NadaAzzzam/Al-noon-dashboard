@@ -150,18 +150,35 @@ describe("products validators", () => {
   });
 
   describe("productQuerySchema", () => {
-    it("accepts empty query with defaults", () => {
-      const result = productQuerySchema.safeParse({ query: {} });
+    it("rejects missing slug", () => {
+      expect(productQuerySchema.safeParse({ query: {} }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { page: 1 } }).success).toBe(false);
+    });
+
+    it("rejects empty slug", () => {
+      expect(productQuerySchema.safeParse({ query: { slug: "" } }).success).toBe(false);
+    });
+
+    it("accepts query with slug and defaults", () => {
+      const result = productQuerySchema.safeParse({ query: { slug: "test-product" } });
       expect(result.success).toBe(true);
       if (result.success) {
+        expect(result.data.query.slug).toBe("test-product");
         expect(result.data.query.page).toBe(1);
         expect(result.data.query.limit).toBe(20);
       }
     });
 
+    it("accepts slug * to list all products", () => {
+      const result = productQuerySchema.safeParse({ query: { slug: "*" } });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.query.slug).toBe("*");
+    });
+
     it("accepts all filter fields", () => {
       const result = productQuerySchema.safeParse({
         query: {
+          slug: "embroidery-malhafa",
           page: 2,
           limit: 50,
           search: "shirt",
@@ -183,45 +200,45 @@ describe("products validators", () => {
     });
 
     it("accepts availability outOfStock and all", () => {
-      expect(productQuerySchema.safeParse({ query: { availability: "outOfStock" } }).success).toBe(true);
-      expect(productQuerySchema.safeParse({ query: { availability: "all" } }).success).toBe(true);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", availability: "outOfStock" } }).success).toBe(true);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", availability: "all" } }).success).toBe(true);
     });
 
     it("accepts newArrival false and hasDiscount false", () => {
-      expect(productQuerySchema.safeParse({ query: { newArrival: "false" } }).success).toBe(true);
-      expect(productQuerySchema.safeParse({ query: { hasDiscount: "false" } }).success).toBe(true);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", newArrival: "false" } }).success).toBe(true);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", hasDiscount: "false" } }).success).toBe(true);
     });
 
     it("rejects invalid status", () => {
-      expect(productQuerySchema.safeParse({ query: { status: "INVALID" } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", status: "INVALID" } }).success).toBe(false);
     });
 
     it("rejects invalid availability", () => {
-      expect(productQuerySchema.safeParse({ query: { availability: "maybe" } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", availability: "maybe" } }).success).toBe(false);
     });
 
     it("rejects limit > 100", () => {
-      expect(productQuerySchema.safeParse({ query: { limit: 101 } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", limit: 101 } }).success).toBe(false);
     });
 
     it("accepts limit 100", () => {
-      expect(productQuerySchema.safeParse({ query: { limit: 100 } }).success).toBe(true);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", limit: 100 } }).success).toBe(true);
     });
 
     it("rejects minRating > 5", () => {
-      expect(productQuerySchema.safeParse({ query: { minRating: 6 } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", minRating: 6 } }).success).toBe(false);
     });
 
     it("rejects minRating < 1", () => {
-      expect(productQuerySchema.safeParse({ query: { minRating: 0 } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", minRating: 0 } }).success).toBe(false);
     });
 
     it("rejects negative minPrice", () => {
-      expect(productQuerySchema.safeParse({ query: { minPrice: -1 } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", minPrice: -1 } }).success).toBe(false);
     });
 
     it("accepts for=storefront for slim product response", () => {
-      const result = productQuerySchema.safeParse({ query: { for: "storefront" } });
+      const result = productQuerySchema.safeParse({ query: { slug: "test", for: "storefront" } });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.query.for).toBe("storefront");
@@ -229,8 +246,8 @@ describe("products validators", () => {
     });
 
     it("rejects invalid for value", () => {
-      expect(productQuerySchema.safeParse({ query: { for: "admin" } }).success).toBe(false);
-      expect(productQuerySchema.safeParse({ query: { for: "" } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", for: "admin" } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { slug: "x", for: "" } }).success).toBe(false);
     });
   });
 

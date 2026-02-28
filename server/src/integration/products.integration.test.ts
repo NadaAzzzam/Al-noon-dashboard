@@ -5,6 +5,24 @@ import { Product } from "../models/Product.js";
 import { Category } from "../models/Category.js";
 import mongoose from "mongoose";
 
+/** API product shape (list/detail). Use for type-safe assertions on response bodies. */
+type ApiProduct = Record<string, unknown>;
+
+function asProduct(val: unknown): ApiProduct {
+  if (val && typeof val === "object") return val as ApiProduct;
+  return {};
+}
+
+/** Assert object does not have property (type-safe for unknown). */
+function expectNotToHaveProperty(obj: ApiProduct, key: string): void {
+  expect(key in obj).toBe(false);
+}
+
+/** Assert object has property (type-safe for unknown). */
+function expectToHaveProperty(obj: ApiProduct, key: string): void {
+  expect(key in obj).toBe(true);
+}
+
 describe("Products API (integration)", () => {
   let app: ReturnType<typeof createApp>;
   let authToken: string;
@@ -21,7 +39,7 @@ describe("Products API (integration)", () => {
   });
 
   it("GET /api/products returns list with pagination", async () => {
-    const res = await request(app).get("/api/products?page=1&limit=5");
+    const res = await request(app).get("/api/products?slug=*&page=1&limit=5");
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.data)).toBe(true);
@@ -55,6 +73,19 @@ describe("Products API (integration)", () => {
     expect(res.body.data?.product?.name?.en).toBe("Integration Test Product");
   });
 
+  it("GET /api/products/:id returns discountPercent when product has discount", async () => {
+    const product = await Product.findOne({ "name.en": "Integration Test Product" });
+    expect(product).toBeTruthy();
+    const res = await request(app).get(`/api/products/${product!._id}`);
+    expect(res.status).toBe(200);
+    const raw = res.body.data?.product;
+    expect(raw).toBeDefined();
+    const p = asProduct(raw);
+    expect(p.price).toBe(99.99);
+    expect(p.discountPrice).toBe(79.99);
+    expect(p.discountPercent).toBe(20); // 20% off
+  });
+
   it("rejects discountPrice >= price", async () => {
     const res = await request(app)
       .post("/api/products")
@@ -71,31 +102,35 @@ describe("Products API (integration)", () => {
   });
 
   describe("for=storefront (slim response)", () => {
-    it("GET /api/products?for=storefront returns slim products (omits unused fields)", async () => {
-      const res = await request(app).get("/api/products?page=1&limit=5&for=storefront");
+    it("GET /api/products?for=storefront returns slim products (omits unused fields, no discountPrice)", async () => {
+      const product = await Product.findOne({ "name.en": "Integration Test Product" });
+      const slug = product?.slug ?? "integration-test-product";
+      const res = await request(app).get(`/api/products?slug=${encodeURIComponent(slug)}&page=1&limit=5&for=storefront`);
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.data)).toBe(true);
       if (res.body.data.length > 0) {
-        const p = res.body.data[0];
-        expect(p).not.toHaveProperty("tags");
-        expect(p).not.toHaveProperty("vendor");
-        expect(p).not.toHaveProperty("imageColors");
-        expect(p).not.toHaveProperty("defaultMediaType");
-        expect(p).not.toHaveProperty("hoverMediaType");
-        expect(p).not.toHaveProperty("weightUnit");
-        expect(p).not.toHaveProperty("sizeDescriptions");
-        expect(p).not.toHaveProperty("variants");
-        expect(p).not.toHaveProperty("__v");
-        expect(p).not.toHaveProperty("createdAt");
-        expect(p).not.toHaveProperty("updatedAt");
-        expect(p).not.toHaveProperty("isNewArrival");
-        expect(p).toHaveProperty("_id");
-        expect(p).toHaveProperty("name");
-        expect(p).toHaveProperty("media");
-        if (p.category && typeof p.category === "object") {
-          expect(p.category).not.toHaveProperty("name");
-          expect(p.category).not.toHaveProperty("status");
+        const p = asProduct(res.body.data[0]);
+        expectNotToHaveProperty(p, "tags");
+        expectNotToHaveProperty(p, "vendor");
+        expectNotToHaveProperty(p, "imageColors");
+        expectNotToHaveProperty(p, "defaultMediaType");
+        expectNotToHaveProperty(p, "hoverMediaType");
+        expectNotToHaveProperty(p, "weightUnit");
+        expectNotToHaveProperty(p, "sizeDescriptions");
+        expectNotToHaveProperty(p, "variants");
+        expectNotToHaveProperty(p, "__v");
+        expectNotToHaveProperty(p, "createdAt");
+        expectNotToHaveProperty(p, "updatedAt");
+        expectNotToHaveProperty(p, "isNewArrival");
+        expectNotToHaveProperty(p, "discountPrice");
+        expectToHaveProperty(p, "_id");
+        expectToHaveProperty(p, "name");
+        expectToHaveProperty(p, "media");
+        const cat = p.category;
+        if (cat && typeof cat === "object") {
+          expectNotToHaveProperty(asProduct(cat), "name");
+          expectNotToHaveProperty(asProduct(cat), "status");
         }
       }
     });
@@ -106,32 +141,37 @@ describe("Products API (integration)", () => {
       const res = await request(app).get(`/api/products/${product!._id}?for=storefront`);
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      const p = res.body.data?.product;
-      expect(p).toBeDefined();
-      expect(p).not.toHaveProperty("tags");
-      expect(p).not.toHaveProperty("vendor");
-      expect(p).not.toHaveProperty("imageColors");
-      expect(p).not.toHaveProperty("defaultMediaType");
-      expect(p).not.toHaveProperty("hoverMediaType");
-      expect(p).not.toHaveProperty("variants");
-      expect(p).not.toHaveProperty("__v");
-      expect(p).not.toHaveProperty("createdAt");
-      expect(p).not.toHaveProperty("updatedAt");
-      expect(p).not.toHaveProperty("isNewArrival");
-      expect(p).toHaveProperty("availability");
-      if (p.availability?.colors?.length > 0) {
-        const c = p.availability.colors[0];
-        expect(c).not.toHaveProperty("imageUrl");
-        expect(c).not.toHaveProperty("hasImage");
-        expect(c).not.toHaveProperty("availableSizeCount");
-        expect(c).toHaveProperty("color");
-        expect(c).toHaveProperty("outOfStock");
+      const raw = res.body.data?.product;
+      expect(raw).toBeDefined();
+      const p = asProduct(raw);
+      expectNotToHaveProperty(p, "tags");
+      expectNotToHaveProperty(p, "vendor");
+      expectNotToHaveProperty(p, "imageColors");
+      expectNotToHaveProperty(p, "defaultMediaType");
+      expectNotToHaveProperty(p, "hoverMediaType");
+      expectNotToHaveProperty(p, "variants");
+      expectNotToHaveProperty(p, "__v");
+      expectNotToHaveProperty(p, "createdAt");
+      expectNotToHaveProperty(p, "updatedAt");
+      expectNotToHaveProperty(p, "isNewArrival");
+      expectNotToHaveProperty(p, "discountPrice");
+      expectToHaveProperty(p, "availability");
+      expect(p.discountPercent).toBe(20);
+      const avail = p.availability as { colors?: ApiProduct[] } | undefined;
+      if (avail?.colors && avail.colors.length > 0) {
+        const c = asProduct(avail.colors[0]);
+        expectNotToHaveProperty(c, "imageUrl");
+        expectNotToHaveProperty(c, "hasImage");
+        expectNotToHaveProperty(c, "availableSizeCount");
+        expectToHaveProperty(c, "color");
+        expectToHaveProperty(c, "outOfStock");
       }
-      expect(p.availability).not.toHaveProperty("variantsSource");
-      expect(p.availability).not.toHaveProperty("availableSizeCount");
-      if (p.category && typeof p.category === "object") {
-        expect(p.category).not.toHaveProperty("name");
-        expect(p.category).not.toHaveProperty("status");
+      if (avail) expectNotToHaveProperty(avail as ApiProduct, "variantsSource");
+      if (avail) expectNotToHaveProperty(avail as ApiProduct, "availableSizeCount");
+      const cat = p.category;
+      if (cat && typeof cat === "object") {
+        expectNotToHaveProperty(asProduct(cat), "name");
+        expectNotToHaveProperty(asProduct(cat), "status");
       }
     });
 
@@ -140,12 +180,15 @@ describe("Products API (integration)", () => {
       expect(product).toBeTruthy();
       const res = await request(app).get(`/api/products/${product!._id}`);
       expect(res.status).toBe(200);
-      const p = res.body.data?.product;
-      expect(p).toHaveProperty("__v");
-      expect(p).toHaveProperty("createdAt");
-      expect(p).toHaveProperty("updatedAt");
-      if (p.availability?.colors?.length > 0) {
-        expect(p.availability.colors[0]).toHaveProperty("hasImage");
+      const raw = res.body.data?.product;
+      expect(raw).toBeDefined();
+      const p = asProduct(raw);
+      expectToHaveProperty(p, "__v");
+      expectToHaveProperty(p, "createdAt");
+      expectToHaveProperty(p, "updatedAt");
+      const av = p.availability as { colors?: { hasImage?: unknown }[] } | undefined;
+      if (av?.colors && av.colors.length > 0) {
+        expectToHaveProperty(asProduct(av.colors[0]), "hasImage");
       }
     });
 
@@ -156,11 +199,11 @@ describe("Products API (integration)", () => {
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data)).toBe(true);
       if (res.body.data.length > 0) {
-        const p = res.body.data[0];
-        expect(p).not.toHaveProperty("tags");
-        expect(p).not.toHaveProperty("__v");
-        expect(p).not.toHaveProperty("createdAt");
-        expect(p).not.toHaveProperty("updatedAt");
+        const p = asProduct(res.body.data[0]);
+        expectNotToHaveProperty(p, "tags");
+        expectNotToHaveProperty(p, "__v");
+        expectNotToHaveProperty(p, "createdAt");
+        expectNotToHaveProperty(p, "updatedAt");
       }
     });
   });

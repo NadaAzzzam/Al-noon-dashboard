@@ -121,7 +121,6 @@ const productSchema = new Schema<ProductDocument>(
 
 productSchema.index({ deletedAt: 1 });
 productSchema.index({ status: 1, deletedAt: 1 });
-productSchema.index({ slug: 1 });
 productSchema.index({ tags: 1 });
 productSchema.index({ vendor: 1 });
 

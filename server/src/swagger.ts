@@ -230,6 +230,7 @@ function buildPaths() {
         { name: "tags", in: "query", schema: { type: "string" }, description: "Filter by tags (comma-separated)" },
         { name: "vendor", in: "query", schema: { type: "string" }, description: "Filter by vendor/brand (case-insensitive)" },
         { name: "hasDiscount", in: "query", schema: { type: "string", enum: ["true", "false"] }, description: "Filter products with/without discount" },
+        { name: "slug", in: "query", required: true, schema: { type: "string" }, description: "Lookup by slug (e.g. embroidered-malhafa-sale). Returns products with exact slug match. Use \"*\" to list all (admin). Storefront uses slug to resolve slug→id." },
       ],
       responses: {
         "200": { description: "Products list: success, data (array), pagination", ...refSchema("PaginatedProductsResponse") },

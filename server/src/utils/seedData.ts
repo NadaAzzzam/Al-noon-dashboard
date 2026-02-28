@@ -413,14 +413,23 @@ async function seed() {
   const productVideos = localVideoUrl ? [localVideoUrl] : [];
 
   // ----- Products (all fields set; no nulls). Each product: 6 distinct images + 1 local video for detail gallery. -----
+  const TAG_POOL = ["summer", "winter", "new-collection", "bestseller", "modest", "casual", "elegant", "sale", "limited-edition"];
+  const slugify = (text: string) => text.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^\w\u0600-\u06FF-]+/g, "").replace(/--+/g, "-").replace(/^-+|-+$/g, "");
   const defaultDetails = { en: "Quality fabric. Care as per label.", ar: "قماش عالي الجودة. العناية حسب البطاقة." };
   const defaultStylingTip = { en: "Pair with our hijabs and accessories for a complete look.", ar: "زينيها مع حجاباتنا وإكسسواراتنا لمظهر كامل." };
-  const fillProduct = (p: { sizes: string[]; images: string[]; imageColors?: string[]; name?: { en: string; ar: string }; description?: { en: string; ar: string } } & Record<string, unknown>) => {
+  const fillProduct = (p: { sizes: string[]; images: string[]; imageColors?: string[]; name?: { en: string; ar: string }; description?: { en: string; ar: string } } & Record<string, unknown>, index: number) => {
     const name = (p.name as { en: string; ar: string }) ?? { en: "product", ar: "منتج" };
     const description = (p.description as { en: string; ar: string }) ?? { en: "", ar: "" };
     const seo = buildSeoMeta(name, description);
+    const slug = slugify(name.en || "product") || `product-${index + 1}`;
+    // Pick 2–4 random tags per product for filtering/search
+    const numTags = 2 + (index % 3);
+    const shuffled = [...TAG_POOL].sort(() => (index + 1) * 0.1 - 0.5);
+    const tags = shuffled.slice(0, numTags);
     return {
       ...p,
+      slug,
+      tags,
       imageColors: p.imageColors ?? p.images.map(() => ""),
       sizeDescriptions: p.sizes.map(() => ""),
       details: defaultDetails,
@@ -462,7 +471,7 @@ async function seed() {
   ];
   const productsData = productList.map((p, i) => {
     const images = getProductGalleryImages(IMAGES, i);
-    return fillProduct({ ...p, images, videos: productVideos });
+    return fillProduct({ ...p, images, videos: productVideos }, i);
   });
   const products = await Product.insertMany(productsData);
   console.log(`Created ${products.length} products.`);
@@ -581,7 +590,11 @@ async function seed() {
 
   // ----- AI chat sessions (sample conversations with product cards) -----
   await ChatSession.deleteMany({});
-  const productsForChat = products.slice(0, 4).map((p) => ({ _id: p._id, name: p.name, images: p.images }));
+  const productsForChat = products.slice(0, 4).map((p) => ({
+    _id: p._id,
+    name: p.name ?? { en: "Product", ar: "منتج" },
+    images: p.images ?? []
+  }));
   const chatSessions = buildChatSessions(productsForChat);
   await ChatSession.insertMany(chatSessions);
   console.log(`Created ${chatSessions.length} AI chat sessions.`);

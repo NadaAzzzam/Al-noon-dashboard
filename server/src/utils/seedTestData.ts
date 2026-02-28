@@ -58,6 +58,7 @@ async function seedTestData() {
       colors: ["Black"],
       images: ["/uploads/products/seed-placeholder.jpg"],
       imageColors: ["Black"],
+      tags: ["test", "bestseller"],
     });
   }
 

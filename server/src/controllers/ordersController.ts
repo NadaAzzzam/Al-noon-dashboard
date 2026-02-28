@@ -296,11 +296,11 @@ export const createOrder = asyncHandler(async (req, res) => {
 
     qtyByProduct[pid] = (qtyByProduct[pid] ?? 0) + quantity;
 
-    const effectivePrice = typeof product.discountPrice === "number" && product.discountPrice > 0
+    const discountPrice = typeof product.discountPrice === "number" && product.discountPrice > 0
       ? Math.min(product.discountPrice, product.price)
       : product.price;
 
-    validatedItems.push({ product: pid, quantity, price: effectivePrice });
+    validatedItems.push({ product: pid, quantity, price: discountPrice });
   }
 
   if (validatedItems.length === 0) {

@@ -10,7 +10,7 @@ describe("Storefront API (slim response)", () => {
     cy.request({
       method: "GET",
       url: "/api/products",
-      qs: { for: "storefront", page: 1, limit: 5 },
+      qs: { slug: "*", for: "storefront", page: 1, limit: 5 },
       failOnStatusCode: false,
     }).then((res) => {
       if (res.status === 503 || res.status >= 500) {
@@ -40,7 +40,7 @@ describe("Storefront API (slim response)", () => {
     cy.request({
       method: "GET",
       url: "/api/products",
-      qs: { page: 1, limit: 2 },
+      qs: { slug: "*", page: 1, limit: 2 },
       failOnStatusCode: false,
     }).then((res) => {
       if (res.status === 503 || res.status >= 500) {
@@ -61,7 +61,7 @@ describe("Storefront API (slim response)", () => {
     cy.request({
       method: "GET",
       url: "/api/products",
-      qs: { page: 1, limit: 1 },
+      qs: { slug: "*", page: 1, limit: 1 },
       failOnStatusCode: false,
     }).then((listRes) => {
       if (listRes.status !== 200 || !listRes.body.data?.length) {

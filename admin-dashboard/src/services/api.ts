@@ -665,6 +665,7 @@ export const api = {
     request(`/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) }),
 
   listProducts: (params?: {
+    slug?: string;
     page?: number;
     limit?: number;
     search?: string;
@@ -682,6 +683,7 @@ export const api = {
     hasDiscount?: boolean;
   }) => {
     const sp = new URLSearchParams();
+    sp.set("slug", params?.slug ?? "*"); // Required: "*" = list all, or specific slug for lookup
     if (params?.page != null) sp.set("page", String(params.page));
     if (params?.limit != null) sp.set("limit", String(params.limit));
     if (params?.search) sp.set("search", params.search);

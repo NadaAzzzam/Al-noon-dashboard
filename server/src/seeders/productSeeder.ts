@@ -357,8 +357,8 @@ async function seedProductsWithDiscounts() {
     });
     const products = await Product.insertMany(productsData);
 
-    const withDiscount = validProducts.filter((p) => p.discountPrice != null).length;
-    logger.info(`Created ${products.length} products (${withDiscount} with discounts).`);
+    const discountCount = validProducts.filter((p) => p.discountPrice != null).length;
+    logger.info(`Created ${products.length} products (${discountCount} with discounts).`);
     logger.info("Product seeding complete!");
     process.exit(0);
   } catch (error) {

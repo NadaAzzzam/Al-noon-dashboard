@@ -36,10 +36,17 @@ describe("toStorefrontProduct", () => {
     };
     const slim = toStorefrontProduct(full);
     for (const key of OMITTED_KEYS) {
-      expect(slim).not.toHaveProperty(key);
+      expect(Object.hasOwn(slim, key)).toBe(false);
     }
-    expect(slim).toHaveProperty("_id", "123");
+    expect(slim).toHaveProperty("_id");
+    expect((slim as { _id: string })._id).toBe("123");
     expect(slim).toHaveProperty("name");
+  });
+
+  it("preserves discountPercent when present", () => {
+    const full = { _id: "p1", name: { en: "Test", ar: "تجربة" }, price: 100, discountPrice: 80, discountPercent: 20 };
+    const slim = toStorefrontProduct(full);
+    expect(slim.discountPercent).toBe(20);
   });
 
   it("preserves all used storefront fields", () => {
@@ -70,7 +77,7 @@ describe("toStorefrontProduct", () => {
     expect(slim.name).toEqual({ en: "Test", ar: "تجربة" });
     expect(slim.description).toEqual({ en: "Desc", ar: "وصف" });
     expect(slim.price).toBe(100);
-    expect(slim.discountPrice).toBe(80);
+    expect(Object.hasOwn(slim, "discountPrice")).toBe(false); // Omitted for storefront; use discountPercent
     expect(slim.images).toEqual(["/a.jpg"]);
     expect(slim.videos).toEqual(["/v.mp4"]);
     expect(slim.media).toEqual({ default: { type: "image", url: "/a.jpg" } });
@@ -96,7 +103,7 @@ describe("toStorefrontProduct", () => {
   it("handles undefined category", () => {
     const full = { _id: "p1" };
     const slim = toStorefrontProduct(full);
-    expect(slim).not.toHaveProperty("category");
+    expect(Object.hasOwn(slim, "category")).toBe(false);
   });
 
   it("handles category with id instead of _id", () => {
@@ -108,7 +115,7 @@ describe("toStorefrontProduct", () => {
   it("handles missing availability", () => {
     const full = { _id: "p1", name: { en: "Test", ar: "" } };
     const slim = toStorefrontProduct(full);
-    expect(slim).not.toHaveProperty("availability");
+    expect(Object.hasOwn(slim, "availability")).toBe(false);
   });
 
   it("handles empty availability.colors", () => {
@@ -151,8 +158,9 @@ describe("toStorefrontProduct", () => {
       },
     };
     const slim = toStorefrontProduct(full);
-    expect(slim.availability).not.toHaveProperty("variantsSource");
-    expect(slim.availability).not.toHaveProperty("availableSizeCount");
+    const avail = slim.availability as Record<string, unknown>;
+    expect(Object.hasOwn(avail, "variantsSource")).toBe(false);
+    expect(Object.hasOwn(avail, "availableSizeCount")).toBe(false);
     expect((slim.availability as { colors: unknown[] }).colors[0]).toEqual({
       color: "Black",
       available: true,
@@ -163,7 +171,7 @@ describe("toStorefrontProduct", () => {
       available: true,
       outOfStock: false,
     });
-    expect((slim.availability as Record<string, unknown>).sizes).toHaveLength(1);
-    expect((slim.availability as Record<string, unknown>).variants).toHaveLength(1);
+    expect(avail.sizes).toHaveLength(1);
+    expect(avail.variants).toHaveLength(1);
   });
 });

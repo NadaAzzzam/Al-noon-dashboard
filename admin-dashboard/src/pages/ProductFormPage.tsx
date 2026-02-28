@@ -127,7 +127,10 @@ const ProductFormPage = () => {
 
   const loadCategories = useCallback(async () => {
     try {
-      const res = (await api.listCategories()) as { data?: { categories: Category[] }; categories?: Category[] };
+      const res = (await api.listCategories()) as {
+        data?: { categories: Category[] };
+        categories?: Category[];
+      };
       setCategories(res.data?.categories ?? res.categories ?? []);
     } catch (_) {}
   }, []);
@@ -137,7 +140,10 @@ const ProductFormPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = (await api.getProduct(id)) as { data?: { product: Product }; product?: Product };
+      const res = (await api.getProduct(id)) as {
+        data?: { product: Product };
+        product?: Product;
+      };
       const p = res.data?.product ?? res.product;
       if (!p) {
         setError("Product not found");
@@ -164,7 +170,12 @@ const ProductFormPage = () => {
           typeof p.category === "object" && p.category && "_id" in p.category
             ? (p.category as { _id: string })._id
             : String(p.category ?? ""),
-        status: p.status === "INACTIVE" ? "INACTIVE" : p.status === "DRAFT" ? "DRAFT" : "ACTIVE",
+        status:
+          p.status === "INACTIVE"
+            ? "INACTIVE"
+            : p.status === "DRAFT"
+              ? "DRAFT"
+              : "ACTIVE",
         isNewArrival: Boolean(p.isNewArrival),
         images: p.images ?? [],
         imageColors:
@@ -189,13 +200,21 @@ const ProductFormPage = () => {
             ? p.stylingTip.ar
             : "") ?? "",
         metaTitleEn:
-          (p.metaTitle && typeof p.metaTitle === "object" ? p.metaTitle.en : "") ?? "",
+          (p.metaTitle && typeof p.metaTitle === "object"
+            ? p.metaTitle.en
+            : "") ?? "",
         metaTitleAr:
-          (p.metaTitle && typeof p.metaTitle === "object" ? p.metaTitle.ar : "") ?? "",
+          (p.metaTitle && typeof p.metaTitle === "object"
+            ? p.metaTitle.ar
+            : "") ?? "",
         metaDescriptionEn:
-          (p.metaDescription && typeof p.metaDescription === "object" ? p.metaDescription.en : "") ?? "",
+          (p.metaDescription && typeof p.metaDescription === "object"
+            ? p.metaDescription.en
+            : "") ?? "",
         metaDescriptionAr:
-          (p.metaDescription && typeof p.metaDescription === "object" ? p.metaDescription.ar : "") ?? "",
+          (p.metaDescription && typeof p.metaDescription === "object"
+            ? p.metaDescription.ar
+            : "") ?? "",
         sizes: p.sizes ?? [],
         sizeDescriptions: (() => {
           const sz = p.sizes ?? [];
@@ -208,12 +227,19 @@ const ProductFormPage = () => {
         colors: p.colors ?? [],
         variants:
           p.variants && Array.isArray(p.variants)
-            ? p.variants.map((v: { color?: string; size?: string; stock: number; outOfStock?: boolean }) => ({
-                color: v.color ?? "",
-                size: v.size ?? "",
-                stock: v.stock ?? 0,
-                outOfStock: v.outOfStock ?? false,
-              }))
+            ? p.variants.map(
+                (v: {
+                  color?: string;
+                  size?: string;
+                  stock: number;
+                  outOfStock?: boolean;
+                }) => ({
+                  color: v.color ?? "",
+                  size: v.size ?? "",
+                  stock: v.stock ?? 0,
+                  outOfStock: v.outOfStock ?? false,
+                }),
+              )
             : [],
         slug: p.slug ?? "",
         tags: p.tags ?? [],
@@ -243,9 +269,13 @@ const ProductFormPage = () => {
     setSaving(true);
     try {
       // Calculate total stock from variants
-      const totalStock = form.variants.length > 0
-        ? form.variants.reduce((sum, v) => sum + (v.outOfStock ? 0 : v.stock), 0)
-        : form.stock;
+      const totalStock =
+        form.variants.length > 0
+          ? form.variants.reduce(
+              (sum, v) => sum + (v.outOfStock ? 0 : v.stock),
+              0,
+            )
+          : form.stock;
 
       const payload = {
         nameEn: form.nameEn.trim(),
@@ -325,7 +355,7 @@ const ProductFormPage = () => {
       setSizeInput("");
     }
   };
-  
+
   const removeSize = (index: number) => {
     const sizeToRemove = form.sizes[index];
     setForm((f) => ({
@@ -336,7 +366,7 @@ const ProductFormPage = () => {
       variants: f.variants.filter((v) => v.size !== sizeToRemove),
     }));
   };
-  
+
   const setSizeDescription = (index: number, value: string) => {
     setForm((f) => {
       const next = [...f.sizeDescriptions];
@@ -344,7 +374,7 @@ const ProductFormPage = () => {
       return { ...f, sizeDescriptions: next };
     });
   };
-  
+
   const addColor = () => {
     const v = colorInput.trim();
     if (v && !form.colors.includes(v)) {
@@ -369,7 +399,7 @@ const ProductFormPage = () => {
       setColorInput("");
     }
   };
-  
+
   const removeColor = (c: string) => {
     setForm((f) => ({
       ...f,
@@ -385,7 +415,7 @@ const ProductFormPage = () => {
       variants: f.variants.map((v) =>
         v.size === size && v.color === color
           ? { ...v, stock, outOfStock: stock === 0 }
-          : v
+          : v,
       ),
     }));
   };
@@ -395,8 +425,12 @@ const ProductFormPage = () => {
       ...f,
       variants: f.variants.map((v) =>
         v.size === size && v.color === color
-          ? { ...v, outOfStock: !v.outOfStock, stock: v.outOfStock ? v.stock : 0 }
-          : v
+          ? {
+              ...v,
+              outOfStock: !v.outOfStock,
+              stock: v.outOfStock ? v.stock : 0,
+            }
+          : v,
       ),
     }));
   };
@@ -641,7 +675,13 @@ const ProductFormPage = () => {
                 id="product-slug"
                 value={form.slug}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/--+/g, "-") }))
+                  setForm((f) => ({
+                    ...f,
+                    slug: e.target.value
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-]/g, "-")
+                      .replace(/--+/g, "-"),
+                  }))
                 }
                 placeholder={t("products.slug_placeholder")}
               />
@@ -677,7 +717,12 @@ const ProductFormPage = () => {
                     <button
                       type="button"
                       className="product-form-tag-remove"
-                      onClick={() => setForm((f) => ({ ...f, tags: f.tags.filter((t) => t !== tag) }))}
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          tags: f.tags.filter((t) => t !== tag),
+                        }))
+                      }
                       aria-label="Remove"
                     >
                       ×
@@ -730,7 +775,14 @@ const ProductFormPage = () => {
             <div className="product-form-field">
               <label htmlFor="product-meta-title-en">
                 {t("products.meta_title_en")}
-                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 400,
+                    marginLeft: 8,
+                    color: "#64748b",
+                  }}
+                >
                   {form.metaTitleEn.length}/60
                 </span>
               </label>
@@ -742,12 +794,21 @@ const ProductFormPage = () => {
                 }
                 maxLength={60}
               />
-              <p className="product-form-hint">{t("products.meta_title_hint")}</p>
+              <p className="product-form-hint">
+                {t("products.meta_title_hint")}
+              </p>
             </div>
             <div className="product-form-field">
               <label htmlFor="product-meta-title-ar">
                 {t("products.meta_title_ar")}
-                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 400,
+                    marginLeft: 8,
+                    color: "#64748b",
+                  }}
+                >
                   {form.metaTitleAr.length}/60
                 </span>
               </label>
@@ -763,7 +824,14 @@ const ProductFormPage = () => {
             <div className="product-form-field">
               <label htmlFor="product-meta-desc-en">
                 {t("products.meta_description_en")}
-                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 400,
+                    marginLeft: 8,
+                    color: "#64748b",
+                  }}
+                >
                   {form.metaDescriptionEn.length}/160
                 </span>
               </label>
@@ -776,12 +844,21 @@ const ProductFormPage = () => {
                 maxLength={160}
                 rows={2}
               />
-              <p className="product-form-hint">{t("products.meta_description_hint")}</p>
+              <p className="product-form-hint">
+                {t("products.meta_description_hint")}
+              </p>
             </div>
             <div className="product-form-field">
               <label htmlFor="product-meta-desc-ar">
                 {t("products.meta_description_ar")}
-                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 400,
+                    marginLeft: 8,
+                    color: "#64748b",
+                  }}
+                >
                   {form.metaDescriptionAr.length}/160
                 </span>
               </label>
@@ -797,16 +874,37 @@ const ProductFormPage = () => {
             </div>
           </div>
           {(form.metaTitleEn || form.nameEn) && (
-            <div style={{ marginTop: 16, padding: 16, backgroundColor: "#f1f5f9", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>{t("products.seo_preview")}</p>
-              <p style={{ fontSize: 16, color: "#1a0dab", margin: "0 0 4px 0", fontWeight: 500 }}>
+            <div
+              style={{
+                marginTop: 16,
+                padding: 16,
+                backgroundColor: "#f1f5f9",
+                borderRadius: 8,
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}>
+                {t("products.seo_preview")}
+              </p>
+              <p
+                style={{
+                  fontSize: 16,
+                  color: "#1a0dab",
+                  margin: "0 0 4px 0",
+                  fontWeight: 500,
+                }}
+              >
                 {form.metaTitleEn || form.nameEn}
               </p>
-              <p style={{ fontSize: 13, color: "#006621", margin: "0 0 4px 0" }}>
+              <p
+                style={{ fontSize: 13, color: "#006621", margin: "0 0 4px 0" }}
+              >
                 yourstore.com/products/{form.slug || "..."}
               </p>
               <p style={{ fontSize: 13, color: "#545454", margin: 0 }}>
-                {form.metaDescriptionEn || form.descriptionEn || "No description set"}
+                {form.metaDescriptionEn ||
+                  form.descriptionEn ||
+                  "No description set"}
               </p>
             </div>
           )}
@@ -844,9 +942,7 @@ const ProductFormPage = () => {
                 placeholder="e.g. 10"
                 value={
                   form.price > 0 && form.discountPrice != null
-                    ? Math.round(
-                        (1 - form.discountPrice / form.price) * 100,
-                      )
+                    ? Math.round((1 - form.discountPrice / form.price) * 100)
                     : ""
                 }
                 onChange={(e) => {
@@ -859,9 +955,7 @@ const ProductFormPage = () => {
                   if (form.price > 0 && percent >= 0 && percent <= 100) {
                     setForm((f) => ({
                       ...f,
-                      discountPrice: Math.round(
-                        f.price * (1 - percent / 100),
-                      ),
+                      discountPrice: Math.round(f.price * (1 - percent / 100)),
                     }));
                   }
                 }}
@@ -879,16 +973,16 @@ const ProductFormPage = () => {
                       percent: Math.round(
                         (1 - form.discountPrice / form.price) * 100,
                       ),
-                      amount: formatPriceEGP(
-                        form.price - form.discountPrice,
-                      ),
+                      amount: formatPriceEGP(form.price - form.discountPrice),
                       sale: formatPriceEGP(form.discountPrice),
                     })}
                   </p>
                 )}
             </div>
             <div className="product-form-field">
-              <label htmlFor="product-cost">{t("products.cost_per_item")} (EGP)</label>
+              <label htmlFor="product-cost">
+                {t("products.cost_per_item")} (EGP)
+              </label>
               <input
                 id="product-cost"
                 type="number"
@@ -896,16 +990,25 @@ const ProductFormPage = () => {
                 min={0}
                 value={form.costPerItem ?? ""}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, costPerItem: e.target.value ? Number(e.target.value) : undefined }))
+                  setForm((f) => ({
+                    ...f,
+                    costPerItem: e.target.value
+                      ? Number(e.target.value)
+                      : undefined,
+                  }))
                 }
               />
               {form.costPerItem != null && form.costPerItem > 0 && (
                 <p className="product-form-hint" style={{ marginTop: 6 }}>
-                  {t("products.profit_margin")}: {(() => {
-                    const effectivePrice = form.discountPrice ?? form.price;
-                    if (effectivePrice <= 0) return "N/A";
-                    const margin = ((effectivePrice - form.costPerItem) / effectivePrice * 100).toFixed(1);
-                    return `${margin}% (${formatPriceEGP(effectivePrice - form.costPerItem)} profit)`;
+                  {t("products.profit_margin")}:{" "}
+                  {(() => {
+                    const discountPrice = form.discountPrice ?? form.price;
+                    if (discountPrice <= 0) return "N/A";
+                    const margin = (
+                      ((discountPrice - form.costPerItem) / discountPrice) *
+                      100
+                    ).toFixed(1);
+                    return `${margin}% (${formatPriceEGP(discountPrice - form.costPerItem)} profit)`;
                   })()}
                 </p>
               )}
@@ -928,7 +1031,7 @@ const ProductFormPage = () => {
                   form.variants.length > 0
                     ? form.variants.reduce(
                         (sum, v) => sum + (v.outOfStock ? 0 : v.stock),
-                        0
+                        0,
                       )
                     : form.stock
                 }
@@ -940,7 +1043,8 @@ const ProductFormPage = () => {
               />
               {form.variants.length > 0 && (
                 <p className="product-form-hint" style={{ marginTop: 6 }}>
-                  Stock is automatically calculated from variants below. To manually set stock, remove all sizes and colors first.
+                  Stock is automatically calculated from variants below. To
+                  manually set stock, remove all sizes and colors first.
                 </p>
               )}
             </div>
@@ -973,14 +1077,22 @@ const ProductFormPage = () => {
                   min={0}
                   value={form.weight ?? ""}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, weight: e.target.value ? Number(e.target.value) : undefined }))
+                    setForm((f) => ({
+                      ...f,
+                      weight: e.target.value
+                        ? Number(e.target.value)
+                        : undefined,
+                    }))
                   }
                   style={{ flex: 1 }}
                 />
                 <select
                   value={form.weightUnit}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, weightUnit: e.target.value as "g" | "kg" }))
+                    setForm((f) => ({
+                      ...f,
+                      weightUnit: e.target.value as "g" | "kg",
+                    }))
                   }
                   style={{ width: 80 }}
                 >
@@ -997,7 +1109,8 @@ const ProductFormPage = () => {
             {t("products.section_variants")}
           </h2>
           <p className="product-form-hint" style={{ marginBottom: 16 }}>
-            Add sizes and colors, then manage inventory for each combination below.
+            Add sizes and colors, then manage inventory for each combination
+            below.
           </p>
           <div className="product-form-variants-row">
             <div className="product-form-variants-block">
@@ -1089,10 +1202,11 @@ const ProductFormPage = () => {
                 Inventory Management
               </h3>
               <p className="product-form-hint" style={{ marginBottom: 16 }}>
-                Set stock quantity for each size and color combination. Leave at 0 or check "Out of Stock" for unavailable variants.
+                Set stock quantity for each size and color combination. Leave at
+                0 or check "Out of Stock" for unavailable variants.
               </p>
               <div style={{ overflowX: "auto" }}>
-                <table 
+                <table
                   style={{
                     width: "100%",
                     borderCollapse: "collapse",
@@ -1102,17 +1216,19 @@ const ProductFormPage = () => {
                 >
                   <thead>
                     <tr style={{ backgroundColor: "#f8fafc" }}>
-                      <th style={{
-                        padding: "12px",
-                        textAlign: "left",
-                        borderBottom: "2px solid #e2e8f0",
-                        fontWeight: 600,
-                        fontSize: 14,
-                      }}>
+                      <th
+                        style={{
+                          padding: "12px",
+                          textAlign: "left",
+                          borderBottom: "2px solid #e2e8f0",
+                          fontWeight: 600,
+                          fontSize: 14,
+                        }}
+                      >
                         Size
                       </th>
                       {form.colors.map((color) => (
-                        <th 
+                        <th
                           key={color}
                           style={{
                             padding: "12px",
@@ -1130,23 +1246,25 @@ const ProductFormPage = () => {
                   <tbody>
                     {form.sizes.map((size) => (
                       <tr key={size}>
-                        <td style={{
-                          padding: "12px",
-                          borderBottom: "1px solid #e2e8f0",
-                          fontWeight: 500,
-                          fontSize: 14,
-                        }}>
+                        <td
+                          style={{
+                            padding: "12px",
+                            borderBottom: "1px solid #e2e8f0",
+                            fontWeight: 500,
+                            fontSize: 14,
+                          }}
+                        >
                           {size}
                         </td>
                         {form.colors.map((color) => {
                           const variant = form.variants.find(
-                            (v) => v.size === size && v.color === color
+                            (v) => v.size === size && v.color === color,
                           );
                           const stock = variant?.stock ?? 0;
                           const isOutOfStock = variant?.outOfStock ?? true;
-                          
+
                           return (
-                            <td 
+                            <td
                               key={`${size}-${color}`}
                               style={{
                                 padding: "8px",
@@ -1154,12 +1272,14 @@ const ProductFormPage = () => {
                                 textAlign: "center",
                               }}
                             >
-                              <div style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                gap: 4,
-                              }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  gap: 4,
+                                }}
+                              >
                                 <input
                                   type="number"
                                   min={0}
@@ -1168,7 +1288,7 @@ const ProductFormPage = () => {
                                     updateVariantStock(
                                       size,
                                       color,
-                                      Number(e.target.value) || 0
+                                      Number(e.target.value) || 0,
                                     )
                                   }
                                   disabled={isOutOfStock}
@@ -1183,7 +1303,7 @@ const ProductFormPage = () => {
                                   }}
                                   aria-label={`Stock for ${size} ${color}`}
                                 />
-                                <label 
+                                <label
                                   style={{
                                     display: "flex",
                                     alignItems: "center",
@@ -1214,20 +1334,25 @@ const ProductFormPage = () => {
                   </tbody>
                   <tfoot>
                     <tr style={{ backgroundColor: "#f8fafc" }}>
-                      <td style={{
-                        padding: "12px",
-                        fontWeight: 600,
-                        fontSize: 14,
-                        borderTop: "2px solid #e2e8f0",
-                      }}>
+                      <td
+                        style={{
+                          padding: "12px",
+                          fontWeight: 600,
+                          fontSize: 14,
+                          borderTop: "2px solid #e2e8f0",
+                        }}
+                      >
                         Total Stock
                       </td>
                       {form.colors.map((color) => {
                         const totalForColor = form.variants
                           .filter((v) => v.color === color)
-                          .reduce((sum, v) => sum + (v.outOfStock ? 0 : v.stock), 0);
+                          .reduce(
+                            (sum, v) => sum + (v.outOfStock ? 0 : v.stock),
+                            0,
+                          );
                         return (
-                          <td 
+                          <td
                             key={`total-${color}`}
                             style={{
                               padding: "12px",
@@ -1235,7 +1360,8 @@ const ProductFormPage = () => {
                               fontWeight: 600,
                               fontSize: 14,
                               borderTop: "2px solid #e2e8f0",
-                              color: totalForColor === 0 ? "#ef4444" : "#10b981",
+                              color:
+                                totalForColor === 0 ? "#ef4444" : "#10b981",
                             }}
                           >
                             {totalForColor}
@@ -1246,18 +1372,20 @@ const ProductFormPage = () => {
                   </tfoot>
                 </table>
               </div>
-              <div style={{
-                marginTop: 16,
-                padding: 12,
-                backgroundColor: "#f1f5f9",
-                borderRadius: 8,
-                fontSize: 13,
-                color: "#475569",
-              }}>
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: 12,
+                  backgroundColor: "#f1f5f9",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  color: "#475569",
+                }}
+              >
                 <strong>Total Product Stock:</strong>{" "}
                 {form.variants.reduce(
                   (sum, v) => sum + (v.outOfStock ? 0 : v.stock),
-                  0
+                  0,
                 )}{" "}
                 units across all variants
               </div>
@@ -1396,17 +1524,23 @@ const ProductFormPage = () => {
         </section>
 
         <section className="product-form-section">
-          <h2 className="product-form-section-title">
-            Card Display Settings
-          </h2>
+          <h2 className="product-form-section-title">Card Display Settings</h2>
           <p className="product-form-hint" style={{ marginBottom: 16 }}>
-            Control what media shows on product cards in the store. Choose between images and videos for default view and hover state.
+            Control what media shows on product cards in the store. Choose
+            between images and videos for default view and hover state.
           </p>
           <div className="product-form-grid">
             <div className="product-form-field">
               <label htmlFor="default-media-type">
                 Default Card Media
-                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 400,
+                    marginLeft: 8,
+                    color: "#64748b",
+                  }}
+                >
                   (What shows first)
                 </span>
               </label>
@@ -1427,11 +1561,18 @@ const ProductFormPage = () => {
                   backgroundColor: "#fff",
                 }}
               >
-                <option value="image">🖼️ Show Image (First image or custom view image)</option>
-                <option value="video">🎥 Show Video (First video as default)</option>
+                <option value="image">
+                  🖼️ Show Image (First image or custom view image)
+                </option>
+                <option value="video">
+                  🎥 Show Video (First video as default)
+                </option>
               </select>
-              <p className="product-form-hint" style={{ marginTop: 8, fontSize: 13 }}>
-                {form.defaultMediaType === "image" 
+              <p
+                className="product-form-hint"
+                style={{ marginTop: 8, fontSize: 13 }}
+              >
+                {form.defaultMediaType === "image"
                   ? "Product cards will display the first image by default"
                   : "Product cards will display the first video by default (if available)"}
               </p>
@@ -1439,7 +1580,14 @@ const ProductFormPage = () => {
             <div className="product-form-field">
               <label htmlFor="hover-media-type">
                 Hover Card Media
-                <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: "#64748b" }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 400,
+                    marginLeft: 8,
+                    color: "#64748b",
+                  }}
+                >
                   (What shows on hover)
                 </span>
               </label>
@@ -1460,40 +1608,60 @@ const ProductFormPage = () => {
                   backgroundColor: "#fff",
                 }}
               >
-                <option value="image">🖼️ Show Image (Second image or custom hover image)</option>
-                <option value="video">🎥 Show Video (First video on hover)</option>
+                <option value="image">
+                  🖼️ Show Image (Second image or custom hover image)
+                </option>
+                <option value="video">
+                  🎥 Show Video (First video on hover)
+                </option>
               </select>
-              <p className="product-form-hint" style={{ marginTop: 8, fontSize: 13 }}>
-                {form.hoverMediaType === "image" 
+              <p
+                className="product-form-hint"
+                style={{ marginTop: 8, fontSize: 13 }}
+              >
+                {form.hoverMediaType === "image"
                   ? "Product cards will show the second image on hover"
                   : "Product cards will show a video on hover (if available)"}
               </p>
             </div>
           </div>
-          <div 
+          <div
             style={{
               marginTop: 16,
               padding: 16,
               backgroundColor: "#f1f5f9",
               borderRadius: 8,
-              border: "1px solid #cbd5e1"
+              border: "1px solid #cbd5e1",
             }}
           >
             <p style={{ margin: 0, fontSize: 14, lineHeight: "1.5" }}>
-              <strong>💡 Preview:</strong> Default = <strong style={{ color: form.defaultMediaType === "image" ? "#0ea5e9" : "#8b5cf6" }}>
+              <strong>💡 Preview:</strong> Default ={" "}
+              <strong
+                style={{
+                  color:
+                    form.defaultMediaType === "image" ? "#0ea5e9" : "#8b5cf6",
+                }}
+              >
                 {form.defaultMediaType === "image" ? "Image" : "Video"}
-              </strong> | Hover = <strong style={{ color: form.hoverMediaType === "image" ? "#0ea5e9" : "#8b5cf6" }}>
+              </strong>{" "}
+              | Hover ={" "}
+              <strong
+                style={{
+                  color:
+                    form.hoverMediaType === "image" ? "#0ea5e9" : "#8b5cf6",
+                }}
+              >
                 {form.hoverMediaType === "image" ? "Image" : "Video"}
               </strong>
             </p>
             <p style={{ margin: "8px 0 0 0", fontSize: 13, color: "#64748b" }}>
-              {form.images.length === 0 && form.videos.length === 0 
+              {form.images.length === 0 && form.videos.length === 0
                 ? "⚠️ Please upload at least one image or video"
                 : form.defaultMediaType === "video" && form.videos.length === 0
-                ? "⚠️ No videos uploaded yet. Add videos below or switch to image mode."
-                : form.hoverMediaType === "video" && form.videos.length === 0
-                ? "⚠️ No videos for hover. Add videos below or switch hover to image mode."
-                : "✓ Media configuration looks good!"}
+                  ? "⚠️ No videos uploaded yet. Add videos below or switch to image mode."
+                  : form.hoverMediaType === "video" && form.videos.length === 0
+                    ? "⚠️ No videos for hover. Add videos below or switch hover to image mode."
+                    : "✓ Media configuration looks good!"}
             </p>
           </div>
         </section>

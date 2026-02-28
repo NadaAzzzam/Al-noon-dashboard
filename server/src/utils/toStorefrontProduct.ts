@@ -5,6 +5,7 @@
  * Strips:
  * - tags, vendor, imageColors, defaultMediaType, hoverMediaType, weightUnit, sizeDescriptions
  * - variants (root), __v, createdAt, updatedAt, isNewArrival
+ * - discountPrice (storefront uses discountPercent + price; raw discountPrice omitted)
  * - category.name, category.status
  * - availability.colors[].imageUrl, hasImage, availableSizeCount (keeps color, available, outOfStock)
  * - availability.availableSizeCount, availability.variantsSource
@@ -25,6 +26,7 @@ const OMIT_ROOT: ReadonlySet<string> = new Set([
   "createdAt",
   "updatedAt",
   "isNewArrival",
+  "discountPrice",
 ]);
 
 /** Slim category: only _id for catalog filters. */

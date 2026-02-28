@@ -56,7 +56,6 @@ const chatSessionSchema = new Schema<ChatSessionDocument>(
   { timestamps: true }
 );
 
-chatSessionSchema.index({ sessionId: 1 });
 chatSessionSchema.index({ createdAt: -1 });
 chatSessionSchema.index({ status: 1 });
 
