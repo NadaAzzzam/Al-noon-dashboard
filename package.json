@@ -12,9 +12,16 @@
     "test": "cd server && npm run test && cd ../admin-dashboard && npm run test",
     "test:server": "cd server && npm run test",
     "test:admin": "cd admin-dashboard && npm run test",
-    "test:e2e": "cd server && npm run seed:test && cd ../admin-dashboard && npm run test:e2e"
+    "test:integration": "cd server && npm run test:integration",
+    "lint": "cd server && npm run lint",
+    "prepush": "npm run lint && npm run test:server && npm run test:integration && npm run test:admin",
+    "test:e2e": "cd server && npm run seed:test && cd ../admin-dashboard && npm run test:e2e",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }

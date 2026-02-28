@@ -73,6 +73,20 @@ describe("Products API (integration)", () => {
     expect(res.body.data?.product?.name?.en).toBe("Integration Test Product");
   });
 
+  it("GET /api/products?slug=<slug> filters by slug.en or slug.ar", async () => {
+    const product = await Product.findOne({ "name.en": "Integration Test Product" });
+    expect(product).toBeTruthy();
+    const slugEn = typeof product!.slug === "object" ? product!.slug.en : product!.slug;
+    expect(slugEn).toBeTruthy();
+    const res = await request(app).get(`/api/products?slug=${encodeURIComponent(slugEn)}&page=1&limit=5`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    const found = res.body.data.find((p: { _id?: string }) => String(p._id) === String(product!._id));
+    expect(found).toBeDefined();
+  });
+
   it("GET /api/products/:id returns discountPercent when product has discount", async () => {
     const product = await Product.findOne({ "name.en": "Integration Test Product" });
     expect(product).toBeTruthy();
@@ -138,6 +152,30 @@ describe("Products API (integration)", () => {
     });
   });
 
+  it("POST /api/products with slugEn/slugAr creates product with custom slugs", async () => {
+    const payload = {
+      nameEn: "Slug Test Product",
+      nameAr: "منتج تجريبي",
+      price: 49.99,
+      stock: 5,
+      category: categoryId,
+      slugEn: "custom-slug-test",
+      slugAr: "منتج-تجريبي-مخصص",
+    };
+    const res = await request(app)
+      .post("/api/products")
+      .set("Authorization", `Bearer ${authToken}`)
+      .send(payload);
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    const saved = await Product.findOne({ "name.en": "Slug Test Product" });
+    expect(saved).toBeTruthy();
+    expect(saved!.slug).toBeDefined();
+    expect(typeof saved!.slug).toBe("object");
+    expect((saved!.slug as { en?: string }).en).toBe("custom-slug-test");
+    expect((saved!.slug as { ar?: string }).ar).toBe("منتج-تجريبي-مخصص");
+  });
+
   it("rejects discountPrice >= price", async () => {
     const res = await request(app)
       .post("/api/products")
@@ -156,7 +194,7 @@ describe("Products API (integration)", () => {
   describe("for=storefront (slim response)", () => {
     it("GET /api/products?for=storefront returns slim products (omits unused fields, no discountPrice)", async () => {
       const product = await Product.findOne({ "name.en": "Integration Test Product" });
-      const slug = product?.slug ?? "integration-test-product";
+      const slug = (typeof product?.slug === "object" ? product?.slug?.en : product?.slug) ?? "integration-test-product";
       const res = await request(app).get(`/api/products?slug=${encodeURIComponent(slug)}&page=1&limit=5&for=storefront`);
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -252,7 +290,7 @@ describe("Products API (integration)", () => {
       expect(Array.isArray(res.body.data)).toBe(true);
       if (res.body.data.length > 0) {
         const p = asProduct(res.body.data[0]);
-        expectNotToHaveProperty(p, "tags");
+        expectToHaveProperty(p, "tags"); // storefront includes tags for clickable filter links
         expectNotToHaveProperty(p, "__v");
         expectNotToHaveProperty(p, "createdAt");
         expectNotToHaveProperty(p, "updatedAt");
