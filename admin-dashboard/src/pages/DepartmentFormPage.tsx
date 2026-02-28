@@ -252,6 +252,7 @@ const DepartmentFormPage = () => {
             </label>
             <select
               id="dept-roles"
+              multiple
               value={form.roleIds ?? []}
               onChange={handleRolesChange}
               disabled={!canManage}

@@ -109,3 +109,34 @@ describe("Checkout API", () => {
     });
   });
 });
+
+describe("Guest Order Lookup API", () => {
+  let app: ReturnType<typeof createApp>;
+
+  beforeAll(() => {
+    app = createApp();
+  });
+
+  describe("GET /api/orders/guest/:id", () => {
+    it("returns 400 when email query param is missing", async () => {
+      const res = await request(app).get("/api/orders/guest/507f1f77bcf86cd799439011");
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBeDefined();
+    });
+
+    it("returns 400 when email query param is invalid", async () => {
+      const res = await request(app)
+        .get("/api/orders/guest/507f1f77bcf86cd799439011")
+        .query({ email: "not-an-email" });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 for non-existent order", async () => {
+      const res = await request(app)
+        .get("/api/orders/guest/507f1f77bcf86cd799439012")
+        .query({ email: "guest@example.com" });
+      expect(res.status).toBe(404);
+    });
+  });
+});

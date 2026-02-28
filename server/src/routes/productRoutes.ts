@@ -19,7 +19,8 @@ import {
   productParamsSchema,
   productQuerySchema,
   productSchema,
-  productStatusSchema
+  productStatusSchema,
+  productUpdateSchema
 } from "../validators/products.js";
 import { stockUpdateSchema } from "../validators/inventory.js";
 
@@ -34,7 +35,7 @@ router.use(authenticate);
 router.post("/images", requirePermission(["products.manage"]), multerProductImages, uploadProductImages);
 router.post("/videos", requirePermission(["products.manage"]), multerProductVideos, uploadProductVideos);
 router.post("/", requirePermission(["products.manage"]), validate(productSchema), createProduct);
-router.put("/:id", requirePermission(["products.manage"]), validate(productSchema.merge(productParamsSchema)), updateProduct);
+router.put("/:id", requirePermission(["products.manage"]), validate(productUpdateSchema), updateProduct);
 router.patch("/:id/status", requirePermission(["products.manage"]), validate(productStatusSchema), setProductStatus);
 router.patch("/:id/stock", requirePermission(["inventory.manage"]), validate(stockUpdateSchema), updateStock);
 router.delete("/:id", requirePermission(["products.manage"]), validate(productParamsSchema), deleteProduct);

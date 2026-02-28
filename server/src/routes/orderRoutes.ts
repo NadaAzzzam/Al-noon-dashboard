@@ -3,6 +3,7 @@ import {
   cancelOrder,
   createOrder,
   getOrder,
+  getGuestOrder,
   listOrders,
   updateOrderStatus
 } from "../controllers/ordersController.js";
@@ -22,6 +23,9 @@ const router = Router();
 
 // POST /api/orders: allow guest checkout (optional auth) when body has guestName + guestEmail
 router.post("/", optionalAuthenticate, validate(orderSchema), createOrder);
+
+// GET /api/orders/guest/:id?email=xxx – public guest order lookup (for confirmation after tab close)
+router.get("/guest/:id", getGuestOrder);
 
 // All other order routes require authentication
 router.use(authenticate);

@@ -25,7 +25,12 @@
       "not_found": "Order not found",
       "cancel_not_allowed": "Only pending or confirmed orders can be cancelled",
       "guest_name_required": "Guest name is required for guest checkout",
-      "guest_email_required": "Valid guest email is required for guest checkout"
+      "guest_email_required": "Valid guest email is required for guest checkout",
+      "out_of_stock": "{{productName}} is out of stock (requested {{requested}}, available {{available}})",
+      "product_unavailable": "Product not found or unavailable",
+      "invalid_shipping_method": "Invalid or disabled shipping method",
+      "invalid_payment_method": "Invalid payment method",
+      "payment_not_available": "Selected payment method is not available"
     },
     "payment": {
       "not_found": "Payment not found for this order",

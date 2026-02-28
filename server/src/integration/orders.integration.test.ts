@@ -64,4 +64,69 @@ describe("Orders API (integration)", () => {
     const qty = order.items.find((i) => i.product.toString() === productId)?.quantity ?? 0;
     expect(productAfter!.stock).toBe((productBefore!.stock ?? 0) - qty);
   });
+
+  it("POST /api/checkout rejects order when product is out of stock", async () => {
+    const outOfStockProduct = await Product.create({
+      name: { en: "Out Of Stock", ar: "نفد" },
+      price: 99,
+      stock: 0,
+      variants: [],
+      category: (await Category.findOne())!._id,
+      status: "ACTIVE",
+    });
+    const res = await request(app)
+      .post("/api/checkout")
+      .send({
+        items: [{ product: outOfStockProduct._id.toString(), quantity: 1, price: 99 }],
+        guestName: "Guest",
+        guestEmail: "guest-oo@test.com",
+        shippingAddress: { address: "123 St", city: "Cairo" },
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message?.toLowerCase()).toMatch(/out of stock|stock/i);
+    await Product.findByIdAndDelete(outOfStockProduct._id);
+  });
+
+  it("GET /api/orders/guest/:id?email=xxx returns guest order when email matches", async () => {
+    const guestEmail = "guest-lookup@test.com";
+    const createRes = await request(app)
+      .post("/api/orders")
+      .send({
+        items: [{ product: productId, quantity: 1, price: 50 }],
+        guestName: "Guest Lookup",
+        guestEmail,
+        shippingAddress: { address: "999 Lookup St", city: "Cairo" },
+      });
+    expect(createRes.status).toBe(201);
+    const orderId = createRes.body?.data?.order?._id ?? createRes.body?.data?.order?.id;
+    expect(orderId).toBeDefined();
+
+    const getRes = await request(app)
+      .get(`/api/orders/guest/${orderId}`)
+      .query({ email: guestEmail });
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.success).toBe(true);
+    expect(getRes.body.data?.order).toBeDefined();
+    expect(getRes.body.data.order.guestEmail ?? getRes.body.data.order.email).toBe(guestEmail);
+  });
+
+  it("GET /api/orders/guest/:id returns 404 when email does not match", async () => {
+    const guestEmail = "guest-no-match@test.com";
+    const createRes = await request(app)
+      .post("/api/orders")
+      .send({
+        items: [{ product: productId, quantity: 1, price: 50 }],
+        guestName: "Guest",
+        guestEmail,
+        shippingAddress: { address: "123 St", city: "Cairo" },
+      });
+    expect(createRes.status).toBe(201);
+    const orderId = createRes.body?.data?.order?._id ?? createRes.body?.data?.order?.id;
+
+    const getRes = await request(app)
+      .get(`/api/orders/guest/${orderId}`)
+      .query({ email: "wrong@email.com" });
+    expect(getRes.status).toBe(404);
+  });
 });

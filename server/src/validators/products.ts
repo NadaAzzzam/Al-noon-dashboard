@@ -7,7 +7,7 @@ const localizedBody = z.object({
   descriptionAr: z.string().optional()
 });
 
-export const productSchema = z.object({
+const productBodySchema = z.object({
   body: localizedBody.merge(z.object({
     price: z.number().positive(),
     discountPrice: z.number().positive().optional(),
@@ -49,20 +49,32 @@ export const productSchema = z.object({
     /** Weight unit: grams or kilograms. */
     weightUnit: z.enum(["g", "kg"]).optional()
   }))
-}).refine(
-  (data) => {
-    const { discountPrice, price } = data.body;
-    if (discountPrice == null) return true;
-    return discountPrice < price;
-  },
-  { message: "Discount price must be less than regular price", path: ["body", "discountPrice"] }
-);
+});
+
+const discountPriceRefine = (data: { body: { discountPrice?: number; price: number } }) => {
+  const { discountPrice, price } = data.body;
+  if (discountPrice == null) return true;
+  return discountPrice < price;
+};
 
 export const productParamsSchema = z.object({
   params: z.object({
     id: z.string().min(1)
   })
 });
+
+export const productSchema = productBodySchema.refine(
+  discountPriceRefine,
+  { message: "Discount price must be less than regular price", path: ["body", "discountPrice"] }
+);
+
+/** Combined schema for PUT /:id (body + params.id) */
+export const productUpdateSchema = productBodySchema
+  .merge(productParamsSchema)
+  .refine(
+    discountPriceRefine,
+    { message: "Discount price must be less than regular price", path: ["body", "discountPrice"] }
+  );
 
 export const productQuerySchema = z.object({
   query: z.object({

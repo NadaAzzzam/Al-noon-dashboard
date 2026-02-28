@@ -554,6 +554,25 @@ function buildPaths() {
     },
   };
 
+  paths["/api/orders/guest/{id}"] = {
+    get: {
+      operationId: "getGuestOrder",
+      tags: ["Orders"],
+      summary: "Get guest order by ID (public)",
+      description: "Public endpoint for guests to look up their order after checkout. Use when sessionStorage is cleared (e.g. tab closed). Requires email query param to match the order's email for security.",
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Order ID" },
+        { name: "email", in: "query", required: true, schema: { type: "string", format: "email" }, description: "Guest email (must match order email)" },
+      ],
+      responses: {
+        "200": { description: "Success, data.order (same shape as GET /api/orders/{id})", ...refSchema("OrderResponse") },
+        "400": errDesc("Missing or invalid email query parameter"),
+        "403": errDesc("Forbidden (logged-in orders must use authenticated endpoint)"),
+        "404": errDesc("Order not found or email does not match"),
+      },
+    },
+  };
+
   paths["/api/orders/{id}"] = {
     get: {
       operationId: "getOrder",

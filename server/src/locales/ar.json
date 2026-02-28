@@ -25,7 +25,12 @@
       "not_found": "الطلب غير موجود",
       "cancel_not_allowed": "يمكن إلغاء الطلبات المعلقة أو المؤكدة فقط",
       "guest_name_required": "اسم الضيف مطلوب للدفع كضيف",
-      "guest_email_required": "البريد الإلكتروني الصحيح للضيف مطلوب للدفع كضيف"
+      "guest_email_required": "البريد الإلكتروني الصحيح للضيف مطلوب للدفع كضيف",
+      "out_of_stock": "{{productName}} نفد من المخزون (المطلوب {{requested}}، المتاح {{available}})",
+      "product_unavailable": "المنتج غير موجود أو غير متاح",
+      "invalid_shipping_method": "طريقة الشحن غير صالحة أو معطّلة",
+      "invalid_payment_method": "طريقة الدفع غير صالحة",
+      "payment_not_available": "طريقة الدفع المحددة غير متاحة"
     },
     "payment": {
       "not_found": "لم يتم العثور على دفعة لهذا الطلب",

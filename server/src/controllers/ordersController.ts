@@ -4,6 +4,7 @@ import { Product } from "../models/Product.js";
 import { Settings } from "../models/Settings.js";
 import { User } from "../models/User.js";
 import { City } from "../models/City.js";
+import { ShippingMethod } from "../models/ShippingMethod.js";
 import mongoose from "mongoose";
 import { isDbConnected } from "../config/db.js";
 import { env } from "../config/env.js";
@@ -124,6 +125,48 @@ export const getOrder = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * GET /api/orders/guest/:id?email=xxx – Public guest order lookup.
+ * Allows guests to view order confirmation after tab close (alternative to sessionStorage).
+ * Requires email query param to match order email for security.
+ */
+export const getGuestOrder = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new ApiError(400, "Valid email query parameter is required", { code: "errors.order.guest_email_required" });
+  }
+  const order = await Order.findById(req.params.id)
+    .populate("items.product", "_id name price discountPrice images")
+    .lean();
+  if (!order) throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
+  const o = order as { user?: unknown; email?: string; guestEmail?: string; items?: { product: unknown; quantity: number; price: number }[] };
+  if (o.user != null) {
+    throw new ApiError(403, "Use authenticated order endpoint for logged-in orders", { code: "errors.common.forbidden" });
+  }
+  const orderEmail = (o.email ?? o.guestEmail ?? "").trim().toLowerCase();
+  if (orderEmail !== email) {
+    throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
+  }
+  const items = Array.isArray(o.items)
+    ? o.items.map((item) => ({
+        ...item,
+        product: normalizeOrderItemProduct(item)
+      }))
+    : o.items;
+  const payment = await Payment.findOne({ order: order._id }).lean();
+  sendResponse(res, req.locale, {
+    data: {
+      order: {
+        ...order,
+        id: (order as { _id?: unknown })._id?.toString?.() ?? req.params.id,
+        items,
+        payment: payment ?? (o.paymentMethod ? { method: o.paymentMethod, status: "UNPAID" } : undefined)
+      }
+    }
+  });
+});
+
 /** Format a structured address for display in emails / fallback text */
 function formatAddress(addr: unknown): string {
   if (!addr) return "—";
@@ -199,11 +242,104 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  const subtotal = items.reduce(
-    (sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price,
-    0
-  );
-  const fee = typeof deliveryFee === "number" && deliveryFee >= 0 ? deliveryFee : 0;
+  // --- Stock validation & price recomputation (do not trust client) ---
+  const productIds = [...new Set(items.map((i: { product: string }) => i.product))];
+  const products = await Product.find({
+    _id: { $in: productIds.map((id) => new mongoose.Types.ObjectId(id)) },
+    status: "ACTIVE",
+    deletedAt: { $in: [null, undefined] }
+  })
+    .select("_id name price discountPrice stock variants")
+    .lean();
+
+  const productMap = new Map(products.map((p) => [String(p._id), p as { _id: unknown; name?: { en?: string; ar?: string }; price: number; discountPrice?: number; stock: number; variants?: { color?: string; size?: string; stock: number; outOfStock?: boolean }[] }]));
+
+  const validatedItems: { product: string; quantity: number; price: number }[] = [];
+  const qtyByProduct: Record<string, number> = {};
+
+  for (const item of items) {
+    const pid = String(item.product);
+    const product = productMap.get(pid);
+    if (!product) {
+      throw new ApiError(400, `Product not found or unavailable: ${pid}`, { code: "errors.order.product_unavailable" });
+    }
+
+    const quantity = Number(item.quantity) || 0;
+    if (quantity < 1) continue;
+
+    qtyByProduct[pid] = (qtyByProduct[pid] ?? 0) + quantity;
+
+    const effectivePrice = typeof product.discountPrice === "number" && product.discountPrice > 0
+      ? Math.min(product.discountPrice, product.price)
+      : product.price;
+
+    validatedItems.push({ product: pid, quantity, price: effectivePrice });
+  }
+
+  for (const [pid, totalQty] of Object.entries(qtyByProduct)) {
+    const product = productMap.get(pid);
+    if (!product) continue;
+    const variants = product.variants ?? [];
+    let available: number;
+    if (variants.length > 0) {
+      available = variants
+        .filter((v) => !v.outOfStock)
+        .reduce((sum, v) => sum + v.stock, 0);
+    } else {
+      available = product.stock ?? 0;
+    }
+    if (totalQty > available) {
+      const name = product.name?.en ?? product.name?.ar ?? "Product";
+      throw new ApiError(400, `${name} is out of stock (requested ${totalQty}, available ${available})`, {
+        code: "errors.order.out_of_stock",
+        params: { productName: name, requested: String(totalQty), available: String(available) }
+      });
+    }
+  }
+
+  items = validatedItems;
+
+  // --- Validate shipping method ID (when provided) ---
+  let resolvedDeliveryFee = typeof deliveryFee === "number" && deliveryFee >= 0 ? deliveryFee : 0;
+  if (shippingMethod && typeof shippingMethod === "string" && shippingMethod.trim()) {
+    const smId = shippingMethod.trim();
+    if (isObjectIdLike(smId)) {
+      const sm = await ShippingMethod.findOne({ _id: smId, enabled: true }).lean();
+      if (!sm) {
+        throw new ApiError(400, "Invalid or disabled shipping method", { code: "errors.order.invalid_shipping_method" });
+      }
+      resolvedDeliveryFee = (sm as { price?: number }).price ?? resolvedDeliveryFee;
+    }
+  }
+  // Fallback: resolve delivery fee from city when shippingAddress has city _id
+  if (resolvedDeliveryFee === 0 && shippingAddress && typeof shippingAddress === "object" && !Array.isArray(shippingAddress)) {
+    const addr = shippingAddress as { city?: string };
+    if (addr.city && isObjectIdLike(addr.city)) {
+      const cityDoc = await City.findById(addr.city).select("deliveryFee").lean();
+      if (cityDoc) {
+        resolvedDeliveryFee = (cityDoc as { deliveryFee?: number }).deliveryFee ?? 0;
+      }
+    }
+  }
+
+  // --- Validate payment method ---
+  const pm = (paymentMethod || "COD").toUpperCase();
+  if (pm !== "COD" && pm !== "INSTAPAY") {
+    throw new ApiError(400, "Invalid payment method", { code: "errors.order.invalid_payment_method" });
+  }
+  const settings = await Settings.findOne().select("paymentMethods").lean();
+  const pmSettings = (settings as { paymentMethods?: { cod?: boolean; instaPay?: boolean } } | null)?.paymentMethods;
+  const codEnabled = pmSettings?.cod !== false;
+  const instaPayEnabled = pmSettings?.instaPay === true;
+  if (pm === "COD" && !codEnabled) {
+    throw new ApiError(400, "Cash on delivery is not available", { code: "errors.order.payment_not_available" });
+  }
+  if (pm === "INSTAPAY" && !instaPayEnabled) {
+    throw new ApiError(400, "InstaPay is not available", { code: "errors.order.payment_not_available" });
+  }
+
+  const subtotal = items.reduce((sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price, 0);
+  const fee = resolvedDeliveryFee;
   const total = subtotal + fee;
 
   const orderPayload: Record<string, unknown> = {
@@ -211,7 +347,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     items,
     total,
     deliveryFee: fee,
-    paymentMethod: paymentMethod || "COD",
+    paymentMethod: pm,
     shippingAddress
   };
 
