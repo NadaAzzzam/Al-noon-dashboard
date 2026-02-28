@@ -35,6 +35,15 @@ export const errorHandler = (err: unknown, req: Request, res: Response, _next: N
     });
   }
 
+  // JSON parse errors from body-parser (invalid request body)
+  if (e instanceof SyntaxError && "body" in err) {
+    return sendError(res, locale, {
+      statusCode: 400,
+      code: "errors.common.validation_error",
+      details: e.message
+    });
+  }
+
   logger.error({ err: e, requestId, message: e.message }, "Unhandled error");
   return sendError(res, locale, { statusCode: 500, code: "errors.common.internal_error" });
 };

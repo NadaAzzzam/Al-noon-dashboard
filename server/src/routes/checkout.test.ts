@@ -80,6 +80,15 @@ describe("Checkout API", () => {
       expect(res.status).toBe(400);
     });
 
+    it("returns 400 for invalid JSON body (not 500)", async () => {
+      const res = await request(app)
+        .post("/api/checkout")
+        .set("Content-Type", "application/json")
+        .send('{items:[{product:"x",quantity:1}],guestName:"X",guestEmail:"x@x.com"}');
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
     it("accepts valid checkout body structure (may 404/503 if DB unavailable)", async () => {
       const res = await request(app)
         .post("/api/checkout")
