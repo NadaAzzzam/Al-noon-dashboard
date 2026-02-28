@@ -542,6 +542,7 @@ function buildPaths() {
                 shippingMethod: { type: "string", description: "e.g. 'standard', 'express'", default: "standard" },
                 emailNews: { type: "boolean", description: "Opted into email marketing", default: false },
                 textNews: { type: "boolean", description: "Opted into SMS marketing", default: false },
+                discountCode: { type: "string", description: "Optional discount code to apply" },
               },
             },
           },
@@ -549,7 +550,7 @@ function buildPaths() {
       },
       responses: {
         "201": { description: "Success, message, data.order (includes both legacy guest fields and new structured fields)", ...refSchema("OrderResponse") },
-        "400": errDesc("Validation error (e.g. guest checkout requires guestName/guestEmail or firstName/lastName/email)"),
+        "400": errDesc("Validation error (e.g. guest checkout requires guestName/guestEmail or firstName/lastName/email), or invalid discount code"),
       },
     },
   };
@@ -721,14 +722,15 @@ function buildPaths() {
                 shippingMethod: { type: "string", default: "standard" },
                 emailNews: { type: "boolean", default: false },
                 textNews: { type: "boolean", default: false },
+                discountCode: { type: "string", description: "Optional discount code to apply. If invalid/expired/not applicable, returns 400 with a clear message." },
               },
             },
           },
         },
       },
       responses: {
-        "201": { description: "Order created; data.order returned (includes guest fields for guest checkout)", ...refSchema("OrderResponse") },
-        "400": errDesc("Validation error or guest checkout missing name/email"),
+        "201": { description: "Order created; data.order returned (includes guest fields, discountCode, discountAmount when applied)", ...refSchema("OrderResponse") },
+        "400": errDesc("Validation error, guest checkout missing name/email, or invalid/expired discount code"),
         "503": errDesc("Database unavailable"),
       },
     },
@@ -2399,6 +2401,8 @@ export const swaggerSpec = {
           shippingMethod: { type: "string", nullable: true, description: "e.g. 'standard'", default: "standard" },
           emailNews: { type: "boolean", description: "Opted into email marketing", default: false },
           textNews: { type: "boolean", description: "Opted into SMS marketing", default: false },
+          discountCode: { type: "string", nullable: true, description: "Applied discount code (e.g. SAVE10)" },
+          discountAmount: { type: "number", nullable: true, description: "Discount amount in EGP" },
           payment: {
             type: "object",
             nullable: true,

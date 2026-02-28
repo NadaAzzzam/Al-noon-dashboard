@@ -30,7 +30,11 @@
       "product_unavailable": "المنتج غير موجود أو غير متاح",
       "invalid_shipping_method": "طريقة الشحن غير صالحة أو معطّلة",
       "invalid_payment_method": "طريقة الدفع غير صالحة",
-      "payment_not_available": "طريقة الدفع المحددة غير متاحة"
+      "payment_not_available": "طريقة الدفع المحددة غير متاحة",
+      "invalid_discount_code": "رمز الخصم غير صالح",
+      "discount_code_expired": "رمز الخصم منتهي الصلاحية",
+      "discount_code_not_valid": "رمز الخصم غير نافذ بعد",
+      "discount_code_min_not_met": "إجمالي الطلب أقل من الحد الأدنى لرمز الخصم"
     },
     "payment": {
       "not_found": "لم يتم العثور على دفعة لهذا الطلب",

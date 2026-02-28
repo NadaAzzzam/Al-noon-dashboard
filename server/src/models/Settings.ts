@@ -89,6 +89,8 @@ export interface SettingsDocument {
     defaultDeliveryFee: number;
     productsPerPage: number;
     catalogPaginationLimit: number;
+    /** When true, storefront shows discount code input at checkout. */
+    discountCodeSupported?: boolean;
   };
   /** SEO default settings for meta tags. */
   seoSettings?: {
@@ -192,7 +194,8 @@ const settingsSchema = new Schema<SettingsDocument>(
       currencySymbol: { type: String, default: "EGP" },
       defaultDeliveryFee: { type: Number, default: 65 },
       productsPerPage: { type: Number, default: 12 },
-      catalogPaginationLimit: { type: Number, default: 12 }
+      catalogPaginationLimit: { type: Number, default: 12 },
+      discountCodeSupported: { type: Boolean, default: true }
     },
     seoSettings: {
       defaultMetaDescription: { type: localizedSchema, default: () => ({ en: "Shop the latest fashion and accessories", ar: "تسوق أحدث الأزياء والإكسسوارات" }) },

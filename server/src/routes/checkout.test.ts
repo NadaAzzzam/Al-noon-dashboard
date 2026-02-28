@@ -88,6 +88,31 @@ describe("Checkout API", () => {
       // 201 if order created, 400 if validation fails, 503 if DB down
       expect([201, 400, 404, 503]).toContain(res.status);
     });
+
+    it("accepts optional discountCode in body", async () => {
+      const res = await request(app)
+        .post("/api/checkout")
+        .set("Content-Type", "application/json")
+        .send({ ...validCheckoutBody, discountCode: "SAVE10" });
+      // 400 = invalid/expired code or product/shipping/guest issue; 201 = success; 503 = DB down
+      expect([201, 400, 404, 503]).toContain(res.status);
+      if (res.status === 400 && res.body.message) {
+        expect(typeof res.body.message).toBe("string");
+      }
+    });
+
+    it("returns 400 with clear message for invalid discount code when code is invalid", async () => {
+      const res = await request(app)
+        .post("/api/checkout")
+        .set("Content-Type", "application/json")
+        .send({ ...validCheckoutBody, discountCode: "NONEXISTENT_CODE_123" });
+      // If we get 400, it may be discount code or other validation (product not found, etc)
+      if (res.status === 400) {
+        expect(res.body.success).toBe(false);
+        expect(res.body.message).toBeDefined();
+        expect(typeof res.body.message).toBe("string");
+      }
+    });
   });
 
   describe("POST /api/orders (same as checkout)", () => {

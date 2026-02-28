@@ -39,7 +39,9 @@ export const orderSchema = z.object({
     specialInstructions: z.string().optional(),
     shippingMethod: z.string().optional().default("standard"),
     emailNews: z.boolean().optional().default(false),
-    textNews: z.boolean().optional().default(false)
+    textNews: z.boolean().optional().default(false),
+    /** Optional discount code to apply at checkout. */
+    discountCode: z.string().trim().optional()
   })
 });
 

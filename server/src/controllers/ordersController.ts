@@ -3,6 +3,7 @@ import { Payment } from "../models/Payment.js";
 import { Product } from "../models/Product.js";
 import { Settings } from "../models/Settings.js";
 import { User } from "../models/User.js";
+import { DiscountCode } from "../models/DiscountCode.js";
 import { City } from "../models/City.js";
 import { ShippingMethod } from "../models/ShippingMethod.js";
 import mongoose from "mongoose";
@@ -189,7 +190,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     // New structured checkout fields
     email: bodyEmail, firstName, lastName, phone,
     billingAddress, specialInstructions, shippingMethod,
-    emailNews, textNews
+    emailNews, textNews,
+    discountCode: bodyDiscountCode
   } = req.body;
 
   // Only attach a user to the order when userId is a valid MongoDB ObjectId (e.g. "dev-admin" must not be stored)
@@ -340,7 +342,44 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   const subtotal = items.reduce((sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price, 0);
   const fee = resolvedDeliveryFee;
-  const total = subtotal + fee;
+  let discountAmount = 0;
+  let appliedDiscountCode: string | undefined;
+
+  // --- Validate and apply discount code (optional) ---
+  const rawCode = typeof bodyDiscountCode === "string" ? bodyDiscountCode.trim() : "";
+  if (rawCode) {
+    const codeUpper = rawCode.toUpperCase();
+    const discountDoc = await DiscountCode.findOne({ code: codeUpper }).lean();
+    if (!discountDoc) {
+      throw new ApiError(400, "Invalid discount code", { code: "errors.order.invalid_discount_code" });
+    }
+    if (!discountDoc.enabled) {
+      throw new ApiError(400, "Invalid discount code", { code: "errors.order.invalid_discount_code" });
+    }
+    const now = new Date();
+    if (discountDoc.validFrom && new Date(discountDoc.validFrom) > now) {
+      throw new ApiError(400, "Discount code not yet valid", { code: "errors.order.discount_code_not_valid" });
+    }
+    if (discountDoc.validUntil && new Date(discountDoc.validUntil) < now) {
+      throw new ApiError(400, "Discount code expired", { code: "errors.order.discount_code_expired" });
+    }
+    if (discountDoc.usageLimit != null && (discountDoc.usedCount ?? 0) >= discountDoc.usageLimit) {
+      throw new ApiError(400, "Discount code expired", { code: "errors.order.discount_code_expired" });
+    }
+    const minAmount = discountDoc.minOrderAmount ?? 0;
+    if (minAmount > 0 && subtotal < minAmount) {
+      throw new ApiError(400, "Order total too low for this discount code", { code: "errors.order.discount_code_min_not_met" });
+    }
+    const dc = discountDoc as { type: string; value: number };
+    if (dc.type === "PERCENT") {
+      discountAmount = Math.min(Math.round((subtotal * dc.value) / 100), subtotal);
+    } else {
+      discountAmount = Math.min(dc.value, subtotal);
+    }
+    appliedDiscountCode = codeUpper;
+  }
+
+  const total = Math.max(0, subtotal - discountAmount + fee);
 
   const orderPayload: Record<string, unknown> = {
     user: effectiveUserId ?? null,
@@ -348,7 +387,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     total,
     deliveryFee: fee,
     paymentMethod: pm,
-    shippingAddress
+    shippingAddress,
+    ...(appliedDiscountCode && { discountCode: appliedDiscountCode }),
+    ...(discountAmount > 0 && { discountAmount })
   };
 
   // Always populate backward-compat guest fields (derived from new fields or original)
@@ -376,6 +417,15 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (textNews !== undefined) orderPayload.textNews = !!textNews;
 
   const order = await Order.create(orderPayload);
+
+  // Increment discount code usage
+  if (appliedDiscountCode && discountAmount > 0) {
+    await DiscountCode.findOneAndUpdate(
+      { code: appliedDiscountCode },
+      { $inc: { usedCount: 1 } }
+    );
+  }
+
   await Payment.create({
     order: order._id,
     method: paymentMethod || "COD",
@@ -406,9 +456,13 @@ export const createOrder = asyncHandler(async (req, res) => {
           </tr>`;
         }).join("");
 
-        const subtotalVal = (pop.total as number) - ((pop.deliveryFee as number) || 0);
+        const subtotalVal = (pop.total as number) - ((pop.deliveryFee as number) || 0) + ((pop.discountAmount as number) || 0);
+        const discountVal = (pop.discountAmount as number) || 0;
         const shippingDisplay = formatAddress(pop.shippingAddress);
         const subject = `Order Confirmation #${order._id}`;
+        const discountRow = discountVal > 0
+          ? `<tr><td style="padding:4px 8px;">Discount</td><td style="text-align:right;padding:4px 8px;color:#28a745;">-${discountVal.toLocaleString()} EGP</td></tr>`
+          : "";
         const html = `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
             <h2 style="color:#333;">Thank you for your order, ${custName}!</h2>
@@ -424,6 +478,7 @@ export const createOrder = asyncHandler(async (req, res) => {
             </table>
             <table style="width:100%;margin:8px 0;">
               <tr><td style="padding:4px 8px;">Subtotal</td><td style="text-align:right;padding:4px 8px;">${subtotalVal.toLocaleString()} EGP</td></tr>
+              ${discountRow}
               <tr><td style="padding:4px 8px;">Shipping</td><td style="text-align:right;padding:4px 8px;">${((pop.deliveryFee as number) || 0).toLocaleString()} EGP</td></tr>
               <tr style="font-weight:bold;font-size:1.1em;"><td style="padding:4px 8px;">Total</td><td style="text-align:right;padding:4px 8px;">${(pop.total as number).toLocaleString()} EGP</td></tr>
             </table>

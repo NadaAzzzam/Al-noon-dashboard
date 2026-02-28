@@ -30,7 +30,11 @@
       "product_unavailable": "Product not found or unavailable",
       "invalid_shipping_method": "Invalid or disabled shipping method",
       "invalid_payment_method": "Invalid payment method",
-      "payment_not_available": "Selected payment method is not available"
+      "payment_not_available": "Selected payment method is not available",
+      "invalid_discount_code": "Invalid discount code",
+      "discount_code_expired": "Discount code expired",
+      "discount_code_not_valid": "Discount code not yet valid",
+      "discount_code_min_not_met": "Order total too low for this discount code"
     },
     "payment": {
       "not_found": "Payment not found for this order",

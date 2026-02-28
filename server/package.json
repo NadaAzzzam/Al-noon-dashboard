@@ -21,6 +21,7 @@
     "seed:ai": "tsx src/utils/seedAi.ts",
     "seed:translations": "tsx src/seeders/translationSeeder.ts",
     "seed:shipping": "tsx src/seeders/shippingMethodSeeder.ts",
+    "seed:discount-codes": "tsx src/seeders/discountCodeSeeder.ts",
     "seed:test": "tsx src/utils/seedTestData.ts",
     "download-seed-images": "tsx scripts/downloadSeedImages.ts",
     "lint": "eslint . --ext .ts",

@@ -135,6 +135,15 @@ describe("orders validators", () => {
       }).success).toBe(true);
     });
 
+    it("accepts optional discountCode", () => {
+      expect(orderSchema.safeParse({
+        body: { ...validGuestOrder, discountCode: "SAVE10" },
+      }).success).toBe(true);
+      expect(orderSchema.safeParse({
+        body: { ...validGuestOrder, discountCode: "  FLAT50  " },
+      }).success).toBe(true);
+    });
+
     // === Shipping address ===
     it("accepts shippingAddress as string", () => {
       expect(orderSchema.safeParse({

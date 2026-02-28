@@ -146,7 +146,7 @@ export const getStoreHome = asyncHandler(async (req, res) => {
     return sendResponse(res, req.locale, {
       data: {
         home: {
-          store: { storeName: storeDefaults.storeName, logo: storeDefaults.logo, quickLinks: storeDefaults.quickLinks, socialLinks: storeDefaults.socialLinks, newsletterEnabled: storeDefaults.newsletterEnabled },
+          store: { storeName: storeDefaults.storeName, logo: storeDefaults.logo, quickLinks: storeDefaults.quickLinks, socialLinks: storeDefaults.socialLinks, newsletterEnabled: storeDefaults.newsletterEnabled, discountCodeSupported: true },
           hero: heroDefault,
           heroEnabled: storeDefaults.heroEnabled,
           newArrivals: [],
@@ -209,6 +209,8 @@ export const getStoreHome = asyncHandler(async (req, res) => {
 
   const quickLinks = (s?.quickLinks ?? storeDefaults.quickLinks).map((q) => toStoreQuickLinkShape(q));
   const homeCollectionsStripped = collectionsToShow.map((c) => toStoreCollectionShape(c));
+  const advanced = s?.advancedSettings as { discountCodeSupported?: boolean } | undefined;
+  const discountCodeSupported = advanced?.discountCodeSupported ?? true;
 
   sendResponse(res, req.locale, {
     data: {
@@ -218,7 +220,8 @@ export const getStoreHome = asyncHandler(async (req, res) => {
           logo: (s?.logo && s.logo.trim() !== "") ? s.logo : DEFAULT_LOGO_PATH,
           quickLinks,
           socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
-          newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled
+          newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled,
+          discountCodeSupported
         },
         hero,
         heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
@@ -254,7 +257,8 @@ export const getStoreSettings = asyncHandler(async (req, res) => {
           newsletterEnabled: storeDefaults.newsletterEnabled,
           contentPages: [] as { slug: string; title: { en: string; ar: string } }[],
           currency: currencyDefaults.currency,
-          currencySymbol: currencyDefaults.currencySymbol
+          currencySymbol: currencyDefaults.currencySymbol,
+          discountCodeSupported: true
         }
       }
     });
@@ -272,12 +276,13 @@ export const getStoreSettings = asyncHandler(async (req, res) => {
     slug: p.slug ?? "",
     title: p.title ?? { en: "", ar: "" }
   }));
-  const advanced = s?.advancedSettings as { currency?: string; currencySymbol?: string } | undefined;
+  const advanced = s?.advancedSettings as { currency?: string; currencySymbol?: string; discountCodeSupported?: boolean } | undefined;
   const currency = (advanced?.currency && String(advanced.currency).trim()) || currencyDefaults.currency;
   const currencySymbol = (advanced?.currencySymbol && String(advanced.currencySymbol).trim()) || currencyDefaults.currencySymbol;
+  const discountCodeSupported = advanced?.discountCodeSupported ?? true;
   sendResponse(res, req.locale, {
     data: {
-      settings: { storeName, logo, announcementBar, socialLinks, newsletterEnabled, contentPages, currency, currencySymbol }
+      settings: { storeName, logo, announcementBar, socialLinks, newsletterEnabled, contentPages, currency, currencySymbol, discountCodeSupported }
     }
   });
 });

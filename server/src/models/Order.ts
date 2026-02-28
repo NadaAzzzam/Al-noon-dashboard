@@ -42,6 +42,10 @@ export interface OrderDocument {
   shippingMethod?: string;
   emailNews?: boolean;
   textNews?: boolean;
+  /** Applied discount code (e.g. "SAVE10") */
+  discountCode?: string;
+  /** Discount amount in EGP (reduction applied to subtotal). */
+  discountAmount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,7 +96,9 @@ const orderSchema = new Schema<OrderDocument>(
     specialInstructions: { type: String, default: null },
     shippingMethod: { type: String, default: "standard" },
     emailNews: { type: Boolean, default: false },
-    textNews: { type: Boolean, default: false }
+    textNews: { type: Boolean, default: false },
+    discountCode: { type: String, default: null },
+    discountAmount: { type: Number, default: 0, min: 0 }
   },
   { timestamps: true }
 );

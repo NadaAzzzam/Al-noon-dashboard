@@ -486,6 +486,8 @@ export type StoreHomeData = {
     quickLinks: QuickLink[];
     socialLinks: { facebook: string; instagram: string };
     newsletterEnabled: boolean;
+    /** When true, storefront shows discount code input at checkout. */
+    discountCodeSupported?: boolean;
   };
   hero: HeroConfig;
   heroEnabled: boolean;
