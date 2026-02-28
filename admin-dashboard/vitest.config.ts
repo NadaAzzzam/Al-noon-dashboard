@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+// React Testing Library requires React development build (act() unsupported in production)
+process.env.NODE_ENV = "test";
+
 export default defineConfig({
   plugins: [react()],
   test: {
