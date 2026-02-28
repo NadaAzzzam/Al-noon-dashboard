@@ -3,7 +3,7 @@
  * Apply when the API is called with ?for=storefront.
  *
  * Strips:
- * - tags, vendor, imageColors, defaultMediaType, hoverMediaType, weightUnit, sizeDescriptions
+ * - vendor, imageColors, defaultMediaType, hoverMediaType, weightUnit, sizeDescriptions
  * - variants (root), __v, createdAt, updatedAt, isNewArrival
  * - discountPrice (storefront uses discountPercent + price; raw discountPrice omitted)
  * - category.name, category.status
@@ -14,7 +14,6 @@ type UnknownRecord = Record<string, unknown>;
 
 /** Keys to omit from product root for storefront. */
 const OMIT_ROOT: ReadonlySet<string> = new Set([
-  "tags",
   "vendor",
   "imageColors",
   "defaultMediaType",

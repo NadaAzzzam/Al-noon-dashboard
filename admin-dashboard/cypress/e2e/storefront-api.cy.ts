@@ -22,7 +22,7 @@ describe("Storefront API (slim response)", () => {
       expect(res.body).to.have.property("data").that.is.an("array");
       if (res.body.data?.length > 0) {
         const p = res.body.data[0];
-        expect(p).not.to.have.property("tags");
+        expect(p).to.have.property("tags").that.is.an("array");
         expect(p).not.to.have.property("vendor");
         expect(p).not.to.have.property("imageColors");
         expect(p).not.to.have.property("__v");
@@ -79,7 +79,7 @@ describe("Storefront API (slim response)", () => {
         expect(res.status).to.eq(200);
         const p = res.body.data?.product;
         if (p) {
-          expect(p).not.to.have.property("tags");
+          expect(p).to.have.property("tags").that.is.an("array");
           expect(p).not.to.have.property("__v");
           expect(p).not.to.have.property("createdAt");
           expect(p).not.to.have.property("updatedAt");

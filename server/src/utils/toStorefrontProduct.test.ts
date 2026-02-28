@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { toStorefrontProduct } from "./toStorefrontProduct.js";
 
 const OMITTED_KEYS = [
-  "tags",
   "vendor",
   "imageColors",
   "defaultMediaType",
@@ -21,7 +20,7 @@ describe("toStorefrontProduct", () => {
     const full = {
       _id: "123",
       name: { en: "Test", ar: "تجربة" },
-      tags: ["a"],
+      tags: ["summer", "bestseller"],
       vendor: "Brand",
       imageColors: ["Black"],
       defaultMediaType: "image",
@@ -35,6 +34,7 @@ describe("toStorefrontProduct", () => {
       isNewArrival: false,
     };
     const slim = toStorefrontProduct(full);
+    expect(slim.tags).toEqual(["summer", "bestseller"]);
     for (const key of OMITTED_KEYS) {
       expect(Object.hasOwn(slim, key)).toBe(false);
     }
@@ -92,6 +92,12 @@ describe("toStorefrontProduct", () => {
     expect(slim.slug).toBe("test-product");
     expect(slim.averageRating).toBe(4.5);
     expect(slim.ratingCount).toBe(12);
+  });
+
+  it("preserves tags for storefront (clickable filter links)", () => {
+    const full = { _id: "p1", name: { en: "Test", ar: "" }, tags: ["summer", "bestseller"] };
+    const slim = toStorefrontProduct(full);
+    expect(slim.tags).toEqual(["summer", "bestseller"]);
   });
 
   it("handles null category", () => {

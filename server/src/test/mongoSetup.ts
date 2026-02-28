@@ -1,16 +1,16 @@
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { ensureDefaultRoles } from "../utils/ensureDefaultRoles.js";
 import { ensureDefaultDepartments } from "../utils/ensureDefaultDepartments.js";
 import { User } from "../models/User.js";
 
-let mongod: MongoMemoryServer | null = null;
+let mongod: MongoMemoryReplSet | null = null;
 
 export async function startTestDb(): Promise<string> {
   if (mongod && mongoose.connection.readyState === 1) {
     return mongod.getUri();
   }
-  mongod = await MongoMemoryServer.create();
+  mongod = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   const uri = mongod.getUri();
   process.env.MONGO_URI = uri;
   mongoose.set("strictQuery", true);

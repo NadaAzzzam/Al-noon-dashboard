@@ -227,10 +227,11 @@ function buildPaths() {
         { name: "maxPrice", in: "query", schema: { type: "number" }, description: "Max price (EGP)" },
         { name: "color", in: "query", schema: { type: "string" }, description: "Filter by color (case-insensitive)" },
         { name: "minRating", in: "query", schema: { type: "number", minimum: 1, maximum: 5 }, description: "Only products with average rating >= this (1–5)" },
-        { name: "tags", in: "query", schema: { type: "string" }, description: "Filter by tags (comma-separated)" },
+        { name: "tags", in: "query", schema: { type: "string" }, description: "Filter by tags (comma-separated). Matches products with any of the tags. Use with GET /api/products for storefront product listing when user clicks a tag." },
         { name: "vendor", in: "query", schema: { type: "string" }, description: "Filter by vendor/brand (case-insensitive)" },
         { name: "hasDiscount", in: "query", schema: { type: "string", enum: ["true", "false"] }, description: "Filter products with/without discount" },
-        { name: "slug", in: "query", required: true, schema: { type: "string" }, description: "Lookup by slug (e.g. embroidered-malhafa-sale). Returns products with exact slug match. Use \"*\" to list all (admin). Storefront uses slug to resolve slug→id." },
+        { name: "slug", in: "query", schema: { type: "string", default: "*" }, description: "Lookup by slug (e.g. embroidered-malhafa-sale). Returns products with exact slug match. Use \"*\" to list all. Optional; defaults to \"*\" when omitted (storefront-friendly)." },
+        { name: "for", in: "query", schema: { type: "string", enum: ["storefront"] }, description: "When storefront, returns slim product shape (tags included for clickable filter links; vendor, imageColors, etc. omitted)" },
       ],
       responses: {
         "200": { description: "Products list: success, data (array), pagination", ...refSchema("PaginatedProductsResponse") },
@@ -260,6 +261,7 @@ function buildPaths() {
       parameters: [
         { name: "id", in: "path", required: true, schema: { type: "string" } },
         { name: "color", in: "query", required: false, schema: { type: "string" }, description: "Filter media/images by color (e.g. Black). When set, media and images arrays show only images for that color." },
+        { name: "for", in: "query", schema: { type: "string", enum: ["storefront"] }, description: "When storefront, returns slim product shape with tags included for clickable filter links on product detail" },
       ],
       responses: {
         "200": { description: "Product", ...refSchema("ProductResponse") },
@@ -1753,7 +1755,7 @@ export const swaggerSpec = {
       },
       ProductListItem: {
         type: "object",
-        description: "Product in list responses (GET /products, GET /products/:id/related, store newArrivals). Has media only; images, videos, imageColors are omitted.",
+        description: "Product in list responses (GET /products, GET /products/:id/related, store newArrivals). With ?for=storefront: tags included; has media only; images, videos, imageColors omitted.",
         properties: {
           _id: { type: "string" },
           name: { $ref: "#/components/schemas/LocalizedString" },
@@ -1781,6 +1783,7 @@ export const swaggerSpec = {
           averageRating: { type: "number", description: "Present when ratings exist", nullable: true },
           ratingCount: { type: "integer", description: "Present on list", nullable: true },
           soldQty: { type: "integer", description: "Units sold", nullable: true },
+          tags: { type: "array", items: { type: "string" }, description: "Present when ?for=storefront; for clickable filter links on product detail", nullable: true },
         },
       },
       ProductColorAvailability: {
@@ -1824,7 +1827,7 @@ export const swaggerSpec = {
       },
       ProductData: {
         type: "object",
-        description: "Product (GET /products/:id with ?for=storefront returns this slim shape). Admin CRUD may return additional fields. Tags, vendor, imageColors, defaultMediaType, hoverMediaType, weightUnit, sizeDescriptions, variants, __v, createdAt, updatedAt, isNewArrival are omitted for storefront.",
+        description: "Product (GET /products/:id with ?for=storefront returns this slim shape). Admin CRUD may return additional fields. For storefront: tags are included (for clickable filter links); vendor, imageColors, defaultMediaType, hoverMediaType, weightUnit, sizeDescriptions, variants, __v, createdAt, updatedAt, isNewArrival are omitted.",
         properties: {
           _id: { type: "string" },
           name: { $ref: "#/components/schemas/LocalizedString" },
@@ -1860,6 +1863,7 @@ export const swaggerSpec = {
           averageRating: { type: "number", description: "Present when ratings exist", nullable: true },
           ratingCount: { type: "integer", description: "Present when ratings exist", nullable: true },
           soldQty: { type: "integer", description: "Units sold", nullable: true },
+          tags: { type: "array", items: { type: "string" }, description: "Free-form tags for filtering; included in storefront for clickable links to product listing filtered by tag", nullable: true },
           availability: { $ref: "#/components/schemas/ProductAvailabilityDetail", description: "Present on GET /products/:id" },
         },
       },

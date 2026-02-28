@@ -150,9 +150,13 @@ describe("products validators", () => {
   });
 
   describe("productQuerySchema", () => {
-    it("rejects missing slug", () => {
-      expect(productQuerySchema.safeParse({ query: {} }).success).toBe(false);
-      expect(productQuerySchema.safeParse({ query: { page: 1 } }).success).toBe(false);
+    it("accepts missing slug (defaults to *)", () => {
+      const result = productQuerySchema.safeParse({ query: {} });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.query.slug).toBe("*");
+      const result2 = productQuerySchema.safeParse({ query: { page: 1 } });
+      expect(result2.success).toBe(true);
+      if (result2.success) expect(result2.data.query.slug).toBe("*");
     });
 
     it("rejects empty slug", () => {

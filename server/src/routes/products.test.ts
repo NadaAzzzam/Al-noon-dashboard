@@ -23,9 +23,10 @@ describe("Products API", () => {
   });
 
   describe("GET /api/products", () => {
-    it("rejects request without slug", async () => {
+    it("accepts request without slug (defaults to list all)", async () => {
       const res = await request(app).get("/api/products").query({ page: 1, limit: 5 });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
 
     it("returns product list with pagination (no auth required)", async () => {

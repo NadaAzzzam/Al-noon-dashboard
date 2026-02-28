@@ -41,8 +41,7 @@ const translationSchema = new Schema<ITranslation>(
   }
 );
 
-// Index for faster queries
+// Index for faster queries (key already has unique:true)
 translationSchema.index({ category: 1 });
-translationSchema.index({ key: 1 });
 
 export const Translation = mongoose.model<ITranslation>('Translation', translationSchema);

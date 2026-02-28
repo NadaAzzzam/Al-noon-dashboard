@@ -102,8 +102,8 @@ export const productQuerySchema = z.object({
     vendor: z.string().optional(),
     /** Filter products that have a discount price set. */
     hasDiscount: z.enum(["true", "false"]).optional(),
-    /** Lookup by slug (e.g. embroidered-malhafa-sale). Returns products with exact slug match. Use "*" to list all (admin). Required. */
-    slug: z.string().min(1, "Slug is required"),
+    /** Lookup by slug (e.g. embroidered-malhafa-sale). Returns products with exact slug match. Use "*" to list all. Optional; defaults to "*" when omitted (storefront-friendly). */
+    slug: z.string().min(1).optional().default("*"),
     /** Return slim product (omit unused storefront fields) when "storefront". */
     for: z.enum(["storefront"]).optional()
   })
