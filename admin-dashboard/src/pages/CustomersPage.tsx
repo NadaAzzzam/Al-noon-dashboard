@@ -17,10 +17,6 @@ const CustomersPage = () => {
         const response = (await api.listCustomers()) as { data?: { customers: Customer[] }; customers?: Customer[] };
         setCustomers(response.data?.customers ?? response.customers ?? []);
       } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
         setError(err instanceof ApiError ? err.message : t("customers.failed_load"));
       }
     };

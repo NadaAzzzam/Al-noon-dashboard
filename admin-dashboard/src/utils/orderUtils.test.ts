@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { daysSinceOrder, isLongWait, type OrderStatus } from "./orderUtils";
+import { daysSinceOrder, isLongWait } from "./orderUtils";
 
 describe("orderUtils", () => {
   describe("daysSinceOrder", () => {

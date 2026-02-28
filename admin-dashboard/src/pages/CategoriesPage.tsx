@@ -23,10 +23,6 @@ const CategoriesPage = () => {
       const res = (await api.listCategories()) as { data?: { categories: Category[] }; categories?: Category[] };
       setCategories(res.data?.categories ?? res.categories ?? []);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
       setError(err instanceof ApiError ? err.message : t("categories.failed_load"));
     }
   };

@@ -252,10 +252,6 @@ const DashboardPage = () => {
         setStats(statsBody.data ?? (statsRes as DashboardStats));
         setRecentOrders(ordersBody.data ?? ordersBody.orders ?? []);
       } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
         setError(
           err instanceof ApiError ? err.message : t("dashboard.failed_load"),
         );

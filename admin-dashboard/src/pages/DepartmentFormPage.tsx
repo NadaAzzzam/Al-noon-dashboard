@@ -79,7 +79,7 @@ const DepartmentFormPage = () => {
         (r) => (r as { status?: string }).status !== "INACTIVE",
       );
       setRoleOptions(filtered);
-    } catch (_) {
+    } catch {
       setRoleOptions([]);
     }
   };

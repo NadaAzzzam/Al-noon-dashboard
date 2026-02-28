@@ -134,7 +134,7 @@ const ProductFormPage = () => {
         categories?: Category[];
       };
       setCategories(res.data?.categories ?? res.categories ?? []);
-    } catch (_) {}
+    } catch {}
   }, []);
 
   const loadProduct = useCallback(async () => {
@@ -1228,7 +1228,7 @@ const ProductFormPage = () => {
               </h3>
               <p className="product-form-hint" style={{ marginBottom: 16 }}>
                 Set stock quantity for each size and color combination. Leave at
-                0 or check "Out of Stock" for unavailable variants.
+                0 or check &quot;Out of Stock&quot; for unavailable variants.
               </p>
               <div style={{ overflowX: "auto" }}>
                 <table

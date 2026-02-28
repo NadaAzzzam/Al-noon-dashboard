@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ApiError, User, clearToken, hasPermission } from "../services/api";
+import { api, ApiError, User, hasPermission } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 
 type RoleOption = { id: string; key: string; name: string };
@@ -35,11 +35,6 @@ const UsersPage = () => {
       const response = (await api.listUsers()) as { data?: { users: User[] }; users?: User[] };
       setUsers(response.data?.users ?? response.users ?? []);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        clearToken();
-        window.location.href = "/login";
-        return;
-      }
       setError(err instanceof ApiError ? err.message : t("users.failed_load"));
     }
   };
@@ -54,7 +49,7 @@ const UsersPage = () => {
       const allRoles = rolesRes.data?.roles ?? rolesRes.roles ?? [];
       setRoleOptions(allRoles.filter((r) => r.key !== "USER"));
       setDepartmentOptions(deptsRes.data?.departments ?? deptsRes.departments ?? []);
-    } catch (_) {
+    } catch {
       setRoleOptions([]);
       setDepartmentOptions([]);
     }

@@ -71,10 +71,6 @@ const ShippingMethodsPage = () => {
       const methods = res.shippingMethods ?? res.data?.shippingMethods ?? [];
       setList(methods);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
       setError(
         err instanceof ApiError
           ? err.message

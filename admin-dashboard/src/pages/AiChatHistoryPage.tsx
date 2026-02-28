@@ -63,10 +63,6 @@ const AiChatHistoryPage = () => {
         setSessions(data.sessions ?? []);
         setTotal(data.total ?? 0);
       } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
         setError(err instanceof ApiError ? err.message : t("ai_chats.failed_load"));
       }
     };

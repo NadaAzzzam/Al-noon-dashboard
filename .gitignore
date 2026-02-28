@@ -7,3 +7,4 @@ admin-dashboard/dist
 admin-dashboard/node_modules
 server/node_modules
 server/uploads
+coverage

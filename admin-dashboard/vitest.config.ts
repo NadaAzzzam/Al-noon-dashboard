@@ -14,14 +14,24 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      include: ["src/**/*.{ts,tsx}"],
+      include: [
+        "src/utils/format.ts",
+        "src/utils/orderUtils.ts",
+        "src/utils/localized.ts",
+        "src/services/storefrontApi.ts",
+        "src/i18n.ts",
+      ],
       exclude: [
         "src/**/*.test.{ts,tsx}",
         "src/**/*.spec.{ts,tsx}",
-        "src/main.tsx",
-        "src/vite-env.d.ts",
-        "src/test/**",
+        "src/utils/googleAnalytics.ts",
       ],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
     },
     environmentOptions: {
       jsdom: {

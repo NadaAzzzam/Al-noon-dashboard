@@ -80,10 +80,6 @@ const OrderDetailPage = () => {
       };
       setOrder(res.data?.order ?? res.order ?? null);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
       setError(
         err instanceof ApiError ? err.message : t("order_detail.failed_load"),
       );

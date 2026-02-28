@@ -21,10 +21,6 @@ const CitiesPage = () => {
       const res = (await api.listCities()) as { data?: { cities: City[] }; cities?: City[] };
       setCities(res.data?.cities ?? res.cities ?? []);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
       setError(err instanceof ApiError ? err.message : t("cities.failed_load"));
     }
   };

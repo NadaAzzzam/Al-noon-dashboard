@@ -26,10 +26,6 @@ const DepartmentsPage = () => {
       const d = res.data?.departments ?? res.departments ?? [];
       setDepartments(d);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
       setError(err instanceof ApiError ? err.message : t("departments.failed_load", "Failed to load departments"));
     }
   };

@@ -18,7 +18,7 @@ const InventoryPage = () => {
   const [lowStock, setLowStock] = useState<Product[]>([]);
   const [outOfStock, setOutOfStock] = useState<Product[]>([]);
   const [threshold, setThreshold] = useState(5);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [_updatingId, setUpdatingId] = useState<string | null>(null);
   const [stockValue, setStockValue] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
@@ -45,10 +45,6 @@ const InventoryPage = () => {
       setOutOfStock(outData.products ?? []);
       setThreshold(lowData.threshold ?? 5);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
       setError(
         err instanceof ApiError ? err.message : t("inventory.failed_load"),
       );

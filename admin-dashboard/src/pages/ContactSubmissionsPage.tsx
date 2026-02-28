@@ -27,10 +27,6 @@ const ContactSubmissionsPage = () => {
         setSubmissions(res.data?.submissions ?? res.submissions ?? []);
         setTotal(res.pagination?.total ?? res.total ?? 0);
       } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
         setError(
           err instanceof ApiError ? err.message : t("contact.failed_load"),
         );

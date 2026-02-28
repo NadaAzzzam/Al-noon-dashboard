@@ -636,6 +636,11 @@ const request = async (path: string, options: RequestInit = {}): Promise<unknown
 
   if (!response.ok) {
     const { message, body, code } = await parseErrorResponse(response);
+    if (response.status === 401 && !path.startsWith("/auth/")) {
+      clearToken();
+      setCurrentUser(null);
+      window.location.href = "/login";
+    }
     throw new ApiError(response.status, message, body, code);
   }
   if (response.status === 204) return null;

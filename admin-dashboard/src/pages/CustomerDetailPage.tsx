@@ -38,10 +38,6 @@ const CustomerDetailPage = () => {
         setCustomer(custRes.data?.customer ?? custRes.customer ?? null);
         setOrders(ordRes.data?.orders ?? ordRes.orders ?? []);
       } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
         setError(err instanceof ApiError ? err.message : t("customer_detail.failed_load"));
       }
     };

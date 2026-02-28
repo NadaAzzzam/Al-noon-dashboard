@@ -1,2 +1,4 @@
-# Optional: add "npm run lint" when server has eslint.config.js
-exit 0
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+npm run lint
