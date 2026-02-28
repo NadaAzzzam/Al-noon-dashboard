@@ -153,6 +153,23 @@ The project uses **Vitest** for unit and integration tests, and **Cypress** for 
 | `npm run test:e2e` | Cypress E2E tests (headless) |
 | `npm run test:e2e:open` | Cypress interactive runner |
 | `npm run test:coverage` | Run with coverage (in each package) |
+| `npm run prepush` | Run unit & integration tests (used by pre-push hook) |
+
+### Pre-push hook (Husky)
+
+Before pushing, a **pre-push** hook runs automatically to verify your changes pass checks:
+
+- Server unit tests
+- Server integration tests  
+- Admin dashboard unit tests
+
+If any fail, the push is blocked. Run the same checks manually:
+
+```bash
+npm run prepush
+```
+
+To bypass the hook (use sparingly): `git push --no-verify`.
 
 ### Backend testing (server)
 

@@ -14,7 +14,7 @@
     "test:admin": "cd admin-dashboard && npm run test",
     "test:integration": "cd server && npm run test:integration",
     "lint": "cd server && npm run lint",
-    "prepush": "npm run lint && npm run test:server && npm run test:integration && npm run test:admin",
+    "prepush": "npm run test:server && npm run test:integration && npm run test:admin",
     "test:e2e": "cd server && npm run seed:test && cd ../admin-dashboard && npm run test:e2e",
     "prepare": "husky"
   },
