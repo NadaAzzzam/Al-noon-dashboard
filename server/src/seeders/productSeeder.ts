@@ -31,6 +31,8 @@ const defaultStylingTip = {
   ar: "زينيها مع حجاباتنا وإكسسواراتنا لمظهر كامل."
 };
 
+import { buildSeoMeta } from "../utils/buildSeoMeta";
+
 /** Vendors/brands used in seed data. */
 const VENDORS = ["Al-noon Originals", "Nada Collection", "Silk & Velvet Co."];
 
@@ -138,8 +140,10 @@ function fillProduct(
     vendor,
     weight,
     weightUnit: "g",
-    metaTitle: { en: "", ar: "" },
-    metaDescription: { en: "", ar: "" }
+    ...buildSeoMeta(
+      (p.name as { en: string; ar: string }) ?? { en: "product", ar: "منتج" },
+      (p.description as { en: string; ar: string }) ?? { en: "", ar: "" }
+    )
   };
 }
 
@@ -158,6 +162,9 @@ async function seedProductsWithDiscounts() {
       process.exit(1);
     }
     const cat = (en: string) => categories.find((c) => (c.name as { en?: string })?.en === en) as CategoryDoc | undefined;
+
+    /** discountPrice = price * (1 - discountPercent/100). Keeps Discount (%) in admin form as round values. */
+    const withDiscount = (price: number, discountPercent: number) => ({ price, discountPrice: Math.round(price * (1 - discountPercent / 100)) });
 
     type VariantOptions = {
       stockPerVariant: number;
@@ -185,26 +192,24 @@ async function seedProductsWithDiscounts() {
       defaultMediaType?: "image" | "video";
       hoverMediaType?: "image" | "video";
     }> = [
-      // CASE: No variants — API returns variantsSource: "estimated", synthesized from global stock
+      // CASE: No variants — API returns variantsSource: "estimated", synthesized from global stock (30% off)
       {
         name: { en: "Black Zip-Front Abaya", ar: "عباية سوداء زود أمامي" },
         description: { en: "Black zip-front abaya, versatile and modern.", ar: "عباية سوداء زود أمامي، عصرية ومتعددة الاستخدام." },
         category: cat("Abayas"),
-        price: 1400,
-        discountPrice: 2000,
+        ...withDiscount(2000, 30),
         stock: 8,
         status: "ACTIVE",
         isNewArrival: false,
         sizes: ["S", "M", "L"],
         colors: ["Black"]
       },
-      // CASE: Variants — one entire COLOR out of stock (Burgundy)
+      // CASE: Variants — one entire COLOR out of stock (Burgundy) — 50% off
       {
         name: { en: "Velvet Chemise Abaya", ar: "عباية مخمل شيميز" },
         description: { en: "Luxurious velvet chemise-style abaya.", ar: "عباية مخملية على طراز الشيميز." },
         category: cat("Abayas"),
-        price: 1050,
-        discountPrice: 2100,
+        ...withDiscount(2100, 50),
         stock: 10,
         status: "ACTIVE",
         isNewArrival: false,
@@ -212,26 +217,24 @@ async function seedProductsWithDiscounts() {
         colors: ["Black", "Burgundy", "Navy"],
         variantOptions: { stockPerVariant: 2, outOfStockColors: ["Burgundy"] }
       },
-      // CASE: No variants (estimated)
+      // CASE: No variants (estimated) — 50% off
       {
         name: { en: "Wool Cape", ar: "كاب صوف" },
         description: { en: "Warm wool cape, essential for modest wardrobe.", ar: "كاب صوف دافئ، أساسي للخزانة المحتشمة." },
         category: cat("Capes"),
-        price: 950,
-        discountPrice: 1900,
+        ...withDiscount(1900, 50),
         stock: 14,
         status: "ACTIVE",
         isNewArrival: true,
         sizes: ["One Size"],
         colors: ["Black", "Grey", "Camel"]
       },
-      // CASE: Variants — one entire COLOR out of stock (Navy)
+      // CASE: Variants — one entire COLOR out of stock (Navy) — 20% off
       {
         name: { en: "Cape Hasna", ar: "كاب حَسَناء" },
         description: { en: "Elegant cape with clean lines.", ar: "كاب أنيق بخطوط نظيفة." },
         category: cat("Capes"),
-        price: 2000,
-        discountPrice: 2500,
+        ...withDiscount(2500, 20),
         stock: 6,
         status: "ACTIVE",
         isNewArrival: true,
@@ -239,39 +242,36 @@ async function seedProductsWithDiscounts() {
         colors: ["Black", "Navy"],
         variantOptions: { stockPerVariant: 3, outOfStockColors: ["Navy"] }
       },
-      // CASE: Variants — one entire SIZE out of stock (L)
+      // CASE: Variants — one entire SIZE out of stock (L) — 50% off
       {
         name: { en: "Black Ribbed Twin Set – Abaya & Cardigan", ar: "توأم ريب أسود – عباية وكارديجان" },
         description: { en: "Matching abaya and cardigan set.", ar: "ست عباية وكارديجان متطابقين." },
         category: cat("Sets"),
-        price: 1450,
-        discountPrice: 2900,
+        ...withDiscount(2900, 50),
         stock: 9,
         status: "ACTIVE",
         sizes: ["S", "M", "L"],
         colors: ["Black"],
         variantOptions: { stockPerVariant: 3, outOfStockSizes: ["L"] }
       },
-      // CASE: Variants — one specific variant out (Black-M)
+      // CASE: Variants — one specific variant out (Black-M) — 40% off
       {
         name: { en: "Ribbed Kaftan", ar: "كافتان ريب" },
         description: { en: "Comfortable ribbed kaftan, easy to layer.", ar: "كافتان ريب مريح، سهل الطبقات." },
         category: cat("Sets"),
-        price: 900,
-        discountPrice: 1500,
+        ...withDiscount(1500, 40),
         stock: 11,
         status: "ACTIVE",
         sizes: ["S", "M", "L"],
         colors: ["Black", "Navy", "Grey"],
         variantOptions: { stockPerVariant: 2, outOfStockPairs: [["Black", "M"]] }
       },
-      // CASE: Variants — mixed: one color partially out (Burgundy: M and L out)
+      // CASE: Variants — mixed: one color partially out (Burgundy: M and L out) — 20% off
       {
         name: { en: "Velvet Pleated Cardigan", ar: "كارديجان مخمل بليت" },
         description: { en: "Velvet pleated cardigan for layering.", ar: "كارديجان مخمل بليت للطبقات." },
         category: cat("Cardigans & Coats"),
-        price: 1760,
-        discountPrice: 2200,
+        ...withDiscount(2200, 20),
         stock: 5,
         status: "ACTIVE",
         isNewArrival: true,
@@ -279,26 +279,24 @@ async function seedProductsWithDiscounts() {
         colors: ["Black", "Burgundy"],
         variantOptions: { stockPerVariant: 2, outOfStockPairs: [["Burgundy", "M"], ["Burgundy", "L"]] }
       },
-      // CASE: Variants — all in stock (exact inventory)
+      // CASE: Variants — all in stock (exact inventory) — 60% off
       {
         name: { en: "Wool Coat", ar: "معطف صوف" },
         description: { en: "Warm wool coat for winter.", ar: "معطف صوف دافئ للشتاء." },
         category: cat("Cardigans & Coats"),
-        price: 1080,
-        discountPrice: 2700,
+        ...withDiscount(2700, 60),
         stock: 9,
         status: "ACTIVE",
         sizes: ["S", "M", "L"],
         colors: ["Black", "Camel", "Grey"],
         variantOptions: { stockPerVariant: 1 }
       },
-      // CASE: Variants — fully out of stock (all variants 0)
+      // CASE: Variants — fully out of stock (all variants 0) — 15% off
       {
         name: { en: "Embroidered Malhafa – Sale", ar: "ملحفة مطرزة – عرض" },
         description: { en: "Malhafa with subtle embroidery. Limited time offer.", ar: "ملحفة بتطريز خفيف. عرض لفترة محدودة." },
         category: cat("Malhafa"),
-        price: 999,
-        discountPrice: 1200,
+        ...withDiscount(1200, 15),
         stock: 0,
         status: "ACTIVE",
         isNewArrival: true,
@@ -306,13 +304,12 @@ async function seedProductsWithDiscounts() {
         colors: ["Black", "Burgundy"],
         variantOptions: { stockPerVariant: 0 }
       },
-      // CASE: No variants, many colors (estimated)
+      // CASE: No variants, many colors (estimated) — ~21% off (95 → 75)
       {
         name: { en: "Chiffon Hijab – Summer Sale", ar: "حجاب شيفون – عرض الصيف" },
         description: { en: "Light chiffon hijab for summer. Special price.", ar: "حجاب شيفون خفيف للصيف. سعر خاص." },
         category: cat("Hijab"),
-        price: 75,
-        discountPrice: 95,
+        ...withDiscount(95, 21),
         stock: 40,
         status: "ACTIVE",
         sizes: ["One Size"],

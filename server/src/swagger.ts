@@ -1724,11 +1724,9 @@ export const swaggerSpec = {
       },
       ProductCategoryRef: {
         type: "object",
-        description: "Category when populated (list/detail)",
+        description: "Category when populated (list/detail). Storefront uses _id only for catalog filters.",
         properties: {
           _id: { type: "string" },
-          name: { $ref: "#/components/schemas/LocalizedString" },
-          status: { type: "string", enum: ["DRAFT", "PUBLISHED"] },
         },
       },
       ProductMediaItem: {
@@ -1786,22 +1784,17 @@ export const swaggerSpec = {
       },
       ProductColorAvailability: {
         type: "object",
-        description: "Per-color availability and optional image. hasImage true when imageColors[i] matches this color.",
+        description: "Per-color availability. Color-specific images come from refetch with ?color=.",
         properties: {
           color: { type: "string" },
           available: { type: "boolean" },
           outOfStock: { type: "boolean" },
-          availableSizeCount: { type: "integer", description: "Number of sizes in stock for this color. When variants is empty, equals product.sizes.length." },
-          hasImage: { type: "boolean", description: "True when at least one image is linked to this color via imageColors" },
-          imageUrl: { type: "string", description: "First image URL for this color when hasImage is true" },
         },
       },
       ProductAvailabilityDetail: {
         type: "object",
-        description: "Availability block on GET /products/:id. Colors include hasImage/imageUrl for color-specific images. When product has no variant records, variants are synthesized from global stock (variantsSource: estimated).",
+        description: "Availability block on GET /products/:id. When product has no variant records, variants are synthesized from global stock.",
         properties: {
-          variantsSource: { type: "string", enum: ["exact", "estimated"], description: "exact when variants come from DB; estimated when synthesized from global stock (no variants stored)." },
-          availableSizeCount: { type: "integer", description: "Total number of sizes that are available (in stock) for this product." },
           colors: { type: "array", items: { $ref: "#/components/schemas/ProductColorAvailability" } },
           sizes: {
             type: "array",
@@ -1830,7 +1823,7 @@ export const swaggerSpec = {
       },
       ProductData: {
         type: "object",
-        description: "Full product (single product: GET /products/:id, create/update/delete/status). Includes media + images, videos, imageColors for detail/admin. GET response also includes availability (with hasImage/imageUrl per color) and formattedDetails.",
+        description: "Product (GET /products/:id with ?for=storefront returns this slim shape). Admin CRUD may return additional fields. Tags, vendor, imageColors, defaultMediaType, hoverMediaType, weightUnit, sizeDescriptions, variants, __v, createdAt, updatedAt, isNewArrival are omitted for storefront.",
         properties: {
           _id: { type: "string" },
           name: { $ref: "#/components/schemas/LocalizedString" },
@@ -1844,26 +1837,29 @@ export const swaggerSpec = {
           price: { type: "number" },
           discountPrice: { type: "number", nullable: true },
           media: { $ref: "#/components/schemas/ProductMedia", description: "Structured media: default, hover, previewVideo" },
-          images: { type: "array", items: { type: "string" }, description: "Full gallery (only on single-product responses)" },
-          imageColors: { type: "array", items: { type: "string" }, description: "Color per image; only on single-product responses" },
-          videos: { type: "array", items: { type: "string" }, description: "Video URLs; only on single-product responses" },
-          defaultMediaType: { type: "string", enum: ["image", "video"], description: "Preferred media type for default display on product cards", nullable: true },
-          hoverMediaType: { type: "string", enum: ["image", "video"], description: "Preferred media type for hover display on product cards", nullable: true },
+          images: { type: "array", items: { type: "string" }, description: "Full gallery (single-product responses)" },
+          videos: { type: "array", items: { type: "string" }, description: "Video URLs (single-product responses)" },
           stock: { type: "integer" },
           status: { type: "string", enum: ["ACTIVE", "INACTIVE"] },
-          isNewArrival: { type: "boolean" },
           sizes: { type: "array", items: { type: "string" } },
-          sizeDescriptions: { type: "array", items: { type: "string" } },
           colors: { type: "array", items: { type: "string" } },
           details: { $ref: "#/components/schemas/LocalizedString", nullable: true },
           stylingTip: { $ref: "#/components/schemas/LocalizedString", nullable: true },
-          deletedAt: { type: "string", format: "date-time", nullable: true },
-          createdAt: { type: "string", format: "date-time" },
-          updatedAt: { type: "string", format: "date-time" },
+          inStock: { type: "boolean" },
+          discountPercent: { type: "integer", description: "Discount % when discountPrice is set, e.g. 30 for 30% off", nullable: true },
+          formattedDetails: {
+            type: "object",
+            description: "Parsed rich-text details (paragraphs, lists) per locale",
+            nullable: true,
+            properties: {
+              en: { type: "array", items: { type: "object" } },
+              ar: { type: "array", items: { type: "object" } },
+            },
+          },
           averageRating: { type: "number", description: "Present when ratings exist", nullable: true },
-          ratingCount: { type: "integer", description: "Present on list", nullable: true },
+          ratingCount: { type: "integer", description: "Present when ratings exist", nullable: true },
           soldQty: { type: "integer", description: "Units sold", nullable: true },
-          availability: { $ref: "#/components/schemas/ProductAvailabilityDetail", description: "Present on GET /products/:id; colors include hasImage and imageUrl when product has color-specific images" },
+          availability: { $ref: "#/components/schemas/ProductAvailabilityDetail", description: "Present on GET /products/:id" },
         },
       },
       ProductSingleData: {

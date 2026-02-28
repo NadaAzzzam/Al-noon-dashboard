@@ -49,10 +49,15 @@ async function seedTestData() {
   if (!product) {
     product = await Product.create({
       name: { en: "Test Product", ar: "منتج تجريبي" },
+      description: { en: "E2E test product for storefront and integration tests.", ar: "منتج اختبار للواجهة واختبارات التكامل." },
       price: 99.99,
       stock: 50,
       category: category._id,
       status: "ACTIVE",
+      sizes: ["S", "M", "L"],
+      colors: ["Black"],
+      images: ["/uploads/products/seed-placeholder.jpg"],
+      imageColors: ["Black"],
     });
   }
 

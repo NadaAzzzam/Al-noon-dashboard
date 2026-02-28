@@ -101,7 +101,9 @@ export const productQuerySchema = z.object({
     /** Filter by vendor/brand name (case-insensitive partial match). */
     vendor: z.string().optional(),
     /** Filter products that have a discount price set. */
-    hasDiscount: z.enum(["true", "false"]).optional()
+    hasDiscount: z.enum(["true", "false"]).optional(),
+    /** Return slim product (omit unused storefront fields) when "storefront". */
+    for: z.enum(["storefront"]).optional()
   })
 });
 

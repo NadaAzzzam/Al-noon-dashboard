@@ -10,6 +10,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { productImagePath, productVideoPath } from "../middlewares/upload.js";
 import { sendResponse } from "../utils/response.js";
 import { withProductMedia } from "../types/productMedia.js";
+import { toStorefrontProduct } from "../utils/toStorefrontProduct.js";
 import { parseRichText } from "../utils/richTextFormatter.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 
@@ -311,19 +312,26 @@ export const listProducts = asyncHandler(async (req, res) => {
     });
   }
 
-  // Add effectivePrice and inStock to each product for the list response
+  // Add inStock, discountPercent to each product for the list response
   products = (products as Record<string, unknown>[]).map((p) => {
     const price = typeof p.price === "number" ? p.price : 0;
     const discountPrice = typeof p.discountPrice === "number" ? p.discountPrice : undefined;
     const stock = typeof p.stock === "number" ? p.stock : 0;
+    const discountPercent =
+      discountPrice != null && price > 0 && discountPrice < price
+        ? Math.round((1 - discountPrice / price) * 100)
+        : undefined;
     return {
       ...p,
-      effectivePrice: discountPrice ?? price,
-      inStock: stock > 0
+      inStock: stock > 0,
+      ...(discountPercent != null ? { discountPercent } : {})
     };
   });
 
-  const data = (products as Record<string, unknown>[]).map((p) => withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true }));
+  let data = (products as Record<string, unknown>[]).map((p) => withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true }));
+  if (req.query.for === "storefront") {
+    data = data.map((p) => toStorefrontProduct(p as Record<string, unknown>));
+  }
   sendResponse(res, req.locale, {
     data,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
@@ -435,20 +443,26 @@ export const getProduct = asyncHandler(async (req, res) => {
     }
     : undefined;
 
-  // Compute effectivePrice
+  // Compute discountPercent
   const price = typeof (productObj as { price?: number }).price === "number" ? (productObj as { price: number }).price : 0;
   const discountPrice = typeof (productObj as { discountPrice?: number }).discountPrice === "number" ? (productObj as { discountPrice: number }).discountPrice : undefined;
+  const discountPercent =
+    discountPrice != null && price > 0 && discountPrice < price
+      ? Math.round((1 - discountPrice / price) * 100)
+      : undefined;
 
+  let payload = {
+    ...productWithMedia,
+    availability,
+    inStock: totalStock > 0,
+    ...(discountPercent != null ? { discountPercent } : {}),
+    ...(formattedDetails ? { formattedDetails } : {})
+  };
+  if (req.query.for === "storefront") {
+    payload = toStorefrontProduct(payload as Record<string, unknown>) as typeof payload;
+  }
   sendResponse(res, req.locale, {
-    data: {
-      product: {
-        ...productWithMedia,
-        availability,
-        effectivePrice: discountPrice ?? price,
-        inStock: totalStock > 0,
-        ...(formattedDetails ? { formattedDetails } : {})
-      }
-    }
+    data: { product: payload }
   });
 });
 
@@ -564,7 +578,24 @@ export const getRelatedProducts = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
-  const data = (products as Record<string, unknown>[]).map((p) => withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true }));
+  let data = (products as Record<string, unknown>[]).map((p) => {
+    const price = typeof p.price === "number" ? p.price : 0;
+    const discountPrice = typeof p.discountPrice === "number" ? p.discountPrice : undefined;
+    const stock = typeof p.stock === "number" ? p.stock : 0;
+    const discountPercent =
+      discountPrice != null && price > 0 && discountPrice < price
+        ? Math.round((1 - discountPrice / price) * 100)
+        : undefined;
+    const withMedia = withProductMedia(p as { images?: string[]; viewImage?: string; hoverImage?: string; videos?: string[] }, { forList: true });
+    return {
+      ...withMedia,
+      inStock: stock > 0,
+      ...(discountPercent != null ? { discountPercent } : {})
+    };
+  });
+  if (req.query.for === "storefront") {
+    data = data.map((p) => toStorefrontProduct(p as Record<string, unknown>));
+  }
   sendResponse(res, req.locale, { data });
 });
 

@@ -158,8 +158,6 @@ export type Product = {
   discountPrice?: number;
   /** Cost per item for profit margin calculations. Not shown to customers. */
   costPerItem?: number;
-  /** Computed effective price (discountPrice ?? price). Set by list/get API. */
-  effectivePrice?: number;
   /** Whether product has stock > 0. Set by list/get API. */
   inStock?: boolean;
   images?: string[];

@@ -219,6 +219,19 @@ describe("products validators", () => {
     it("rejects negative minPrice", () => {
       expect(productQuerySchema.safeParse({ query: { minPrice: -1 } }).success).toBe(false);
     });
+
+    it("accepts for=storefront for slim product response", () => {
+      const result = productQuerySchema.safeParse({ query: { for: "storefront" } });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.query.for).toBe("storefront");
+      }
+    });
+
+    it("rejects invalid for value", () => {
+      expect(productQuerySchema.safeParse({ query: { for: "admin" } }).success).toBe(false);
+      expect(productQuerySchema.safeParse({ query: { for: "" } }).success).toBe(false);
+    });
   });
 
   describe("productStatusSchema", () => {

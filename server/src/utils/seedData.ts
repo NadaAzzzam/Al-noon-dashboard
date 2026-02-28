@@ -26,6 +26,7 @@ import { ProductFeedback } from "../models/ProductFeedback.js";
 import { Payment } from "../models/Payment.js";
 import { ChatSession, type ProductCardInMessage } from "../models/ChatSession.js";
 import { ensureDefaultRoles } from "./ensureDefaultRoles.js";
+import { buildSeoMeta } from "./buildSeoMeta.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -414,26 +415,35 @@ async function seed() {
   // ----- Products (all fields set; no nulls). Each product: 6 distinct images + 1 local video for detail gallery. -----
   const defaultDetails = { en: "Quality fabric. Care as per label.", ar: "قماش عالي الجودة. العناية حسب البطاقة." };
   const defaultStylingTip = { en: "Pair with our hijabs and accessories for a complete look.", ar: "زينيها مع حجاباتنا وإكسسواراتنا لمظهر كامل." };
-  const fillProduct = (p: { sizes: string[]; images: string[]; imageColors?: string[] } & Record<string, unknown>) => ({
-    ...p,
-    imageColors: p.imageColors ?? p.images.map(() => ""),
-    sizeDescriptions: p.sizes.map(() => ""),
-    details: defaultDetails,
-    stylingTip: defaultStylingTip,
-    viewImage: p.images[0] ?? "",
-    hoverImage: (p.images[1] ?? p.images[0]) ?? ""
-  });
+  const fillProduct = (p: { sizes: string[]; images: string[]; imageColors?: string[]; name?: { en: string; ar: string }; description?: { en: string; ar: string } } & Record<string, unknown>) => {
+    const name = (p.name as { en: string; ar: string }) ?? { en: "product", ar: "منتج" };
+    const description = (p.description as { en: string; ar: string }) ?? { en: "", ar: "" };
+    const seo = buildSeoMeta(name, description);
+    return {
+      ...p,
+      imageColors: p.imageColors ?? p.images.map(() => ""),
+      sizeDescriptions: p.sizes.map(() => ""),
+      details: defaultDetails,
+      stylingTip: defaultStylingTip,
+      viewImage: p.images[0] ?? "",
+      hoverImage: (p.images[1] ?? p.images[0]) ?? "",
+      metaTitle: seo.metaTitle,
+      metaDescription: seo.metaDescription
+    };
+  };
 
   await Product.deleteMany({});
+  /** discountPrice = price * (1 - discountPercent/100). Used so Discount (%) in admin form shows round values. */
+  const withDiscount = (price: number, discountPercent: number) => ({ price, discountPrice: Math.round(price * (1 - discountPercent / 100)) });
   // Each product gets 6 distinct local images (gallery) + 1 local video. viewImage = images[0], hoverImage = images[1].
   const productList: Array<{ name: { en: string; ar: string }; description: { en: string; ar: string }; category: ReturnType<typeof cat>; price: number; discountPrice?: number; stock: number; status: "ACTIVE"; isNewArrival?: boolean; sizes: string[]; colors: string[]; imageColors?: string[] }> = [
     { name: { en: "Zipped Hooded Abaya", ar: "عباية زود هود" }, description: { en: "Classic zipped abaya with hood. Comfortable and modest.", ar: "عباية كلاسيكية بزود وهود. مريحة ومحتشمة." }, category: cat("Abayas"), price: 2100, stock: 15, status: "ACTIVE", isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Brown"], imageColors: ["Black", "Black", "Navy", "Navy", "Brown", "Brown"] },
     { name: { en: "Melton Abaya", ar: "عباية ميلتون" }, description: { en: "Elegant melton fabric abaya for winter.", ar: "عباية أنيقة من قماش ميلتون للشتاء." }, category: cat("Abayas"), price: 2100, stock: 12, status: "ACTIVE", isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Grey"], imageColors: ["Black", "Black", "Black", "Grey", "Grey", "Grey"] },
     { name: { en: "Minimal Ribbed Abaya", ar: "عباية ريب مينيمال" }, description: { en: "Simple ribbed abaya, easy to style.", ar: "عباية ريب بسيطة، سهلة التنسيق." }, category: cat("Abayas"), price: 1450, stock: 20, status: "ACTIVE", isNewArrival: true, sizes: ["S", "M", "L", "XL"], colors: ["Black", "Navy", "Burgundy"], imageColors: ["Black", "Black", "Navy", "Navy", "Burgundy", "Burgundy"] },
-    { name: { en: "Black Zip-Front Abaya", ar: "عباية سوداء زود أمامي" }, description: { en: "Black zip-front abaya, versatile and modern.", ar: "عباية سوداء زود أمامي، عصرية ومتعددة الاستخدام." }, category: cat("Abayas"), price: 1400, discountPrice: 2000, stock: 8, status: "ACTIVE", isNewArrival: false, sizes: ["S", "M", "L"], colors: ["Black"] },
-    { name: { en: "Velvet Chemise Abaya", ar: "عباية مخمل شيميز" }, description: { en: "Luxurious velvet chemise-style abaya.", ar: "عباية مخملية على طراز الشيميز." }, category: cat("Abayas"), price: 1050, discountPrice: 2100, stock: 10, status: "ACTIVE", isNewArrival: false, sizes: ["M", "L"], colors: ["Black", "Burgundy", "Navy"], imageColors: ["Black", "Black", "Burgundy", "Burgundy", "Navy", "Navy"] },
-    { name: { en: "Wool Cape", ar: "كاب صوف" }, description: { en: "Warm wool cape, essential for modest wardrobe.", ar: "كاب صوف دافئ، أساسي للخزانة المحتشمة." }, category: cat("Capes"), price: 950, discountPrice: 1900, stock: 14, status: "ACTIVE", isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Grey", "Camel"], imageColors: ["Black", "Black", "Grey", "Grey", "Camel", "Camel"] },
-    { name: { en: "Cape Hasna", ar: "كاب حَسَناء" }, description: { en: "Elegant cape with clean lines.", ar: "كاب أنيق بخطوط نظيفة." }, category: cat("Capes"), price: 2000, discountPrice: 2500, stock: 6, status: "ACTIVE", isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Navy"], imageColors: ["Black", "Black", "Black", "Navy", "Navy", "Navy"] },
+    { name: { en: "Black Zip-Front Abaya", ar: "عباية سوداء زود أمامي" }, description: { en: "Black zip-front abaya, versatile and modern.", ar: "عباية سوداء زود أمامي، عصرية ومتعددة الاستخدام." }, category: cat("Abayas"), ...withDiscount(2000, 30), stock: 8, status: "ACTIVE", isNewArrival: false, sizes: ["S", "M", "L"], colors: ["Black"] },
+    { name: { en: "Velvet Chemise Abaya", ar: "عباية مخمل شيميز" }, description: { en: "Luxurious velvet chemise-style abaya.", ar: "عباية مخملية على طراز الشيميز." }, category: cat("Abayas"), ...withDiscount(2100, 50), stock: 10, status: "ACTIVE", isNewArrival: false, sizes: ["M", "L"], colors: ["Black", "Burgundy", "Navy"], imageColors: ["Black", "Black", "Burgundy", "Burgundy", "Navy", "Navy"] },
+    { name: { en: "Wool Cape", ar: "كاب صوف" }, description: { en: "Warm wool cape, essential for modest wardrobe.", ar: "كاب صوف دافئ، أساسي للخزانة المحتشمة." }, category: cat("Capes"), ...withDiscount(1900, 50), stock: 14, status: "ACTIVE", isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Grey", "Camel"], imageColors: ["Black", "Black", "Grey", "Grey", "Camel", "Camel"] },
+    { name: { en: "Cape Hasna", ar: "كاب حَسَناء" }, description: { en: "Elegant cape with clean lines.", ar: "كاب أنيق بخطوط نظيفة." }, category: cat("Capes"), ...withDiscount(2500, 20), stock: 6, status: "ACTIVE", isNewArrival: true, sizes: ["One Size"], colors: ["Black", "Navy"], imageColors: ["Black", "Black", "Black", "Navy", "Navy", "Navy"] },
     { name: { en: "Classic Malhafa", ar: "ملحفة كلاسيكية" }, description: { en: "Traditional malhafa, cloak-style modest wear.", ar: "ملحفة تقليدية، عباءة محتشمة." }, category: cat("Malhafa"), price: 850, stock: 18, status: "ACTIVE", sizes: ["One Size"], colors: ["Black", "Navy", "Brown", "Grey"], imageColors: ["Black", "Black", "Navy", "Brown", "Grey", "Black"] },
     { name: { en: "Embroidered Malhafa", ar: "ملحفة مطرزة" }, description: { en: "Malhafa with subtle embroidery for special occasions.", ar: "ملحفة بتطريز خفيف للمناسبات." }, category: cat("Malhafa"), price: 1200, stock: 7, status: "ACTIVE", sizes: ["One Size"], colors: ["Black", "Burgundy"], imageColors: ["Black", "Black", "Black", "Burgundy", "Burgundy", "Burgundy"] },
     { name: { en: "Cotton Jersey Hijab", ar: "حجاب قطني جيرسي" }, description: { en: "Soft cotton jersey hijab, breathable and easy to wear.", ar: "حجاب قطني جيرسي ناعم، مريح وسهل الارتداء." }, category: cat("Hijab"), price: 120, stock: 50, status: "ACTIVE", sizes: ["One Size"], colors: ["Black", "Navy", "Grey", "Burgundy", "Dusty Pink"] },
@@ -443,11 +453,11 @@ async function seed() {
     { name: { en: "Niqab with Magnetic Closure", ar: "نقاب بمغناطيس" }, description: { en: "Niqab with magnetic closure for easy wear.", ar: "نقاب بإغلاق مغناطيسي لارتداء أسهل." }, category: cat("Niqab"), price: 220, stock: 15, status: "ACTIVE", sizes: ["One Size"], colors: ["Black"] },
     { name: { en: "Silk Tarha", ar: "طرح حرير" }, description: { en: "Light silk tarha (طرح) for hijab styling.", ar: "طرح حرير خفيف لتنسيق الحجاب." }, category: cat("Tarha / Veil"), price: 150, stock: 30, status: "ACTIVE", sizes: ["One Size"], colors: ["Black", "Navy", "Burgundy", "Gold"] },
     { name: { en: "Printed Tarha", ar: "طرح مطبوع" }, description: { en: "Printed tarha for a pop of color.", ar: "طرح مطبوع للمسة لونية." }, category: cat("Tarha / Veil"), price: 130, stock: 22, status: "ACTIVE", sizes: ["One Size"], colors: ["Multi", "Floral", "Geometric"] },
-    { name: { en: "Black Ribbed Twin Set – Abaya & Cardigan", ar: "توأم ريب أسود – عباية وكارديجان" }, description: { en: "Matching abaya and cardigan set.", ar: "ست عباية وكارديجان متطابقين." }, category: cat("Sets"), price: 1450, discountPrice: 2900, stock: 9, status: "ACTIVE", sizes: ["S", "M", "L"], colors: ["Black"] },
-    { name: { en: "Ribbed Kaftan", ar: "كافتان ريب" }, description: { en: "Comfortable ribbed kaftan, easy to layer.", ar: "كافتان ريب مريح، سهل الطبقات." }, category: cat("Sets"), price: 900, discountPrice: 1500, stock: 11, status: "ACTIVE", sizes: ["S", "M", "L"], colors: ["Black", "Navy", "Grey"], imageColors: ["Black", "Black", "Navy", "Navy", "Grey", "Grey"] },
-    { name: { en: "Velvet Pleated Cardigan", ar: "كارديجان مخمل بليت" }, description: { en: "Velvet pleated cardigan for layering.", ar: "كارديجان مخمل بليت للطبقات." }, category: cat("Cardigans & Coats"), price: 1760, discountPrice: 2200, stock: 5, status: "ACTIVE", isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Burgundy"], imageColors: ["Black", "Black", "Black", "Burgundy", "Burgundy", "Burgundy"] },
+    { name: { en: "Black Ribbed Twin Set – Abaya & Cardigan", ar: "توأم ريب أسود – عباية وكارديجان" }, description: { en: "Matching abaya and cardigan set.", ar: "ست عباية وكارديجان متطابقين." }, category: cat("Sets"), ...withDiscount(2900, 50), stock: 9, status: "ACTIVE", sizes: ["S", "M", "L"], colors: ["Black"] },
+    { name: { en: "Ribbed Kaftan", ar: "كافتان ريب" }, description: { en: "Comfortable ribbed kaftan, easy to layer.", ar: "كافتان ريب مريح، سهل الطبقات." }, category: cat("Sets"), ...withDiscount(1500, 40), stock: 11, status: "ACTIVE", sizes: ["S", "M", "L"], colors: ["Black", "Navy", "Grey"], imageColors: ["Black", "Black", "Navy", "Navy", "Grey", "Grey"] },
+    { name: { en: "Velvet Pleated Cardigan", ar: "كارديجان مخمل بليت" }, description: { en: "Velvet pleated cardigan for layering.", ar: "كارديجان مخمل بليت للطبقات." }, category: cat("Cardigans & Coats"), ...withDiscount(2200, 20), stock: 5, status: "ACTIVE", isNewArrival: true, sizes: ["S", "M", "L"], colors: ["Black", "Burgundy"], imageColors: ["Black", "Black", "Black", "Burgundy", "Burgundy", "Burgundy"] },
     { name: { en: "Flowy Open Cardigan", ar: "كارديجان مفتوح فضفاض" }, description: { en: "Light, flowy open cardigan.", ar: "كارديجان مفتوح خفيف وفضفاض." }, category: cat("Cardigans & Coats"), price: 1600, stock: 13, status: "ACTIVE", sizes: ["S", "M", "L"], colors: ["Black", "Grey", "Navy"], imageColors: ["Black", "Black", "Grey", "Grey", "Navy", "Navy"] },
-    { name: { en: "Wool Coat", ar: "معطف صوف" }, description: { en: "Warm wool coat for winter.", ar: "معطف صوف دافئ للشتاء." }, category: cat("Cardigans & Coats"), price: 1080, discountPrice: 2700, stock: 4, status: "ACTIVE", sizes: ["S", "M", "L"], colors: ["Black", "Camel", "Grey"], imageColors: ["Black", "Black", "Camel", "Camel", "Grey", "Grey"] },
+    { name: { en: "Wool Coat", ar: "معطف صوف" }, description: { en: "Warm wool coat for winter.", ar: "معطف صوف دافئ للشتاء." }, category: cat("Cardigans & Coats"), ...withDiscount(2700, 60), stock: 4, status: "ACTIVE", sizes: ["S", "M", "L"], colors: ["Black", "Camel", "Grey"], imageColors: ["Black", "Black", "Camel", "Camel", "Grey", "Grey"] },
     { name: { en: "Melton Dress", ar: "فستان ميلتون" }, description: { en: "Elegant melton dress, modest and warm.", ar: "فستان ميلتون أنيق، محتشم ودافئ." }, category: cat("Abayas"), price: 2000, stock: 7, status: "ACTIVE", sizes: ["S", "M", "L"], colors: ["Black", "Navy"], imageColors: ["Black", "Black", "Black", "Navy", "Navy", "Navy"] }
   ];
   const productsData = productList.map((p, i) => {

@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request, type Response } from "express";
 import cors from "cors";
 import fs from "fs";
 import helmet from "helmet";
@@ -33,6 +33,7 @@ import paymentMethodRoutes from "./routes/paymentMethodRoutes.js";
 import { swaggerSpec } from "./swagger.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { getDefaultLocale } from "./i18n.js";
 import { initLocales, localeMiddleware } from "./middlewares/locale.js";
 import { apiLimiter, authLimiter } from "./middlewares/rateLimit.js";
 import { requestIdMiddleware } from "./middlewares/requestId.js";
@@ -74,6 +75,10 @@ export const createApp = () => {
   initLocales();
   const app = express();
 
+  // Disable ETag so Express won't return 304 Not Modified on conditional requests.
+  // API responses should consistently return 200/201/etc. with full body, not cached 304.
+  app.disable("etag");
+
   app.use(
     helmet({
       crossOriginResourcePolicy: false,
@@ -110,13 +115,13 @@ export const createApp = () => {
   app.use("/api", apiLimiter);
   app.use("/uploads", express.static(uploadsDir));
 
-  app.get("/api/health", (req, res) => {
-    sendResponse(res, req.locale, { data: { status: "ok", dbConnected: isDbConnected() } });
+  app.get("/api/health", (req: Request, res: Response) => {
+    sendResponse(res, req.locale ?? getDefaultLocale(), { data: { status: "ok", dbConnected: isDbConnected() } });
   });
 
   // Swagger UI: custom HTML so we control which initializer runs; spec loaded by URL
-  const noStore = (res: express.Response) => res.set("Cache-Control", "no-store");
-  app.get(["/api-docs", "/api-docs/"], (req, res) => {
+  const noStore = (res: Response) => res.set("Cache-Control", "no-store");
+  app.get(["/api-docs", "/api-docs/"], (req: Request, res: Response) => {
     noStore(res);
     res.type("text/html");
     res.send(`<!DOCTYPE html>
@@ -134,13 +139,13 @@ export const createApp = () => {
 </body>
 </html>`);
   });
-  app.get("/api-docs/spec.json", (_req, res) => {
+  app.get("/api-docs/spec.json", (_req: Request, res: Response) => {
     noStore(res);
     const spec = JSON.parse(JSON.stringify(swaggerSpec));
     res.type("application/json");
     res.send(JSON.stringify(spec));
   });
-  app.get("/api-docs/swagger-initializer.js", (_req, res) => {
+  app.get("/api-docs/swagger-initializer.js", (_req: Request, res: Response) => {
     noStore(res);
     res.type("application/javascript");
     res.send(
@@ -190,9 +195,9 @@ export const createApp = () => {
 
   const clientBuildPath = path.resolve(__dirname, "../../admin-dashboard/dist");
   app.use(express.static(clientBuildPath));
-  app.get("*", (req, res) => {
+  app.get("*", (req: Request, res: Response) => {
     if (req.path.startsWith("/api")) {
-      return sendError(res, req.locale, { statusCode: 404, code: "errors.common.not_found" });
+      return sendError(res, req.locale ?? getDefaultLocale(), { statusCode: 404, code: "errors.common.not_found" });
     }
     res.sendFile(path.join(clientBuildPath, "index.html"));
   });
