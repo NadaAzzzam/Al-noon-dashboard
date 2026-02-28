@@ -1,4 +1,4 @@
-import { Order } from "../models/Order.js";
+import { Order, type OrderStatus } from "../models/Order.js";
 import { Payment } from "../models/Payment.js";
 import { Product } from "../models/Product.js";
 import { Settings } from "../models/Settings.js";
@@ -569,7 +569,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   if (!order) {
     throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
   }
-  const newStatus = req.body.status;
+  const rawStatus = (req.body as { status?: string }).status;
+  const validStatuses: OrderStatus[] = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
+  if (typeof rawStatus !== "string" || !validStatuses.includes(rawStatus as OrderStatus)) {
+    throw new ApiError(400, "Valid status is required", { code: "errors.common.validation_error" });
+  }
+  const newStatus = rawStatus as OrderStatus;
   if (newStatus === "CONFIRMED" && order.items.length > 0) {
     const session = await mongoose.startSession();
     session.startTransaction();

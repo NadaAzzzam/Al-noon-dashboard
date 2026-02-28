@@ -1,4 +1,5 @@
 import type { ChatIntent } from "./chatIntents.js";
+import { escapeHtml } from "./escapeHtml.js";
 
 export type ResponseLocale = "en" | "ar";
 
@@ -12,7 +13,7 @@ export interface ChatResponseData {
   categories: { name: { en?: string; ar?: string } }[];
 }
 
-/** Wrap plain text in <p> and convert • lines to <ul><li> for HTML response (ecom can render as HTML). */
+/** Wrap plain text in <p> and convert • lines to <ul><li>. Escapes interpolated values to prevent XSS. */
 function toHtml(text: string): string {
   const withStrong = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   const lines = withStrong.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -24,13 +25,13 @@ function toHtml(text: string): string {
         items.push("<ul>");
         inList = true;
       }
-      items.push(`<li>${line.slice(2)}</li>`);
+      items.push(`<li>${escapeHtml(line.slice(2))}</li>`);
     } else {
       if (inList) {
         items.push("</ul>");
         inList = false;
       }
-      items.push(`<p>${line}</p>`);
+      items.push(`<p>${escapeHtml(line)}</p>`);
     }
   }
   if (inList) items.push("</ul>");

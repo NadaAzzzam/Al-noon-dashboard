@@ -21,6 +21,15 @@ export const authLimiter = rateLimit({
   skip: () => !isProduction
 });
 
+/** AI chat: 20 requests per 15 minutes per IP (prevents abuse, prompt injection spam) */
+export const aiChatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== "production"
+});
+
 /** Checkout/orders: 15 requests per 15 minutes per IP (prevents abuse) */
 export const checkoutLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

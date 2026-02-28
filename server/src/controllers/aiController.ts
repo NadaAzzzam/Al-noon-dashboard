@@ -10,8 +10,12 @@ import { sendResponse } from "../utils/response.js";
 import { detectIntent } from "../utils/chatIntents.js";
 import { buildResponse, type ChatResponseData } from "../utils/chatResponses.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
-import { callGemini, buildSystemPromptFromContext, type ChatTurn } from "../utils/aiService.js";
+import { sanitizeChatHtml } from "../utils/sanitizeChatHtml.js";
+import { callGemini, buildSystemPromptFromContext, type ChatTurn, type ResponseLocale } from "../utils/aiService.js";
 import { logger } from "../utils/logger.js";
+import { getDefaultLocale, type Locale } from "../i18n.js";
+
+const locale = (req: unknown): Locale => ((req as { locale?: unknown }).locale ?? getDefaultLocale()) as Locale;
 
 /** Strip HTML tags for plain-text context. */
 function stripHtml(html: string): string {
@@ -222,7 +226,7 @@ async function getProductCardsForIds(ids: string[]): Promise<{ id: string; name:
 /** Public: get AI widget config (enabled, greeting, suggested questions). No API key returned. */
 export const getAiSettings = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, {
+    return sendResponse(res, locale(req), {
       data: {
         enabled: false,
         greeting: { en: "Hi! How can I help you today?", ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟" },
@@ -232,7 +236,7 @@ export const getAiSettings = asyncHandler(async (req, res) => {
   }
   const settings = await Settings.findOne().select("aiAssistant").lean();
   const ai = (settings as { aiAssistant?: { enabled?: boolean; greeting?: { en?: string; ar?: string }; suggestedQuestions?: { en?: string; ar?: string }[] } } | null)?.aiAssistant;
-  sendResponse(res, req.locale, {
+  sendResponse(res, locale(req), {
     data: {
       enabled: Boolean(ai?.enabled),
       greeting: ai?.greeting ?? { en: "Hi! How can I help you today?", ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟" },
@@ -251,7 +255,7 @@ export const postChat = asyncHandler(async (req, res) => {
     message: string;
     locale?: "en" | "ar";
   };
-  const responseLocale = bodyLocale ?? req.locale;
+  const responseLocale: ResponseLocale = (bodyLocale ?? (req as { locale?: unknown }).locale ?? "en") as ResponseLocale;
 
   const settings = await Settings.findOne().lean();
   const ai = (settings as { aiAssistant?: { enabled?: boolean } } | null)?.aiAssistant;
@@ -380,7 +384,7 @@ export const postChat = asyncHandler(async (req, res) => {
     }
     const productIds = extractProductIdsFromResponse(assistantText);
     const productCards = fallbackProductCards ?? (await getProductCardsForIds(productIds));
-    const displayText = stripProductIdTags(assistantText);
+    const displayText = sanitizeChatHtml(stripProductIdTags(assistantText));
     const sessionId = (session as { sessionId: string }).sessionId;
     await ChatSession.updateOne(
       { sessionId },
@@ -399,7 +403,7 @@ export const postChat = asyncHandler(async (req, res) => {
         $set: { updatedAt: new Date() }
       }
     );
-    return sendResponse(res, req.locale, {
+    return sendResponse(res, locale(req), {
       data: { sessionId, response: displayText, productCards, responseFormat: "html" }
     });
   }
@@ -425,7 +429,9 @@ export const postChat = asyncHandler(async (req, res) => {
 
   const intentMatch = detectIntent(message);
 
-  const assistantText = buildResponse(intentMatch.intent, responseData, responseLocale, intentMatch.extractedData);
+  const assistantText = sanitizeChatHtml(
+    buildResponse(intentMatch.intent, responseData, responseLocale, intentMatch.extractedData)
+  );
 
   let productCards: { id: string; name: { en: string; ar: string }; image: string; productUrl: string }[] = [];
   if (intentMatch.intent === "product_search" && intentMatch.extractedData?.productKeywords) {
@@ -481,7 +487,7 @@ export const postChat = asyncHandler(async (req, res) => {
     }
   );
 
-  sendResponse(res, req.locale, {
+  sendResponse(res, locale(req), {
     data: {
       sessionId,
       response: assistantText,
@@ -494,8 +500,9 @@ export const postChat = asyncHandler(async (req, res) => {
 /** Admin: list chat sessions with pagination. */
 export const listSessions = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+  const query = req.query ?? {};
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(50, Math.max(1, Number(query.limit) || 20));
   const skip = (page - 1) * limit;
   const [sessions, total] = await Promise.all([
     ChatSession.find().sort({ updatedAt: -1 }).skip(skip).limit(limit).select("sessionId messages customerName customerEmail status createdAt updatedAt").lean(),
@@ -511,7 +518,7 @@ export const listSessions = asyncHandler(async (req, res) => {
     createdAt: (s as { createdAt: Date }).createdAt,
     updatedAt: (s as { updatedAt: Date }).updatedAt
   }));
-  sendResponse(res, req.locale, {
+  sendResponse(res, locale(req), {
     data: { sessions: list, total, page, limit }
   });
 });
@@ -519,9 +526,12 @@ export const listSessions = asyncHandler(async (req, res) => {
 /** Admin: get one session by MongoDB _id with all messages. */
 export const getSessionById = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const session = await ChatSession.findById(req.params.id).lean();
+  const params = req.params ?? {};
+  const id = "id" in params ? params.id : undefined;
+  if (!id) throw new ApiError(400, "Session ID is required", { code: "errors.common.validation_error" });
+  const session = await ChatSession.findById(id).lean();
   if (!session) throw new ApiError(404, "Chat session not found", { code: "errors.ai.session_not_found" });
-  sendResponse(res, req.locale, {
+  sendResponse(res, locale(req), {
     data: {
       id: (session as { _id: unknown })._id,
       sessionId: (session as { sessionId: string }).sessionId,
@@ -538,7 +548,10 @@ export const getSessionById = asyncHandler(async (req, res) => {
 /** Admin: delete a chat session. */
 export const deleteSession = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const deleted = await ChatSession.findByIdAndDelete(req.params.id);
+  const params = req.params ?? {};
+  const id = "id" in params ? params.id : undefined;
+  if (!id) throw new ApiError(400, "Session ID is required", { code: "errors.common.validation_error" });
+  const deleted = await ChatSession.findByIdAndDelete(id);
   if (!deleted) throw new ApiError(404, "Chat session not found", { code: "errors.ai.session_not_found" });
-  sendResponse(res, req.locale, { message: "success.ai.session_deleted" });
+  sendResponse(res, locale(req), { message: "success.ai.session_deleted" });
 });
