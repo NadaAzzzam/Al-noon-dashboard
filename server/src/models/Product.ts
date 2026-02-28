@@ -22,8 +22,8 @@ export interface ProductDocument {
   name: LocalizedString;
   description?: LocalizedString;
   category: mongoose.Types.ObjectId;
-  /** URL-friendly slug (auto-generated from name.en if not provided). Must be unique. */
-  slug: string;
+  /** URL-friendly slugs per locale (auto-generated from name if not provided). slug.en and slug.ar must be unique. */
+  slug: LocalizedString;
   /** Free-form tags for filtering, search, and grouping (e.g. ["summer", "bestseller"]). */
   tags: string[];
   /** Brand or manufacturer name (e.g. "Al-noon Originals"). */
@@ -88,7 +88,7 @@ const productSchema = new Schema<ProductDocument>(
     name: { type: localizedSchema, required: true },
     description: { type: localizedSchema },
     category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
-    slug: { type: String, unique: true, sparse: true },
+    slug: { type: localizedSchema },
     tags: { type: [String], default: [] },
     vendor: { type: String, default: "" },
     price: { type: Number, required: true },
@@ -123,6 +123,8 @@ productSchema.index({ deletedAt: 1 });
 productSchema.index({ status: 1, deletedAt: 1 });
 productSchema.index({ tags: 1 });
 productSchema.index({ vendor: 1 });
+productSchema.index({ "slug.en": 1 }, { unique: true, sparse: true });
+productSchema.index({ "slug.ar": 1 }, { unique: true, sparse: true });
 
 /** Generate a URL-friendly slug from a string. */
 function slugify(text: string): string {
@@ -137,20 +139,38 @@ function slugify(text: string): string {
     .replace(/-+$/, "");
 }
 
-/** Auto-generate slug from name.en before saving if not already set. */
+/** Auto-generate slug.en and slug.ar from name before saving if not already set. */
 productSchema.pre("save", async function (next) {
-  if (this.slug) return next();
-  const base = slugify(this.name?.en || "product");
-  let candidate = base;
+  const slugObj = this.slug as { en?: string; ar?: string } | string | undefined;
+  const hasSlug = slugObj && (typeof slugObj === "string"
+    ? slugObj.length > 0
+    : ((slugObj.en?.length ?? 0) > 0 || (slugObj.ar?.length ?? 0) > 0));
+  if (hasSlug) {
+    if (typeof slugObj === "string") {
+      this.slug = { en: slugObj, ar: slugify(this.name?.ar || this.name?.en || "product") || slugObj };
+    }
+    return next();
+  }
+
+  const baseEn = slugify(this.name?.en || "product");
+  const baseAr = slugify(this.name?.ar || this.name?.en || "product");
+  let candidateEn = baseEn;
+  let candidateAr = baseAr || baseEn;
   let counter = 1;
   // eslint-disable-next-line @typescript-eslint/no-this-alias
   const doc = this;
   const Model = doc.constructor as typeof Product;
-  while (await Model.findOne({ slug: candidate, _id: { $ne: doc._id } })) {
+  while (true) {
+    const existing = await Model.findOne({
+      _id: { $ne: doc._id },
+      $or: [{ "slug.en": candidateEn }, { "slug.ar": candidateAr }],
+    });
+    if (!existing) break;
     counter++;
-    candidate = `${base}-${counter}`;
+    candidateEn = `${baseEn}-${counter}`;
+    candidateAr = (baseAr || baseEn) ? `${(baseAr || baseEn)}-${counter}` : candidateEn;
   }
-  this.slug = candidate;
+  this.slug = { en: candidateEn, ar: candidateAr };
   next();
 });
 

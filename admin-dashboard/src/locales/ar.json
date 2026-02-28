@@ -322,6 +322,8 @@
     "new_arrivals_only": "الوصول الجديد فقط",
     "new_arrival_badge": "جديد",
     "slug": "الرابط المختصر",
+    "slug_en": "الرابط المختصر (EN)",
+    "slug_ar": "الرابط المختصر (AR)",
     "slug_placeholder": "يتم إنشاؤه تلقائياً من الاسم",
     "tags": "الوسوم",
     "tags_placeholder": "اضغط Enter لإضافة وسم",

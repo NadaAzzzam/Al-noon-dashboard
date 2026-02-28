@@ -89,5 +89,17 @@ describe("Products API", () => {
       const res = await request(app).get("/api/products/invalid-id");
       expect([400, 503]).toContain(res.status);
     });
+
+    it("accepts color query param", async () => {
+      const fakeId = "507f1f77bcf86cd799439011";
+      const res = await request(app).get(`/api/products/${fakeId}`).query({ color: "Black" });
+      expect([404, 503]).toContain(res.status);
+    });
+
+    it("accepts color and size query params", async () => {
+      const fakeId = "507f1f77bcf86cd799439011";
+      const res = await request(app).get(`/api/products/${fakeId}`).query({ color: "Black", size: "M" });
+      expect([404, 503]).toContain(res.status);
+    });
   });
 });

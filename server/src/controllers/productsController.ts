@@ -86,7 +86,10 @@ export const listProducts = asyncHandler(async (req, res) => {
   const filter: Record<string, unknown> = { deletedAt: null };
   if (status === "ACTIVE" || status === "INACTIVE" || status === "DRAFT") filter.status = status;
   if (category) filter.category = category;
-  if (slugParam && slugParam !== "*") filter.slug = slugParam;
+  if (slugParam && slugParam !== "*") {
+    filter.$and = (filter.$and as unknown[] || []) as unknown[];
+    (filter.$and as unknown[]).push({ $or: [{ "slug.en": slugParam }, { "slug.ar": slugParam }] });
+  }
   if (newArrival === "true") filter.isNewArrival = true;
   if (availability === "inStock") filter.stock = { $gt: 0 };
   if (availability === "outOfStock") filter.stock = 0;
@@ -353,9 +356,10 @@ export const getProduct = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Product not found", { code: "errors.product.not_found" });
   }
 
-  // Get color parameter from query string for color-specific images
+  // Get color and size parameters for variant-specific data and color-filtered images
   const query = req.query ?? {};
   const requestedColor = typeof query.color === "string" ? query.color.trim() : undefined;
+  const requestedSize = typeof query.size === "string" ? query.size.trim() : undefined;
 
   const productObj = product.toObject ? product.toObject() : (product as unknown as Record<string, unknown>);
 
@@ -456,12 +460,23 @@ export const getProduct = asyncHandler(async (req, res) => {
       ? Math.round((1 - discountPrice / price) * 100)
       : undefined;
 
+  // When both color and size are provided, include selectedVariant for variant-specific data
+  const selectedVariant =
+    requestedColor && requestedSize
+      ? variantList.find(
+          v =>
+            (v.color ?? "").toLowerCase().trim() === requestedColor.toLowerCase().trim() &&
+            (v.size ?? "").toLowerCase().trim() === requestedSize.toLowerCase().trim()
+        )
+      : undefined;
+
   let payload = {
     ...productWithMedia,
     availability,
     inStock: totalStock > 0,
     ...(discountPercent != null ? { discountPercent } : {}),
-    ...(formattedDetails ? { formattedDetails } : {})
+    ...(formattedDetails ? { formattedDetails } : {}),
+    ...(selectedVariant != null ? { selectedVariant } : {})
   };
   if (query.for === "storefront") {
     payload = toStorefrontProduct(payload as Record<string, unknown>) as typeof payload;
@@ -611,7 +626,7 @@ function mapBodyToProduct(body: Record<string, unknown>) {
     nameEn, nameAr, descriptionEn, descriptionAr, detailsEn, detailsAr, stylingTipEn, stylingTipAr,
     metaTitleEn, metaTitleAr, metaDescriptionEn, metaDescriptionAr,
     sizes, sizeDescriptions, colors, images, imageColors, videos, isNewArrival,
-    tags, vendor, slug, costPerItem, weight, weightUnit,
+    tags, vendor, slugEn, slugAr, costPerItem, weight, weightUnit,
     ...rest
   } = body;
   const payload: Record<string, unknown> = { ...rest };
@@ -659,8 +674,10 @@ function mapBodyToProduct(body: Record<string, unknown>) {
   if (vendor !== undefined) {
     payload.vendor = String(vendor ?? "").trim();
   }
-  if (slug !== undefined) {
-    payload.slug = String(slug ?? "").trim().toLowerCase();
+  if (slugEn !== undefined || slugAr !== undefined) {
+    const en = slugEn !== undefined ? String(slugEn ?? "").trim().toLowerCase() : undefined;
+    const ar = slugAr !== undefined ? String(slugAr ?? "").trim() : undefined;
+    payload.slug = { en: en ?? "", ar: ar ?? "" };
   }
   if (costPerItem !== undefined) {
     payload.costPerItem = costPerItem;

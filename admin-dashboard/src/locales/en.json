@@ -323,6 +323,8 @@
     "new_arrivals_only": "New arrivals only",
     "new_arrival_badge": "New",
     "slug": "URL slug",
+    "slug_en": "URL slug (EN)",
+    "slug_ar": "URL slug (AR)",
     "slug_placeholder": "auto-generated-from-name",
     "tags": "Tags",
     "tags_placeholder": "Press Enter to add a tag",

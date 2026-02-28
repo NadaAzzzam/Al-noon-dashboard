@@ -148,8 +148,8 @@ export type Product = {
   _id: string;
   name: LocalizedString;
   description?: LocalizedString;
-  /** URL-friendly slug (auto-generated from name.en). */
-  slug?: string;
+  /** URL-friendly slugs per locale (auto-generated from name if omitted). */
+  slug?: LocalizedString;
   /** Free-form tags for filtering/search. */
   tags?: string[];
   /** Brand / manufacturer name. */
@@ -264,7 +264,8 @@ export type ProductPayload = {
   sizes?: string[];
   sizeDescriptions?: string[];
   colors?: string[];
-  slug?: string;
+  slugEn?: string;
+  slugAr?: string;
   tags?: string[];
   vendor?: string;
   weight?: number;

@@ -80,12 +80,13 @@ describe("products validators", () => {
     });
 
     it("rejects invalid slug format", () => {
-      expect(productSchema.safeParse({ body: { ...validBody, slug: "Invalid Slug!" } }).success).toBe(false);
-      expect(productSchema.safeParse({ body: { ...validBody, slug: "UPPERCASE" } }).success).toBe(false);
+      expect(productSchema.safeParse({ body: { ...validBody, slugEn: "Invalid Slug!" } }).success).toBe(false);
+      expect(productSchema.safeParse({ body: { ...validBody, slugEn: "UPPERCASE" } }).success).toBe(false);
     });
 
     it("accepts valid slug", () => {
-      expect(productSchema.safeParse({ body: { ...validBody, slug: "test-product-123" } }).success).toBe(true);
+      expect(productSchema.safeParse({ body: { ...validBody, slugEn: "test-product-123" } }).success).toBe(true);
+      expect(productSchema.safeParse({ body: { ...validBody, slugAr: "منتج-تجريبي" } }).success).toBe(true);
     });
 
     it("accepts optional media fields", () => {

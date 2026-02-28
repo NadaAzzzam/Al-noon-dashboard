@@ -30,8 +30,10 @@ const productBodySchema = z.object({
     sizes: z.array(z.string()).optional(),
     sizeDescriptions: z.array(z.string()).optional(),
     colors: z.array(z.string()).optional(),
-    /** URL-friendly slug (auto-generated from name.en if omitted). */
-    slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens").optional(),
+    /** URL-friendly slug (EN). Auto-generated from name.en if omitted. */
+    slugEn: z.string().regex(/^[a-z0-9\u0600-\u06FF]+(?:-[a-z0-9\u0600-\u06FF]+)*$/, "Slug (EN) must be lowercase alphanumeric with hyphens").optional(),
+    /** URL-friendly slug (AR). Auto-generated from name.ar if omitted. */
+    slugAr: z.string().regex(/^[a-z0-9\u0600-\u06FF]+(?:-[a-z0-9\u0600-\u06FF]+)*$/u, "Slug (AR) must be alphanumeric with hyphens").optional(),
     /** Free-form tags for filtering/search. */
     tags: z.array(z.string()).optional(),
     /** Brand / manufacturer name. */

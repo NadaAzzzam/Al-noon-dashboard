@@ -68,7 +68,7 @@ describe("toStorefrontProduct", () => {
       stylingTip: { en: "Tip", ar: "نصيحة" },
       inStock: true,
       formattedDetails: { en: [{ type: "paragraph", text: "Details" }], ar: [] },
-      slug: "test-product",
+      slug: { en: "test-product", ar: "منتج-تجريبي" },
       averageRating: 4.5,
       ratingCount: 12,
     };
@@ -89,7 +89,7 @@ describe("toStorefrontProduct", () => {
     expect(slim.stylingTip).toEqual({ en: "Tip", ar: "نصيحة" });
     expect(slim.inStock).toBe(true);
     expect(slim.formattedDetails).toBeDefined();
-    expect(slim.slug).toBe("test-product");
+    expect(slim.slug).toEqual({ en: "test-product", ar: "منتج-تجريبي" });
     expect(slim.averageRating).toBe(4.5);
     expect(slim.ratingCount).toBe(12);
   });

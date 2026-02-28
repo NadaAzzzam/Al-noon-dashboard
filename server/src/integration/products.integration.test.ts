@@ -86,6 +86,58 @@ describe("Products API (integration)", () => {
     expect(p.discountPercent).toBe(20); // 20% off
   });
 
+  describe("GET /api/products/:id with color and size query params", () => {
+    it("returns selectedVariant when both color and size match a variant", async () => {
+      const product = await Product.findOne({ "name.en": "Integration Test Product" });
+      expect(product).toBeTruthy();
+      const productId = product!._id.toString();
+      await Product.findByIdAndUpdate(productId, {
+        colors: ["Black", "Navy"],
+        sizes: ["S", "M", "L"],
+        variants: [
+          { color: "Black", size: "M", stock: 5, outOfStock: false },
+          { color: "Black", size: "L", stock: 0, outOfStock: true },
+          { color: "Navy", size: "M", stock: 3, outOfStock: false },
+        ],
+      });
+      const res = await request(app).get(`/api/products/${productId}`).query({ color: "Black", size: "M" });
+      expect(res.status).toBe(200);
+      const raw = res.body.data?.product;
+      expect(raw).toBeDefined();
+      const p = asProduct(raw);
+      expectToHaveProperty(p, "selectedVariant");
+      const sv = p.selectedVariant as { color: string; size: string; stock: number; outOfStock: boolean };
+      expect(sv.color).toBe("Black");
+      expect(sv.size).toBe("M");
+      expect(sv.stock).toBe(5);
+      expect(sv.outOfStock).toBe(false);
+    });
+
+    it("omits selectedVariant when color+size do not match any variant", async () => {
+      const product = await Product.findOne({ "name.en": "Integration Test Product" });
+      expect(product).toBeTruthy();
+      const productId = product!._id.toString();
+      const res = await request(app).get(`/api/products/${productId}`).query({ color: "Unknown", size: "XL" });
+      expect(res.status).toBe(200);
+      const raw = res.body.data?.product;
+      expect(raw).toBeDefined();
+      const p = asProduct(raw);
+      expectNotToHaveProperty(p, "selectedVariant");
+    });
+
+    it("omits selectedVariant when only color is provided (no size)", async () => {
+      const product = await Product.findOne({ "name.en": "Integration Test Product" });
+      expect(product).toBeTruthy();
+      const productId = product!._id.toString();
+      const res = await request(app).get(`/api/products/${productId}`).query({ color: "Black" });
+      expect(res.status).toBe(200);
+      const raw = res.body.data?.product;
+      expect(raw).toBeDefined();
+      const p = asProduct(raw);
+      expectNotToHaveProperty(p, "selectedVariant");
+    });
+  });
+
   it("rejects discountPrice >= price", async () => {
     const res = await request(app)
       .post("/api/products")
@@ -111,7 +163,7 @@ describe("Products API (integration)", () => {
       expect(Array.isArray(res.body.data)).toBe(true);
       if (res.body.data.length > 0) {
         const p = asProduct(res.body.data[0]);
-        expectNotToHaveProperty(p, "tags");
+        expectToHaveProperty(p, "tags"); // storefront includes tags for clickable filter links
         expectNotToHaveProperty(p, "vendor");
         expectNotToHaveProperty(p, "imageColors");
         expectNotToHaveProperty(p, "defaultMediaType");
@@ -144,7 +196,7 @@ describe("Products API (integration)", () => {
       const raw = res.body.data?.product;
       expect(raw).toBeDefined();
       const p = asProduct(raw);
-      expectNotToHaveProperty(p, "tags");
+      expectToHaveProperty(p, "tags"); // storefront includes tags for clickable filter links
       expectNotToHaveProperty(p, "vendor");
       expectNotToHaveProperty(p, "imageColors");
       expectNotToHaveProperty(p, "defaultMediaType");

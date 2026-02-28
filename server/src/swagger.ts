@@ -230,7 +230,7 @@ function buildPaths() {
         { name: "tags", in: "query", schema: { type: "string" }, description: "Filter by tags (comma-separated). Matches products with any of the tags. Use with GET /api/products for storefront product listing when user clicks a tag." },
         { name: "vendor", in: "query", schema: { type: "string" }, description: "Filter by vendor/brand (case-insensitive)" },
         { name: "hasDiscount", in: "query", schema: { type: "string", enum: ["true", "false"] }, description: "Filter products with/without discount" },
-        { name: "slug", in: "query", schema: { type: "string", default: "*" }, description: "Lookup by slug (e.g. embroidered-malhafa-sale). Returns products with exact slug match. Use \"*\" to list all. Optional; defaults to \"*\" when omitted (storefront-friendly)." },
+        { name: "slug", in: "query", schema: { type: "string", default: "*" }, description: "Lookup by slug.en or slug.ar (e.g. embroidered-malhafa-sale). Returns products with exact match. Use \"*\" to list all. Optional; defaults to \"*\" when omitted (storefront-friendly)." },
         { name: "for", in: "query", schema: { type: "string", enum: ["storefront"] }, description: "When storefront, returns slim product shape (tags included for clickable filter links; vendor, imageColors, etc. omitted)" },
       ],
       responses: {
@@ -261,6 +261,7 @@ function buildPaths() {
       parameters: [
         { name: "id", in: "path", required: true, schema: { type: "string" } },
         { name: "color", in: "query", required: false, schema: { type: "string" }, description: "Filter media/images by color (e.g. Black). When set, media and images arrays show only images for that color." },
+        { name: "size", in: "query", required: false, schema: { type: "string" }, description: "When provided with color, response includes selectedVariant for that color+size (stock, outOfStock). Enables variant-specific data without redundant calls." },
         { name: "for", in: "query", schema: { type: "string", enum: ["storefront"] }, description: "When storefront, returns slim product shape with tags included for clickable filter links on product detail" },
       ],
       responses: {
@@ -1784,6 +1785,7 @@ export const swaggerSpec = {
           ratingCount: { type: "integer", description: "Present on list", nullable: true },
           soldQty: { type: "integer", description: "Units sold", nullable: true },
           tags: { type: "array", items: { type: "string" }, description: "Present when ?for=storefront; for clickable filter links on product detail", nullable: true },
+          slug: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } }, description: "URL-friendly slugs per locale" },
         },
       },
       ProductColorAvailability: {
@@ -1864,7 +1866,19 @@ export const swaggerSpec = {
           ratingCount: { type: "integer", description: "Present when ratings exist", nullable: true },
           soldQty: { type: "integer", description: "Units sold", nullable: true },
           tags: { type: "array", items: { type: "string" }, description: "Free-form tags for filtering; included in storefront for clickable links to product listing filtered by tag", nullable: true },
+          slug: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } }, description: "URL-friendly slugs per locale" },
           availability: { $ref: "#/components/schemas/ProductAvailabilityDetail", description: "Present on GET /products/:id" },
+          selectedVariant: {
+            type: "object",
+            description: "Present when GET /products/:id is called with both ?color= and ?size=. Contains stock and outOfStock for that variant.",
+            nullable: true,
+            properties: {
+              color: { type: "string" },
+              size: { type: "string" },
+              stock: { type: "integer" },
+              outOfStock: { type: "boolean" },
+            },
+          },
         },
       },
       ProductSingleData: {

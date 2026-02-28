@@ -23,6 +23,7 @@
     "seed:shipping": "tsx src/seeders/shippingMethodSeeder.ts",
     "seed:discount-codes": "tsx src/seeders/discountCodeSeeder.ts",
     "seed:test": "tsx src/utils/seedTestData.ts",
+    "migrate:product-slugs": "tsx scripts/migrate-product-slugs.ts",
     "download-seed-images": "tsx scripts/downloadSeedImages.ts",
     "lint": "eslint . --ext .ts",
     "test": "vitest run",

@@ -56,8 +56,9 @@ type ProductForm = {
   colors: string[];
   /** Shopify-style variants: each size×color combination with individual stock */
   variants: VariantInventory[];
-  /** URL-friendly slug (auto-generated from name). */
-  slug: string;
+  /** URL-friendly slugs per locale (auto-generated from name). */
+  slugEn: string;
+  slugAr: string;
   /** Free-form tags. */
   tags: string[];
   /** Brand / manufacturer. */
@@ -97,7 +98,8 @@ const emptyForm: ProductForm = {
   sizeDescriptions: [],
   colors: [],
   variants: [],
-  slug: "",
+  slugEn: "",
+  slugAr: "",
   tags: [],
   vendor: "",
   weight: undefined,
@@ -241,7 +243,8 @@ const ProductFormPage = () => {
                 }),
               )
             : [],
-        slug: p.slug ?? "",
+        slugEn: (typeof p.slug === "object" ? p.slug?.en : p.slug) ?? "",
+        slugAr: (typeof p.slug === "object" ? p.slug?.ar : "") ?? "",
         tags: p.tags ?? [],
         vendor: p.vendor ?? "",
         weight: p.weight,
@@ -306,7 +309,8 @@ const ProductFormPage = () => {
         sizeDescriptions: form.sizes.length ? form.sizeDescriptions : undefined,
         colors: form.colors.length ? form.colors : undefined,
         variants: form.variants.length ? form.variants : undefined,
-        slug: form.slug.trim() || undefined,
+        slugEn: form.slugEn.trim() || undefined,
+        slugAr: form.slugAr.trim() || undefined,
         tags: form.tags.length ? form.tags : undefined,
         vendor: form.vendor.trim() || undefined,
         weight: form.weight || undefined,
@@ -669,25 +673,46 @@ const ProductFormPage = () => {
                 placeholder={t("products.vendor_placeholder")}
               />
             </div>
-            <div className="product-form-field">
-              <label htmlFor="product-slug">{t("products.slug")}</label>
+            <div className="product-form-field product-form-grid-half">
+              <label htmlFor="product-slug-en">{t("products.slug_en")}</label>
               <input
-                id="product-slug"
-                value={form.slug}
+                id="product-slug-en"
+                value={form.slugEn}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
-                    slug: e.target.value
+                    slugEn: e.target.value
                       .toLowerCase()
-                      .replace(/[^a-z0-9-]/g, "-")
+                      .replace(/[^a-z0-9\u0600-\u06FF-]/g, "-")
                       .replace(/--+/g, "-"),
                   }))
                 }
                 placeholder={t("products.slug_placeholder")}
               />
-              {form.slug && (
+              {form.slugEn && (
                 <p className="product-form-hint" style={{ marginTop: 4 }}>
-                  {t("products.url_preview")}: /products/{form.slug}
+                  {t("products.url_preview")}: /en/products/{form.slugEn}
+                </p>
+              )}
+            </div>
+            <div className="product-form-field product-form-grid-half">
+              <label htmlFor="product-slug-ar">{t("products.slug_ar")}</label>
+              <input
+                id="product-slug-ar"
+                value={form.slugAr}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    slugAr: e.target.value
+                      .replace(/[^\w\u0600-\u06FF-]/g, "-")
+                      .replace(/--+/g, "-"),
+                  }))
+                }
+                placeholder={t("products.slug_placeholder")}
+              />
+              {form.slugAr && (
+                <p className="product-form-hint" style={{ marginTop: 4 }}>
+                  {t("products.url_preview")}: /ar/products/{form.slugAr}
                 </p>
               )}
             </div>
@@ -899,7 +924,7 @@ const ProductFormPage = () => {
               <p
                 style={{ fontSize: 13, color: "#006621", margin: "0 0 4px 0" }}
               >
-                yourstore.com/products/{form.slug || "..."}
+                yourstore.com/products/{form.slugEn || form.slugAr || "..."}
               </p>
               <p style={{ fontSize: 13, color: "#545454", margin: 0 }}>
                 {form.metaDescriptionEn ||

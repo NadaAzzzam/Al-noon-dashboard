@@ -421,7 +421,10 @@ async function seed() {
     const name = (p.name as { en: string; ar: string }) ?? { en: "product", ar: "منتج" };
     const description = (p.description as { en: string; ar: string }) ?? { en: "", ar: "" };
     const seo = buildSeoMeta(name, description);
-    const slug = slugify(name.en || "product") || `product-${index + 1}`;
+    const slug = {
+      en: slugify(name.en || "product") || `product-${index + 1}`,
+      ar: slugify(name.ar || name.en || "product") || slugify(name.en || "product") || `product-${index + 1}`,
+    };
     // Pick 2–4 random tags per product for filtering/search
     const numTags = 2 + (index % 3);
     const shuffled = [...TAG_POOL].sort(() => (index + 1) * 0.1 - 0.5);

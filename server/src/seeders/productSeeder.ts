@@ -104,7 +104,12 @@ function fillProduct(
   const stock =
     variants.length > 0 ? variants.reduce((sum, v) => sum + (v.outOfStock ? 0 : v.stock), 0) : (p.stock as number);
   const nameEn = ((p.name as { en: string })?.en ?? "product").toLowerCase().trim();
-  const slug = nameEn.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const slugifySeed = (t: string) => t.replace(/[^a-z0-9\u0600-\u06FF]+/g, "-").replace(/^-+|-+$/g, "");
+  const nameAr = ((p.name as { ar?: string })?.ar ?? nameEn).toLowerCase().trim();
+  const slug = {
+    en: slugifySeed(nameEn) || "product",
+    ar: slugifySeed(nameAr) || slugifySeed(nameEn) || "product",
+  };
   // Pick tags: 2-4 random tags from the pool
   const numTags = 2 + Math.floor(Math.random() * 3);
   const shuffled = [...TAG_POOL].sort(() => Math.random() - 0.5);
