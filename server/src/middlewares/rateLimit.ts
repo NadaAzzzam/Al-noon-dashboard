@@ -20,3 +20,12 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
   skip: () => !isProduction
 });
+
+/** Checkout/orders: 15 requests per 15 minutes per IP (prevents abuse) */
+export const checkoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !isProduction
+});

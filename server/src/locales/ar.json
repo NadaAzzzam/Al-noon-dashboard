@@ -27,6 +27,8 @@
       "guest_name_required": "اسم الضيف مطلوب للدفع كضيف",
       "guest_email_required": "البريد الإلكتروني الصحيح للضيف مطلوب للدفع كضيف",
       "out_of_stock": "{{productName}} نفد من المخزون (المطلوب {{requested}}، المتاح {{available}})",
+      "out_of_stock_confirmation": "{{productName}} نفد من المخزون؛ لا يمكن تأكيد الطلب",
+      "invalid_quantity": "يجب أن تكون الكمية 1 على الأقل لجميع المنتجات",
       "product_unavailable": "المنتج غير موجود أو غير متاح",
       "invalid_shipping_method": "طريقة الشحن غير صالحة أو معطّلة",
       "invalid_payment_method": "طريقة الدفع غير صالحة",

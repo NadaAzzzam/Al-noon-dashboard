@@ -11,6 +11,7 @@ import { productImagePath, productVideoPath } from "../middlewares/upload.js";
 import { sendResponse } from "../utils/response.js";
 import { withProductMedia } from "../types/productMedia.js";
 import { parseRichText } from "../utils/richTextFormatter.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 
 /** @deprecated Use withProductMedia from types/productMedia for full media structure. Kept for store home API compatibility. */
 export const withViewHoverVideo = withProductMedia;
@@ -85,19 +86,19 @@ export const listProducts = asyncHandler(async (req, res) => {
   if (newArrival === "true") filter.isNewArrival = true;
   if (availability === "inStock") filter.stock = { $gt: 0 };
   if (availability === "outOfStock") filter.stock = 0;
-  if (color) filter.colors = { $in: [new RegExp(color, "i")] };
+  if (color) filter.colors = { $in: [new RegExp(escapeRegex(color), "i")] };
 
   // Tags filter: comma-separated, matches products with ANY of the tags
   if (tagsParam) {
     const tagsArr = tagsParam.split(",").map(t => t.trim()).filter(Boolean);
     if (tagsArr.length > 0) {
-      filter.tags = { $in: tagsArr.map(t => new RegExp(`^${t}$`, "i")) };
+      filter.tags = { $in: tagsArr.map(t => new RegExp(`^${escapeRegex(t)}$`, "i")) };
     }
   }
 
   // Vendor filter: case-insensitive partial match
   if (vendorParam) {
-    filter.vendor = new RegExp(vendorParam, "i");
+    filter.vendor = new RegExp(escapeRegex(vendorParam), "i");
   }
 
   // Has discount filter
@@ -131,7 +132,7 @@ export const listProducts = asyncHandler(async (req, res) => {
     });
   }
   if (search) {
-    const re = new RegExp(search, "i");
+    const re = new RegExp(escapeRegex(search), "i");
     const searchOr: unknown[] = [
       { "name.en": re },
       { "name.ar": re },

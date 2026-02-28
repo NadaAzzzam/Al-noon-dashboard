@@ -13,21 +13,30 @@ import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
 import { sendMail } from "../utils/email.js";
+import { escapeHtml } from "../utils/escapeHtml.js";
+import { orderSchema } from "../validators/orders.js";
+import type { z } from "zod";
+import type { AuthPayload } from "../middlewares/auth.js";
+import { getDefaultLocale, type Locale } from "../i18n.js";
+
+const locale = (req: unknown): Locale => ((req as { locale?: unknown }).locale ?? getDefaultLocale()) as Locale;
 
 export const listOrders = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, {
+    return sendResponse(res, locale(req), {
       data: [],
       pagination: { total: 0, page: 1, limit: 20, totalPages: 0 }
     });
   }
-  const isAdmin = req.auth?.role === "ADMIN";
-  const filter: Record<string, unknown> = isAdmin ? {} : { user: req.auth?.userId };
+  const auth = (req as { auth?: AuthPayload }).auth;
+  const isAdmin = auth?.role === "ADMIN";
+  const filter: Record<string, unknown> = isAdmin ? {} : { user: auth?.userId };
 
-  const page = Number(req.query.page) || 1;
-  const limit = Math.min(Number(req.query.limit) || 20, 100);
-  const status = req.query.status as string | undefined;
-  const paymentMethod = req.query.paymentMethod as string | undefined;
+  const query = (req.query ?? {}) as Record<string, unknown>;
+  const page = Number(query.page) || 1;
+  const limit = Math.min(Number(query.limit) || 20, 100);
+  const status = query.status as string | undefined;
+  const paymentMethod = query.paymentMethod as string | undefined;
   if (status) filter.status = status;
   if (paymentMethod) filter.paymentMethod = paymentMethod;
 
@@ -68,7 +77,7 @@ export const listOrders = asyncHandler(async (req, res) => {
     };
   });
 
-  sendResponse(res, req.locale, {
+  sendResponse(res, locale(req), {
     data: withPayment,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
   });
@@ -96,17 +105,20 @@ function normalizeOrderItemProduct(item: { product: unknown; quantity: number; p
 
 export const getOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const order = await Order.findById(req.params.id)
+  const orderId = req.params?.id;
+  if (!orderId) throw new ApiError(400, "Order ID is required", { code: "errors.common.validation_error" });
+  const order = await Order.findById(orderId)
     .populate("user", "name email")
     .populate("items.product", "_id name price discountPrice images");
   if (!order) {
     throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
   }
-  const isAdmin = req.auth?.role === "ADMIN";
+  const auth = (req as { auth?: AuthPayload }).auth;
+  const isAdmin = auth?.role === "ADMIN";
   const orderUserId = order.user && typeof order.user === "object" && order.user._id
     ? order.user._id.toString()
     : (order.user && typeof order.user.toString === "function" ? order.user.toString() : null);
-  if (!isAdmin && orderUserId !== req.auth?.userId) {
+  if (!isAdmin && orderUserId !== auth?.userId) {
     throw new ApiError(403, "Forbidden", { code: "errors.common.forbidden" });
   }
   const payment = await Payment.findOne({ order: order._id }).lean();
@@ -115,7 +127,7 @@ export const getOrder = asyncHandler(async (req, res) => {
     ...item,
     product: normalizeOrderItemProduct(item)
   })) : orderObj.items;
-  sendResponse(res, req.locale, {
+  sendResponse(res, locale(req), {
     data: {
       order: {
         ...orderObj,
@@ -133,15 +145,18 @@ export const getOrder = asyncHandler(async (req, res) => {
  */
 export const getGuestOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  const query = (req.query ?? {}) as Record<string, unknown>;
+  const email = typeof query.email === "string" ? query.email.trim().toLowerCase() : "";
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new ApiError(400, "Valid email query parameter is required", { code: "errors.order.guest_email_required" });
   }
-  const order = await Order.findById(req.params.id)
+  const orderId = req.params?.id;
+  if (!orderId) throw new ApiError(400, "Order ID is required", { code: "errors.common.validation_error" });
+  const order = await Order.findById(orderId)
     .populate("items.product", "_id name price discountPrice images")
     .lean();
   if (!order) throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
-  const o = order as { user?: unknown; email?: string; guestEmail?: string; items?: { product: unknown; quantity: number; price: number }[] };
+  const o = order as { user?: unknown; email?: string; guestEmail?: string; paymentMethod?: string; items?: { product: unknown; quantity: number; price: number }[] };
   if (o.user != null) {
     throw new ApiError(403, "Use authenticated order endpoint for logged-in orders", { code: "errors.common.forbidden" });
   }
@@ -151,16 +166,16 @@ export const getGuestOrder = asyncHandler(async (req, res) => {
   }
   const items = Array.isArray(o.items)
     ? o.items.map((item) => ({
-        ...item,
-        product: normalizeOrderItemProduct(item)
-      }))
+      ...item,
+      product: normalizeOrderItemProduct(item)
+    }))
     : o.items;
   const payment = await Payment.findOne({ order: order._id }).lean();
-  sendResponse(res, req.locale, {
+  sendResponse(res, locale(req), {
     data: {
       order: {
         ...order,
-        id: (order as { _id?: unknown })._id?.toString?.() ?? req.params.id,
+        id: (order as { _id?: unknown })._id?.toString?.() ?? orderId,
         items,
         payment: payment ?? (o.paymentMethod ? { method: o.paymentMethod, status: "UNPAID" } : undefined)
       }
@@ -184,6 +199,7 @@ function isObjectIdLike(s: unknown): s is string {
 
 export const createOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  const body = req.body as z.infer<typeof orderSchema>["body"];
   let {
     items, paymentMethod, shippingAddress, deliveryFee,
     guestName, guestEmail, guestPhone,
@@ -192,10 +208,11 @@ export const createOrder = asyncHandler(async (req, res) => {
     billingAddress, specialInstructions, shippingMethod,
     emailNews, textNews,
     discountCode: bodyDiscountCode
-  } = req.body;
+  } = body;
 
   // Only attach a user to the order when userId is a valid MongoDB ObjectId (e.g. "dev-admin" must not be stored)
-  const effectiveUserId = req.auth?.userId && isObjectIdLike(req.auth.userId) ? req.auth.userId : null;
+  const auth = (req as { auth?: AuthPayload }).auth;
+  const effectiveUserId = auth?.userId && isObjectIdLike(auth.userId) ? auth.userId : null;
   const isGuest = !effectiveUserId;
 
   // Logged-in user (real DB user): backfill contact from account when not provided
@@ -215,13 +232,19 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   // Ecommerce checkout often sends city as city _id (select value). Resolve to city name for display/emails.
   if (shippingAddress && typeof shippingAddress === "object" && !Array.isArray(shippingAddress)) {
-    const addr = shippingAddress as { city?: string; [k: string]: unknown };
+    const addr = shippingAddress as { address?: string; apartment?: string; city?: string; postalCode?: string; country?: string };
     if (addr.city && isObjectIdLike(addr.city)) {
       const cityDoc = await City.findById(addr.city).select("name").lean();
       if (cityDoc) {
         const name = (cityDoc as { name?: { en?: string; ar?: string } }).name;
         const cityName = name?.en ?? name?.ar ?? addr.city;
-        shippingAddress = { ...addr, city: cityName };
+        shippingAddress = {
+          address: addr.address ?? "",
+          apartment: addr.apartment ?? "",
+          city: cityName,
+          postalCode: addr.postalCode ?? "",
+          country: addr.country ?? "Egypt"
+        };
       }
     }
   }
@@ -267,7 +290,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     const quantity = Number(item.quantity) || 0;
-    if (quantity < 1) continue;
+    if (quantity < 1) {
+      throw new ApiError(400, "Quantity must be at least 1 for all items", { code: "errors.order.invalid_quantity" });
+    }
 
     qtyByProduct[pid] = (qtyByProduct[pid] ?? 0) + quantity;
 
@@ -276,6 +301,10 @@ export const createOrder = asyncHandler(async (req, res) => {
       : product.price;
 
     validatedItems.push({ product: pid, quantity, price: effectivePrice });
+  }
+
+  if (validatedItems.length === 0) {
+    throw new ApiError(400, "At least one item with quantity >= 1 is required", { code: "errors.order.invalid_quantity" });
   }
 
   for (const [pid, totalQty] of Object.entries(qtyByProduct)) {
@@ -399,9 +428,9 @@ export const createOrder = asyncHandler(async (req, res) => {
       orderPayload.guestEmail = (bodyEmail ?? "").trim().toLowerCase();
       orderPayload.guestPhone = phone ? String(phone).trim() : (typeof guestPhone === "string" ? guestPhone.trim() || undefined : undefined);
     } else {
-      orderPayload.guestName = String(req.body.guestName ?? "").trim();
-      orderPayload.guestEmail = String(req.body.guestEmail ?? "").trim().toLowerCase();
-      orderPayload.guestPhone = typeof req.body.guestPhone === "string" ? req.body.guestPhone.trim() || undefined : undefined;
+      orderPayload.guestName = String(body.guestName ?? "").trim();
+      orderPayload.guestEmail = String(body.guestEmail ?? "").trim().toLowerCase();
+      orderPayload.guestPhone = typeof body.guestPhone === "string" ? body.guestPhone.trim() || undefined : undefined;
     }
   }
 
@@ -443,10 +472,10 @@ export const createOrder = asyncHandler(async (req, res) => {
       .then(async (populated) => {
         if (!populated) return;
         const pop = populated as Record<string, unknown>;
-        const custName = [pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "Customer";
+        const custName = escapeHtml([pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "Customer");
         const itemsHtml = ((pop.items as Array<{ product: unknown; quantity: number; price: number }>) || []).map((item) => {
           const prod = item.product as { name?: { en?: string; ar?: string }; images?: string[] } | null;
-          const prodName = prod?.name?.en || prod?.name?.ar || "Product";
+          const prodName = escapeHtml(prod?.name?.en || prod?.name?.ar || "Product");
           const imgTag = prod?.images?.[0] ? `<img src="${env.clientUrl || ""}/${prod.images[0]}" width="50" height="50" style="object-fit:cover;border-radius:4px;" alt="" />` : "";
           return `<tr>
             <td style="padding:8px;border-bottom:1px solid #eee;">${imgTag}</td>
@@ -458,7 +487,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
         const subtotalVal = (pop.total as number) - ((pop.deliveryFee as number) || 0) + ((pop.discountAmount as number) || 0);
         const discountVal = (pop.discountAmount as number) || 0;
-        const shippingDisplay = formatAddress(pop.shippingAddress);
+        const shippingDisplay = escapeHtml(formatAddress(pop.shippingAddress));
         const subject = `Order Confirmation #${order._id}`;
         const discountRow = discountVal > 0
           ? `<tr><td style="padding:4px 8px;">Discount</td><td style="text-align:right;padding:4px 8px;color:#28a745;">-${discountVal.toLocaleString()} EGP</td></tr>`
@@ -485,7 +514,7 @@ export const createOrder = asyncHandler(async (req, res) => {
             <hr style="border:none;border-top:1px solid #eee;margin:16px 0;" />
             <p><strong>Shipping Address:</strong> ${shippingDisplay}</p>
             <p><strong>Payment Method:</strong> ${order.paymentMethod ?? "COD"}</p>
-            ${(pop.specialInstructions as string) ? `<p><strong>Notes:</strong> ${pop.specialInstructions}</p>` : ""}
+            ${(pop.specialInstructions as string) ? `<p><strong>Notes:</strong> ${escapeHtml(pop.specialInstructions as string)}</p>` : ""}
             <p style="color:#888;font-size:0.9em;margin-top:24px;">If you have any questions, just reply to this email.</p>
           </div>
         `;
@@ -505,16 +534,17 @@ export const createOrder = asyncHandler(async (req, res) => {
     if (!populated) return;
     const user = populated.user as { name?: string; email?: string } | null;
     const pop = populated as unknown as Record<string, unknown>;
-    const customerName = user?.name
-      ?? ([pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "—");
-    const custEmail = user?.email ?? (pop.email as string) ?? (pop.guestEmail as string) ?? "—";
+    const customerName = escapeHtml(
+      user?.name ?? ([pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "—")
+    );
+    const custEmail = escapeHtml(user?.email ?? (pop.email as string) ?? (pop.guestEmail as string) ?? "—");
     const orderItems = (populated.items || []).map((item) => {
       const product = item.product as unknown as { name?: string } | undefined;
       const name = product && typeof product === "object" && "name" in product ? String(product.name) : "—";
-      return `${name} × ${item.quantity} = ${item.quantity * item.price}`;
+      return escapeHtml(`${name} × ${item.quantity} = ${item.quantity * item.price}`);
     });
     const subject = `New order #${order._id}`;
-    const shippingDisplay = formatAddress(populated.shippingAddress);
+    const shippingDisplay = escapeHtml(formatAddress(populated.shippingAddress));
     const html = `
       <h2>New order received</h2>
       <p><strong>Order ID:</strong> ${order._id}</p>
@@ -528,29 +558,58 @@ export const createOrder = asyncHandler(async (req, res) => {
     await sendMail(to, subject, html);
   }).catch(() => { });
 
-  sendResponse(res, req.locale, { status: 201, message: "success.order.created", data: { order } });
+  sendResponse(res, locale(req), { status: 201, message: "success.order.created", data: { order } });
 });
 
 export const updateOrderStatus = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const order = await Order.findById(req.params.id);
+  const orderId = req.params?.id;
+  if (!orderId) throw new ApiError(400, "Order ID is required", { code: "errors.common.validation_error" });
+  const order = await Order.findById(orderId);
   if (!order) {
     throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
   }
   const newStatus = req.body.status;
-  order.status = newStatus;
-  await order.save();
-  if (newStatus === "CONFIRMED") {
-    for (const item of order.items) {
-      await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
+  if (newStatus === "CONFIRMED" && order.items.length > 0) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      for (const item of order.items) {
+        const result = await Product.findOneAndUpdate(
+          { _id: item.product, stock: { $gte: item.quantity } },
+          { $inc: { stock: -item.quantity } },
+          { new: true, session }
+        );
+        if (!result) {
+          await session.abortTransaction();
+          const prod = await Product.findById(item.product).select("name").lean();
+          const name = (prod as { name?: { en?: string; ar?: string } })?.name?.en
+            ?? (prod as { name?: { en?: string; ar?: string } })?.name?.ar ?? "Product";
+          throw new ApiError(409, `${name} became out of stock; order cannot be confirmed`, {
+            code: "errors.order.out_of_stock_confirmation",
+            params: { productName: (prod as { name?: { en?: string; ar?: string } })?.name?.en ?? "Product" }
+          });
+        }
+      }
+      order.status = newStatus;
+      await order.save({ session });
+      await session.commitTransaction();
+    } finally {
+      session.endSession();
     }
+  } else {
+    order.status = newStatus;
+    await order.save();
   }
-  sendResponse(res, req.locale, { message: "success.order.status_updated", data: { order } });
+  const updatedOrder = await Order.findById(orderId);
+  sendResponse(res, locale(req), { message: "success.order.status_updated", data: { order: updatedOrder ?? order } });
 });
 
 export const cancelOrder = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const order = await Order.findById(req.params.id);
+  const orderId = req.params?.id;
+  if (!orderId) throw new ApiError(400, "Order ID is required", { code: "errors.common.validation_error" });
+  const order = await Order.findById(orderId);
   if (!order) {
     throw new ApiError(404, "Order not found", { code: "errors.order.not_found" });
   }
@@ -565,5 +624,5 @@ export const cancelOrder = asyncHandler(async (req, res) => {
       await Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity } });
     }
   }
-  sendResponse(res, req.locale, { message: "success.order.cancelled", data: { order } });
+  sendResponse(res, locale(req), { message: "success.order.cancelled", data: { order } });
 });

@@ -9,6 +9,7 @@ import {
 } from "../controllers/ordersController.js";
 import { attachPaymentProof, confirmPayment } from "../controllers/paymentsController.js";
 import { authenticate, optionalAuthenticate, requirePermission } from "../middlewares/auth.js";
+import { idempotencyMiddleware } from "../middlewares/idempotency.js";
 import { validate } from "../middlewares/validate.js";
 import {
   orderParamsSchema,
@@ -18,11 +19,12 @@ import {
 } from "../validators/orders.js";
 import { uploadPaymentProof } from "../middlewares/upload.js";
 import { paymentConfirmSchema } from "../validators/payments.js";
+import { checkoutLimiter } from "../middlewares/rateLimit.js";
 
 const router = Router();
 
 // POST /api/orders: allow guest checkout (optional auth) when body has guestName + guestEmail
-router.post("/", optionalAuthenticate, validate(orderSchema), createOrder);
+router.post("/", checkoutLimiter, idempotencyMiddleware, optionalAuthenticate, validate(orderSchema), createOrder);
 
 // GET /api/orders/guest/:id?email=xxx – public guest order lookup (for confirmation after tab close)
 router.get("/guest/:id", getGuestOrder);

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getStoredLanguage, setStoredLanguage, type Lang } from "../i18n";
-import { api, clearToken, getUploadsBaseUrl, DEFAULT_LOGO_PATH, setCurrentUser, hasPermission, type CurrentUser } from "../services/api";
+import { api, ApiError, clearToken, getUploadsBaseUrl, DEFAULT_LOGO_PATH, setCurrentUser, hasPermission, type CurrentUser } from "../services/api";
 import { initGoogleAnalytics, sendPageView } from "../utils/googleAnalytics";
 
 /* ===== SVG Icon components ===== */
@@ -332,7 +332,13 @@ const Layout = () => {
           setCurrentUser(u);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          clearToken();
+          setCurrentUser(null);
+          navigate("/login", { replace: true });
+        }
+      });
     api
       .getDashboardStats(1)
       .then((res: unknown) => {
@@ -365,7 +371,7 @@ const Layout = () => {
         if (link) link.href = faviconHref;
       })
       .catch(() => {});
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     sendPageView(location.pathname, document.title);

@@ -27,6 +27,7 @@
       "guest_name_required": "Guest name is required for guest checkout",
       "guest_email_required": "Valid guest email is required for guest checkout",
       "out_of_stock": "{{productName}} is out of stock (requested {{requested}}, available {{available}})",
+      "out_of_stock_confirmation": "{{productName}} became out of stock; order cannot be confirmed",
       "product_unavailable": "Product not found or unavailable",
       "invalid_shipping_method": "Invalid or disabled shipping method",
       "invalid_payment_method": "Invalid payment method",
@@ -34,7 +35,8 @@
       "invalid_discount_code": "Invalid discount code",
       "discount_code_expired": "Discount code expired",
       "discount_code_not_valid": "Discount code not yet valid",
-      "discount_code_min_not_met": "Order total too low for this discount code"
+      "discount_code_min_not_met": "Order total too low for this discount code",
+      "invalid_quantity": "Quantity must be at least 1 for all items"
     },
     "payment": {
       "not_found": "Payment not found for this order",

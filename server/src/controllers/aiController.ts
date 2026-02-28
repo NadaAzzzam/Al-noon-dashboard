@@ -9,6 +9,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
 import { detectIntent } from "../utils/chatIntents.js";
 import { buildResponse, type ChatResponseData } from "../utils/chatResponses.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 import { callGemini, buildSystemPromptFromContext, type ChatTurn } from "../utils/aiService.js";
 import { logger } from "../utils/logger.js";
 
@@ -128,12 +129,15 @@ async function getProductCatalogSummary(keywords: string[]): Promise<string> {
       .lean();
     return formatProductSummary(products as ProductForCatalog[]);
   }
-  const orConditions = keywords.flatMap((k) => [
-    { "name.en": { $regex: k, $options: "i" } },
-    { "name.ar": { $regex: k, $options: "i" } },
-    { "description.en": { $regex: k, $options: "i" } },
-    { "description.ar": { $regex: k, $options: "i" } }
-  ]);
+  const orConditions = keywords.flatMap((k) => {
+    const escaped = escapeRegex(k);
+    return [
+      { "name.en": { $regex: escaped, $options: "i" } },
+      { "name.ar": { $regex: escaped, $options: "i" } },
+      { "description.en": { $regex: escaped, $options: "i" } },
+      { "description.ar": { $regex: escaped, $options: "i" } }
+    ];
+  });
   const products = await Product.find({
     deletedAt: null,
     status: "ACTIVE",
@@ -346,12 +350,15 @@ export const postChat = asyncHandler(async (req, res) => {
         const products = await Product.find({
           deletedAt: null,
           status: "ACTIVE",
-          $or: keywords.flatMap((k) => [
-            { "name.en": { $regex: k, $options: "i" } },
-            { "name.ar": { $regex: k, $options: "i" } },
-            { "description.en": { $regex: k, $options: "i" } },
-            { "description.ar": { $regex: k, $options: "i" } }
-          ])
+          $or: keywords.flatMap((k) => {
+            const escaped = escapeRegex(k);
+            return [
+              { "name.en": { $regex: escaped, $options: "i" } },
+              { "name.ar": { $regex: escaped, $options: "i" } },
+              { "description.en": { $regex: escaped, $options: "i" } },
+              { "description.ar": { $regex: escaped, $options: "i" } }
+            ];
+          })
         })
           .select("_id name images")
           .limit(6)
@@ -426,12 +433,15 @@ export const postChat = asyncHandler(async (req, res) => {
     const products = await Product.find({
       deletedAt: null,
       status: "ACTIVE",
-      $or: keywords.flatMap((k) => [
-        { "name.en": { $regex: k, $options: "i" } },
-        { "name.ar": { $regex: k, $options: "i" } },
-        { "description.en": { $regex: k, $options: "i" } },
-        { "description.ar": { $regex: k, $options: "i" } }
-      ])
+      $or: keywords.flatMap((k) => {
+        const escaped = escapeRegex(k);
+        return [
+          { "name.en": { $regex: escaped, $options: "i" } },
+          { "name.ar": { $regex: escaped, $options: "i" } },
+          { "description.en": { $regex: escaped, $options: "i" } },
+          { "description.ar": { $regex: escaped, $options: "i" } }
+        ];
+      })
     })
       .select("_id name images")
       .limit(6)
