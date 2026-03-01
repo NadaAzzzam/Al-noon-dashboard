@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError, setToken, setCurrentUser } from "../services/api";
+import { validateLogin } from "../utils/formValidation";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -9,11 +10,18 @@ const LoginPage = () => {
   const [email, setEmail] = useState("admin@localhost");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setFieldErrors({});
+    const validation = validateLogin(email, password);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      return;
+    }
     setLoading(true);
     try {
       const response = (await api.signIn(email, password)) as { data?: { token: string; user?: { id: string; name: string; email: string; role: string; permissions?: string[] } }; token?: string };
@@ -41,25 +49,35 @@ const LoginPage = () => {
 
   return (
     <div className="login-page">
-      <form className="login-card" onSubmit={handleSubmit}>
+      <form className="login-card" onSubmit={handleSubmit} noValidate>
         <h1>{t("auth.login_title")}</h1>
         <p>{t("auth.login_subtitle")}</p>
-        <input
-          data-testid="login-email"
-          type="email"
-          placeholder={t("auth.email")}
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          required
-        />
-        <input
-          data-testid="login-password"
-          type="password"
-          placeholder={t("auth.password")}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-        />
+        <div className="form-group">
+          <input
+            data-testid="login-email"
+            type="email"
+            placeholder={t("auth.email")}
+            value={email}
+            onChange={(event) => { setEmail(event.target.value); setFieldErrors((e) => ({ ...e, email: "" })); }}
+            className={fieldErrors.email ? "field-invalid" : ""}
+            aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? "login-email-error" : undefined}
+          />
+          {fieldErrors.email && <span id="login-email-error" className="field-error" role="alert">{fieldErrors.email}</span>}
+        </div>
+        <div className="form-group">
+          <input
+            data-testid="login-password"
+            type="password"
+            placeholder={t("auth.password")}
+            value={password}
+            onChange={(event) => { setPassword(event.target.value); setFieldErrors((e) => ({ ...e, password: "" })); }}
+            className={fieldErrors.password ? "field-invalid" : ""}
+            aria-invalid={!!fieldErrors.password}
+            aria-describedby={fieldErrors.password ? "login-password-error" : undefined}
+          />
+          {fieldErrors.password && <span id="login-password-error" className="field-error" role="alert">{fieldErrors.password}</span>}
+        </div>
         {error && <div className="error">{error}</div>}
         <button data-testid="login-submit" className="button" type="submit" disabled={loading} style={{ width: "100%", marginTop: 12 }}>
           {loading ? t("auth.signing_in") : t("auth.sign_in")}

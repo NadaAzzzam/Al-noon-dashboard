@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import CategoriesPage from "./CategoriesPage";
 import "../i18n";
 
 const mockListCategories = vi.fn();
+const mockCreateCategory = vi.fn();
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -12,7 +14,7 @@ vi.mock("../services/api", async (importOriginal) => {
     ...mod,
     api: {
       listCategories: (...args: unknown[]) => mockListCategories(...args),
-      createCategory: vi.fn(),
+      createCategory: (...args: unknown[]) => mockCreateCategory(...args),
       updateCategory: vi.fn(),
       setCategoryStatus: vi.fn(),
       listProducts: vi.fn(),
@@ -29,6 +31,7 @@ describe("CategoriesPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListCategories.mockResolvedValue({ data: { categories: [] } });
+    mockCreateCategory.mockResolvedValue({});
   });
 
   it("renders and loads categories", async () => {
@@ -41,5 +44,22 @@ describe("CategoriesPage", () => {
       expect(mockListCategories).toHaveBeenCalled();
     });
     expect(screen.getByRole("heading", { name: /categories/i })).toBeInTheDocument();
+  });
+
+  it("shows validation errors when submitting empty category form", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <CategoriesPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListCategories).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: /add category/i }));
+    await waitFor(() => expect(screen.getByText("New category")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /create/i }));
+    await waitFor(() => {
+      expect(screen.getByText("Name (EN) is required")).toBeInTheDocument();
+    });
+    expect(mockCreateCategory).not.toHaveBeenCalled();
   });
 });

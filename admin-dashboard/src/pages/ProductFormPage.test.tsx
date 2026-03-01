@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ProductFormPage from "./ProductFormPage";
 import "../i18n";
@@ -78,5 +79,20 @@ describe("ProductFormPage", () => {
       expect(mockGetProduct).toHaveBeenCalled();
     });
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/edit|product/i);
+  });
+
+  it("shows validation errors when submitting product form with empty required fields", async () => {
+    const user = userEvent.setup();
+    mockListCategories.mockResolvedValue({
+      data: [{ _id: "cat1", name: { en: "Cat1", ar: "تصنيف1" }, status: "visible" }],
+    });
+    renderProductForm("/products/new");
+    await waitFor(() => expect(mockListCategories).toHaveBeenCalled());
+    const submitBtn = screen.getByRole("button", { name: /create|save/i });
+    await user.click(submitBtn);
+    await waitFor(() => {
+      expect(screen.getByText("Name (EN) is required")).toBeInTheDocument();
+    });
+    expect(mockCreateProduct).not.toHaveBeenCalled();
   });
 });

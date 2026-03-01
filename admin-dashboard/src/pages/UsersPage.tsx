@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError, User, hasPermission } from "../services/api";
+import { validateUserCreate, validateUserUpdate } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 
 type RoleOption = { id: string; key: string; name: string };
@@ -26,6 +27,7 @@ const UsersPage = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form, setForm] = useState<UserForm>({ ...emptyForm });
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const canManageUsers = hasPermission("users.manage");
 
@@ -70,6 +72,7 @@ const UsersPage = () => {
       role: roleOptions[0]?.key ?? "",
       departmentId: "",
     });
+    setFieldErrors({});
     setModalOpen(true);
   };
 
@@ -92,13 +95,32 @@ const UsersPage = () => {
     setModalOpen(false);
     setEditingUser(null);
     setForm({ ...emptyForm });
+    setFieldErrors({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManageUsers) return;
-    setSaving(true);
     setError(null);
+    setFieldErrors({});
+    if (editingUser) {
+      const validation = validateUserUpdate({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password.trim() || undefined,
+      });
+      if (!validation.valid) {
+        setFieldErrors(validation.errors);
+        return;
+      }
+    } else {
+      const validation = validateUserCreate(form.name, form.email, form.password);
+      if (!validation.valid) {
+        setFieldErrors(validation.errors);
+        return;
+      }
+    }
+    setSaving(true);
     try {
       if (editingUser) {
         const payload: { name: string; email: string; departmentId?: string | null; password?: string } = {
@@ -225,10 +247,12 @@ const UsersPage = () => {
                 <input
                   id="user-name"
                   value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  onChange={(e) => { setForm((p) => ({ ...p, name: e.target.value })); setFieldErrors((er) => ({ ...er, name: "" })); }}
                   placeholder={t("users.name_placeholder", "John Doe")}
-                  required
+                  className={fieldErrors.name ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.name}
                 />
+                {fieldErrors.name && <span className="field-error" role="alert">{fieldErrors.name}</span>}
               </div>
               <div className="product-form-field">
                 <label htmlFor="user-email">{t("auth.email")} *</label>
@@ -236,10 +260,12 @@ const UsersPage = () => {
                   id="user-email"
                   type="email"
                   value={form.email}
-                  onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                  onChange={(e) => { setForm((p) => ({ ...p, email: e.target.value })); setFieldErrors((er) => ({ ...er, email: "" })); }}
                   placeholder="user@example.com"
-                  required
+                  className={fieldErrors.email ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.email}
                 />
+                {fieldErrors.email && <span className="field-error" role="alert">{fieldErrors.email}</span>}
               </div>
               <div className="product-form-field">
                 <label htmlFor="user-password">
@@ -249,11 +275,12 @@ const UsersPage = () => {
                   id="user-password"
                   type="password"
                   value={form.password}
-                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                  onChange={(e) => { setForm((p) => ({ ...p, password: e.target.value })); setFieldErrors((er) => ({ ...er, password: "" })); }}
                   placeholder={editingUser ? t("users.password_leave_blank", "Leave blank to keep current") : ""}
-                  required={!editingUser}
-                  minLength={6}
+                  className={fieldErrors.password ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.password}
                 />
+                {fieldErrors.password && <span className="field-error" role="alert">{fieldErrors.password}</span>}
               </div>
               <div className="product-form-field">
                 <label htmlFor="user-department">{t("nav.departments")}</label>

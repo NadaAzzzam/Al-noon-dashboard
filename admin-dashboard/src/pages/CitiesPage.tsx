@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError, City, hasPermission } from "../services/api";
+import { validateCity } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
 
@@ -14,6 +15,7 @@ const CitiesPage = () => {
   const [form, setForm] = useState<CityForm>({ nameEn: "", nameAr: "", deliveryFee: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
 
   const load = async () => {
@@ -33,6 +35,7 @@ const CitiesPage = () => {
   const openAdd = () => {
     setForm({ nameEn: "", nameAr: "", deliveryFee: 0 });
     setEditingId(null);
+    setFieldErrors({});
     setModalOpen(true);
   };
 
@@ -40,12 +43,19 @@ const CitiesPage = () => {
     const name = typeof c.name === "object" ? c.name : { en: c.name as unknown as string, ar: c.name as unknown as string };
     setForm({ nameEn: name.en ?? "", nameAr: name.ar ?? "", deliveryFee: c.deliveryFee ?? 0 });
     setEditingId(c._id);
+    setFieldErrors({});
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
+    const validation = validateCity(form.nameEn, form.nameAr, form.deliveryFee);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      return;
+    }
     try {
       const payload = { nameEn: form.nameEn.trim(), nameAr: form.nameAr.trim(), deliveryFee: form.deliveryFee };
       if (editingId) {
@@ -121,26 +131,39 @@ const CitiesPage = () => {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>{editingId ? t("cities.edit_city") : t("cities.new_city")}</h3>
             <form onSubmit={handleSubmit} className="form-grid">
-              <input
-                placeholder={t("cities.name_en")}
-                value={form.nameEn}
-                onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
-                required
-              />
-              <input
-                placeholder={t("cities.name_ar")}
-                value={form.nameAr}
-                onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
-                required
-              />
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                placeholder={t("cities.delivery_fee")}
-                value={form.deliveryFee}
-                onChange={(e) => setForm({ ...form, deliveryFee: Math.max(0, Number(e.target.value) || 0) })}
-              />
+              <div className="form-group">
+                <input
+                  placeholder={t("cities.name_en")}
+                  value={form.nameEn}
+                  onChange={(e) => { setForm({ ...form, nameEn: e.target.value }); setFieldErrors((er) => ({ ...er, nameEn: "" })); }}
+                  className={fieldErrors.nameEn ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.nameEn}
+                />
+                {fieldErrors.nameEn && <span className="field-error" role="alert">{fieldErrors.nameEn}</span>}
+              </div>
+              <div className="form-group">
+                <input
+                  placeholder={t("cities.name_ar")}
+                  value={form.nameAr}
+                  onChange={(e) => { setForm({ ...form, nameAr: e.target.value }); setFieldErrors((er) => ({ ...er, nameAr: "" })); }}
+                  className={fieldErrors.nameAr ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.nameAr}
+                />
+                {fieldErrors.nameAr && <span className="field-error" role="alert">{fieldErrors.nameAr}</span>}
+              </div>
+              <div className="form-group">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder={t("cities.delivery_fee")}
+                  value={form.deliveryFee}
+                  onChange={(e) => { setForm({ ...form, deliveryFee: Math.max(0, Number(e.target.value) || 0) }); setFieldErrors((er) => ({ ...er, deliveryFee: "" })); }}
+                  className={fieldErrors.deliveryFee ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.deliveryFee}
+                />
+                {fieldErrors.deliveryFee && <span className="field-error" role="alert">{fieldErrors.deliveryFee}</span>}
+              </div>
               <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
                 <button className="button" type="submit">
                   {editingId ? t("common.update") : t("common.create")}

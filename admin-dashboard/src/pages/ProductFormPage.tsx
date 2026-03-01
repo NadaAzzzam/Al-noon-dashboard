@@ -10,6 +10,7 @@ import {
   getProductVideoUrl,
 } from "../services/api";
 import { formatPriceEGP } from "../utils/format";
+import { validateProduct } from "../utils/formValidation";
 import { useLocalized } from "../utils/localized";
 
 type VariantInventory = {
@@ -116,6 +117,7 @@ const ProductFormPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [imagesUploading, setImagesUploading] = useState(false);
   const [videosUploading, setVideosUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,17 +271,28 @@ const ProductFormPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSaving(true);
-    try {
-      // Calculate total stock from variants
-      const totalStock =
+    setFieldErrors({});
+    const totalStock =
         form.variants.length > 0
           ? form.variants.reduce(
               (sum, v) => sum + (v.outOfStock ? 0 : v.stock),
               0,
             )
           : form.stock;
-
+    const validation = validateProduct({
+      nameEn: form.nameEn,
+      nameAr: form.nameAr,
+      price: form.price,
+      stock: totalStock,
+      category: form.category,
+      discountPrice: form.discountPrice,
+    });
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      return;
+    }
+    setSaving(true);
+    try {
       const payload = {
         nameEn: form.nameEn.trim(),
         nameAr: form.nameAr.trim(),
@@ -555,28 +568,34 @@ const ProductFormPage = () => {
           </h2>
           <div className="product-form-grid">
             <div className="product-form-field">
-              <label htmlFor="product-name-en">{t("products.name_en")}</label>
+              <label htmlFor="product-name-en">{t("products.name_en")} *</label>
               <input
                 id="product-name-en"
                 value={form.nameEn}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, nameEn: e.target.value }))
-                }
-                required
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, nameEn: e.target.value }));
+                  setFieldErrors((er) => ({ ...er, nameEn: "" }));
+                }}
                 placeholder={t("products.name_en")}
+                className={fieldErrors.nameEn ? "field-invalid" : ""}
+                aria-invalid={!!fieldErrors.nameEn}
               />
+              {fieldErrors.nameEn && <span className="field-error" role="alert">{fieldErrors.nameEn}</span>}
             </div>
             <div className="product-form-field">
-              <label htmlFor="product-name-ar">{t("products.name_ar")}</label>
+              <label htmlFor="product-name-ar">{t("products.name_ar")} *</label>
               <input
                 id="product-name-ar"
                 value={form.nameAr}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, nameAr: e.target.value }))
-                }
-                required
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, nameAr: e.target.value }));
+                  setFieldErrors((er) => ({ ...er, nameAr: "" }));
+                }}
                 placeholder={t("products.name_ar")}
+                className={fieldErrors.nameAr ? "field-invalid" : ""}
+                aria-invalid={!!fieldErrors.nameAr}
               />
+              {fieldErrors.nameAr && <span className="field-error" role="alert">{fieldErrors.nameAr}</span>}
             </div>
             <div className="product-form-field">
               <label htmlFor="product-desc-en">
@@ -757,14 +776,16 @@ const ProductFormPage = () => {
               </div>
             </div>
             <div className="product-form-field product-form-grid-full">
-              <label htmlFor="product-category">{t("products.category")}</label>
+              <label htmlFor="product-category">{t("products.category")} *</label>
               <select
                 id="product-category"
                 value={form.category}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, category: e.target.value }))
-                }
-                required
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, category: e.target.value }));
+                  setFieldErrors((er) => ({ ...er, category: "" }));
+                }}
+                className={fieldErrors.category ? "field-invalid" : ""}
+                aria-invalid={!!fieldErrors.category}
               >
                 <option value="">{t("products.select_category")}</option>
                 {categories.map((c) => (
@@ -773,6 +794,7 @@ const ProductFormPage = () => {
                   </option>
                 ))}
               </select>
+              {fieldErrors.category && <span className="field-error" role="alert">{fieldErrors.category}</span>}
             </div>
             <div className="product-form-field product-form-grid-full">
               <label className="checkbox-label">
@@ -941,18 +963,21 @@ const ProductFormPage = () => {
           </h2>
           <div className="product-form-grid">
             <div className="product-form-field">
-              <label htmlFor="product-price">{t("products.price")} (EGP)</label>
+              <label htmlFor="product-price">{t("products.price")} (EGP) *</label>
               <input
                 id="product-price"
                 type="number"
                 step={0.01}
                 min={0}
                 value={form.price || ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, price: Number(e.target.value) || 0 }))
-                }
-                required
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, price: Number(e.target.value) || 0 }));
+                  setFieldErrors((er) => ({ ...er, price: "" }));
+                }}
+                className={fieldErrors.price ? "field-invalid" : ""}
+                aria-invalid={!!fieldErrors.price}
               />
+              {fieldErrors.price && <span className="field-error" role="alert">{fieldErrors.price}</span>}
             </div>
             <div className="product-form-field">
               <label htmlFor="product-discount">
@@ -974,6 +999,7 @@ const ProductFormPage = () => {
                   const raw = e.target.value;
                   if (raw === "") {
                     setForm((f) => ({ ...f, discountPrice: undefined }));
+                    setFieldErrors((er) => ({ ...er, discountPrice: "" }));
                     return;
                   }
                   const percent = Number(raw);
@@ -982,9 +1008,13 @@ const ProductFormPage = () => {
                       ...f,
                       discountPrice: Math.round(f.price * (1 - percent / 100)),
                     }));
+                    setFieldErrors((er) => ({ ...er, discountPrice: "" }));
                   }
                 }}
+                className={fieldErrors.discountPrice ? "field-invalid" : ""}
+                aria-invalid={!!fieldErrors.discountPrice}
               />
+              {fieldErrors.discountPrice && <span className="field-error" role="alert">{fieldErrors.discountPrice}</span>}
               {form.price <= 0 && (
                 <p className="product-form-hint">
                   {t("products.discount_set_price_first")}
@@ -1047,7 +1077,7 @@ const ProductFormPage = () => {
           </h2>
           <div className="product-form-row">
             <div className="product-form-field">
-              <label htmlFor="product-stock">{t("products.stock")}</label>
+              <label htmlFor="product-stock">{t("products.stock")} *</label>
               <input
                 id="product-stock"
                 type="number"
@@ -1060,12 +1090,15 @@ const ProductFormPage = () => {
                       )
                     : form.stock
                 }
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, stock: Number(e.target.value) || 0 }))
-                }
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, stock: Number(e.target.value) || 0 }));
+                  setFieldErrors((er) => ({ ...er, stock: "" }));
+                }}
                 disabled={form.variants.length > 0}
-                required
+                className={fieldErrors.stock ? "field-invalid" : ""}
+                aria-invalid={!!fieldErrors.stock}
               />
+              {fieldErrors.stock && <span className="field-error" role="alert">{fieldErrors.stock}</span>}
               {form.variants.length > 0 && (
                 <p className="product-form-hint" style={{ marginTop: 6 }}>
                   Stock is automatically calculated from variants below. To

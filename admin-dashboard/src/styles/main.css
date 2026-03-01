@@ -1615,6 +1615,21 @@ select:focus {
   gap: 8px;
 }
 
+/* Field-level validation error (below inputs) */
+.field-error {
+  font-size: 12px;
+  color: #b91c1c;
+  margin-top: 4px;
+}
+
+input:invalid.field-invalid,
+input.field-invalid,
+select.field-invalid,
+textarea.field-invalid {
+  border-color: #b91c1c;
+  box-shadow: 0 0 0 1px #fecaca;
+}
+
 /* ===== Modal ===== */
 .modal-overlay {
   position: fixed;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError, Category, hasPermission } from "../services/api";
+import { validateCategory } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
 
@@ -16,6 +17,7 @@ const CategoriesPage = () => {
   const [form, setForm] = useState<CategoryForm>({ ...emptyForm });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
 
   const load = async () => {
@@ -33,6 +35,7 @@ const CategoriesPage = () => {
   const openAdd = () => {
     setForm({ ...emptyForm });
     setEditingId(null);
+    setFieldErrors({});
     setModalOpen(true);
   };
 
@@ -51,12 +54,19 @@ const CategoriesPage = () => {
       status: c.status ?? "visible"
     });
     setEditingId(c._id);
+    setFieldErrors({});
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
+    const validation = validateCategory(form.nameEn, form.nameAr);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      return;
+    }
     try {
       const payload = { nameEn: form.nameEn.trim(), nameAr: form.nameAr.trim(), descriptionEn: form.descriptionEn.trim() || undefined, descriptionAr: form.descriptionAr.trim() || undefined, status: form.status };
       if (editingId) {
@@ -142,18 +152,26 @@ const CategoriesPage = () => {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>{editingId ? t("categories.edit_category") : t("categories.new_category")}</h3>
             <form onSubmit={handleSubmit} className="form-grid">
-              <input
-                placeholder={t("categories.name_en")}
-                value={form.nameEn}
-                onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
-                required
-              />
-              <input
-                placeholder={t("categories.name_ar")}
-                value={form.nameAr}
-                onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
-                required
-              />
+              <div className="form-group">
+                <input
+                  placeholder={t("categories.name_en")}
+                  value={form.nameEn}
+                  onChange={(e) => { setForm({ ...form, nameEn: e.target.value }); setFieldErrors((er) => ({ ...er, nameEn: "" })); }}
+                  className={fieldErrors.nameEn ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.nameEn}
+                />
+                {fieldErrors.nameEn && <span className="field-error" role="alert">{fieldErrors.nameEn}</span>}
+              </div>
+              <div className="form-group">
+                <input
+                  placeholder={t("categories.name_ar")}
+                  value={form.nameAr}
+                  onChange={(e) => { setForm({ ...form, nameAr: e.target.value }); setFieldErrors((er) => ({ ...er, nameAr: "" })); }}
+                  className={fieldErrors.nameAr ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.nameAr}
+                />
+                {fieldErrors.nameAr && <span className="field-error" role="alert">{fieldErrors.nameAr}</span>}
+              </div>
               <input
                 placeholder={t("categories.description_en")}
                 value={form.descriptionEn}

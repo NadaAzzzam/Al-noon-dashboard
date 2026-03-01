@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, hasPermission } from "../services/api";
+import { validateDepartment } from "../utils/formValidation";
 
 type Department = {
   id: string;
@@ -35,6 +36,7 @@ const DepartmentFormPage = () => {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const canManage = hasPermission("departments.manage");
 
@@ -100,8 +102,14 @@ const DepartmentFormPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManage) return;
-    setSaving(true);
     setError(null);
+    setFieldErrors({});
+    const validation = validateDepartment(form.name);
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      return;
+    }
+    setSaving(true);
     try {
       if (isEdit && form.id) {
         await api.updateDepartment(form.id, {
@@ -206,13 +214,16 @@ const DepartmentFormPage = () => {
               <input
                 id="dept-name"
                 value={form.name}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, name: e.target.value }))
-                }
+                onChange={(e) => {
+                  setForm((prev) => ({ ...prev, name: e.target.value }));
+                  setFieldErrors((er) => ({ ...er, name: "" }));
+                }}
                 placeholder={t("departments.name_placeholder", "Marketing")}
-                required
                 disabled={!canManage}
+                className={fieldErrors.name ? "field-invalid" : ""}
+                aria-invalid={!!fieldErrors.name}
               />
+              {fieldErrors.name && <span className="field-error" role="alert">{fieldErrors.name}</span>}
             </div>
             {isEdit && (
               <div className="product-form-field">

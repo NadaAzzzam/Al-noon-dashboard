@@ -9,6 +9,7 @@ import {
   getUploadsBaseUrl,
   hasPermission,
 } from "../services/api";
+import { validateFeedback } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 
 const LIMIT = 20;
@@ -58,6 +59,7 @@ const FeedbackPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FeedbackForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
 
@@ -100,6 +102,7 @@ const FeedbackPage = () => {
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setFieldErrors({});
     setModalOpen(true);
   };
 
@@ -118,6 +121,7 @@ const FeedbackPage = () => {
       approved: item.approved ?? false,
       order: item.order ?? 0,
     });
+    setFieldErrors({});
     setModalOpen(true);
   };
 
@@ -125,16 +129,24 @@ const FeedbackPage = () => {
     setModalOpen(false);
     setEditingId(null);
     setForm(emptyForm);
+    setFieldErrors({});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.product || !form.customerName.trim() || !form.message.trim()) {
-      setError(t("feedback.required_fields"));
+    setError(null);
+    setFieldErrors({});
+    const validation = validateFeedback({
+      product: form.product,
+      customerName: form.customerName,
+      message: form.message,
+      rating: form.rating,
+    });
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
       return;
     }
     setSaving(true);
-    setError(null);
     try {
       if (editingId) {
         await api.updateFeedback(editingId, {
@@ -405,10 +417,12 @@ const FeedbackPage = () => {
                 <label>{t("feedback.product")} *</label>
                 <select
                   value={form.product}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, product: e.target.value }))
-                  }
-                  required
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, product: e.target.value }));
+                    setFieldErrors((er) => ({ ...er, product: "" }));
+                  }}
+                  className={fieldErrors.product ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.product}
                 >
                   <option value="">{t("feedback.select_product")}</option>
                   {products.map((p) => (
@@ -419,38 +433,48 @@ const FeedbackPage = () => {
                     </option>
                   ))}
                 </select>
+                {fieldErrors.product && <span className="field-error" role="alert">{fieldErrors.product}</span>}
               </div>
               <div className="form-group">
                 <label>{t("feedback.customer")} *</label>
                 <input
                   type="text"
                   value={form.customerName}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, customerName: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, customerName: e.target.value }));
+                    setFieldErrors((er) => ({ ...er, customerName: "" }));
+                  }}
                   placeholder={t("feedback.customer_placeholder")}
-                  required
+                  className={fieldErrors.customerName ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.customerName}
                 />
+                {fieldErrors.customerName && <span className="field-error" role="alert">{fieldErrors.customerName}</span>}
               </div>
               <div className="form-group">
                 <label>{t("feedback.message")} *</label>
                 <textarea
                   value={form.message}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, message: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, message: e.target.value }));
+                    setFieldErrors((er) => ({ ...er, message: "" }));
+                  }}
                   placeholder={t("feedback.message_placeholder")}
                   rows={4}
-                  required
+                  className={fieldErrors.message ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.message}
                 />
+                {fieldErrors.message && <span className="field-error" role="alert">{fieldErrors.message}</span>}
               </div>
               <div className="form-group">
                 <label>{t("feedback.rating")} *</label>
                 <select
                   value={form.rating}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, rating: Number(e.target.value) }))
-                  }
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, rating: Number(e.target.value) }));
+                    setFieldErrors((er) => ({ ...er, rating: "" }));
+                  }}
+                  className={fieldErrors.rating ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.rating}
                 >
                   {[1, 2, 3, 4, 5].map((n) => (
                     <option key={n} value={n}>
@@ -458,6 +482,7 @@ const FeedbackPage = () => {
                     </option>
                   ))}
                 </select>
+                {fieldErrors.rating && <span className="field-error" role="alert">{fieldErrors.rating}</span>}
               </div>
               <div className="form-group">
                 <label>{t("feedback.screenshot")}</label>

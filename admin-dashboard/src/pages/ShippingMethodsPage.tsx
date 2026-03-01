@@ -8,6 +8,7 @@ import {
   ShippingMethodPayload,
   hasPermission,
 } from "../services/api";
+import { validateShippingMethod } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
 
@@ -48,6 +49,7 @@ const ShippingMethodsPage = () => {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
 
   const loadCities = async () => {
@@ -92,6 +94,7 @@ const ShippingMethodsPage = () => {
       cityPrices: cities.map((c) => ({ cityId: c._id, price: 0 })),
     });
     setEditingId(null);
+    setFieldErrors({});
     setModalOpen(true);
   };
 
@@ -117,6 +120,7 @@ const ShippingMethodsPage = () => {
       order: m.order ?? 0,
     });
     setEditingId(m._id);
+    setFieldErrors({});
     setModalOpen(true);
   };
 
@@ -154,6 +158,20 @@ const ShippingMethodsPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
+    const validation = validateShippingMethod({
+      nameEn: form.nameEn,
+      nameAr: form.nameAr,
+      descriptionEn: form.descriptionEn,
+      descriptionAr: form.descriptionAr,
+      price: form.price,
+      estimatedDaysMin: form.estimatedDaysMin,
+      estimatedDaysMax: form.estimatedDaysMax,
+    });
+    if (!validation.valid) {
+      setFieldErrors(validation.errors);
+      return;
+    }
     try {
       const payload = toPayload();
       if (editingId) {
@@ -324,46 +342,56 @@ const ShippingMethodsPage = () => {
                 {t("shipping_methods.section_basic")}
               </p>
               <label className="form-label">
-                <span>{t("shipping_methods.name_en")}</span>
+                <span>{t("shipping_methods.name_en")} *</span>
                 <input
                   placeholder={t("shipping_methods.name_en")}
                   value={form.nameEn}
-                  onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
-                  required
+                  onChange={(e) => { setForm({ ...form, nameEn: e.target.value }); setFieldErrors((er) => ({ ...er, nameEn: "" })); }}
+                  className={fieldErrors.nameEn ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.nameEn}
                 />
+                {fieldErrors.nameEn && <span className="field-error" role="alert">{fieldErrors.nameEn}</span>}
               </label>
               <label className="form-label">
-                <span>{t("shipping_methods.name_ar")}</span>
+                <span>{t("shipping_methods.name_ar")} *</span>
                 <input
                   placeholder={t("shipping_methods.name_ar")}
                   value={form.nameAr}
-                  onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
-                  required
+                  onChange={(e) => { setForm({ ...form, nameAr: e.target.value }); setFieldErrors((er) => ({ ...er, nameAr: "" })); }}
+                  className={fieldErrors.nameAr ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.nameAr}
                 />
+                {fieldErrors.nameAr && <span className="field-error" role="alert">{fieldErrors.nameAr}</span>}
               </label>
               <label className="form-label" style={{ gridColumn: "1 / -1" }}>
-                <span>{t("shipping_methods.description_en")}</span>
+                <span>{t("shipping_methods.description_en")} *</span>
                 <textarea
                   placeholder={t("shipping_methods.description_en")}
                   value={form.descriptionEn}
-                  onChange={(e) =>
-                    setForm({ ...form, descriptionEn: e.target.value })
-                  }
-                  required
+                  onChange={(e) => {
+                    setForm({ ...form, descriptionEn: e.target.value });
+                    setFieldErrors((er) => ({ ...er, descriptionEn: "" }));
+                  }}
                   rows={2}
+                  className={fieldErrors.descriptionEn ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.descriptionEn}
                 />
+                {fieldErrors.descriptionEn && <span className="field-error" role="alert">{fieldErrors.descriptionEn}</span>}
               </label>
               <label className="form-label" style={{ gridColumn: "1 / -1" }}>
-                <span>{t("shipping_methods.description_ar")}</span>
+                <span>{t("shipping_methods.description_ar")} *</span>
                 <textarea
                   placeholder={t("shipping_methods.description_ar")}
                   value={form.descriptionAr}
-                  onChange={(e) =>
-                    setForm({ ...form, descriptionAr: e.target.value })
-                  }
-                  required
+                  onChange={(e) => {
+                    setForm({ ...form, descriptionAr: e.target.value });
+                    setFieldErrors((er) => ({ ...er, descriptionAr: "" }));
+                  }}
                   rows={2}
+                  className={fieldErrors.descriptionAr ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.descriptionAr}
                 />
+                {fieldErrors.descriptionAr && <span className="field-error" role="alert">{fieldErrors.descriptionAr}</span>}
               </label>
 
               <p
@@ -378,38 +406,40 @@ const ShippingMethodsPage = () => {
                 {t("shipping_methods.section_delivery_time")}
               </p>
               <label className="form-label">
-                <span>{t("shipping_methods.estimated_days_min")}</span>
+                <span>{t("shipping_methods.estimated_days_min")} *</span>
                 <input
                   type="number"
                   min={1}
                   value={form.estimatedDaysMin}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setForm({
                       ...form,
-                      estimatedDaysMin: Math.max(
-                        1,
-                        Number(e.target.value) || 1,
-                      ),
-                    })
-                  }
+                      estimatedDaysMin: Math.max(1, Number(e.target.value) || 1),
+                    });
+                    setFieldErrors((er) => ({ ...er, estimatedDaysMin: "" }));
+                  }}
+                  className={fieldErrors.estimatedDaysMin ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.estimatedDaysMin}
                 />
+                {fieldErrors.estimatedDaysMin && <span className="field-error" role="alert">{fieldErrors.estimatedDaysMin}</span>}
               </label>
               <label className="form-label">
-                <span>{t("shipping_methods.estimated_days_max")}</span>
+                <span>{t("shipping_methods.estimated_days_max")} *</span>
                 <input
                   type="number"
                   min={1}
                   value={form.estimatedDaysMax}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setForm({
                       ...form,
-                      estimatedDaysMax: Math.max(
-                        1,
-                        Number(e.target.value) || 1,
-                      ),
-                    })
-                  }
+                      estimatedDaysMax: Math.max(1, Number(e.target.value) || 1),
+                    });
+                    setFieldErrors((er) => ({ ...er, estimatedDaysMax: "" }));
+                  }}
+                  className={fieldErrors.estimatedDaysMax ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.estimatedDaysMax}
                 />
+                {fieldErrors.estimatedDaysMax && <span className="field-error" role="alert">{fieldErrors.estimatedDaysMax}</span>}
               </label>
 
               <p
@@ -424,19 +454,23 @@ const ShippingMethodsPage = () => {
                 {t("shipping_methods.section_default_price")}
               </p>
               <label className="form-label">
-                <span>{t("shipping_methods.price")}</span>
+                <span>{t("shipping_methods.price")} *</span>
                 <input
                   type="number"
                   min={0}
                   step={1}
                   value={form.price}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setForm({
                       ...form,
                       price: Math.max(0, Number(e.target.value) || 0),
-                    })
-                  }
+                    });
+                    setFieldErrors((er) => ({ ...er, price: "" }));
+                  }}
+                  className={fieldErrors.price ? "field-invalid" : ""}
+                  aria-invalid={!!fieldErrors.price}
                 />
+                {fieldErrors.price && <span className="field-error" role="alert">{fieldErrors.price}</span>}
               </label>
               <label className="form-label">
                 <span>{t("shipping_methods.order_label")}</span>
