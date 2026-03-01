@@ -114,8 +114,6 @@ type HomePageForm = {
   feedbackSectionEnabled: boolean;
   feedbackDisplayLimit: number;
   homeCollectionsDisplayLimit: number;
-  ourCollectionSectionImages: string[];
-  ourCollectionSectionVideos: string[];
   homeCollections: CollectionCardForm[];
 };
 
@@ -164,8 +162,6 @@ const HomePageSettingsPage = () => {
     feedbackSectionEnabled: false,
     feedbackDisplayLimit: 6,
     homeCollectionsDisplayLimit: 0,
-    ourCollectionSectionImages: [],
-    ourCollectionSectionVideos: [],
     homeCollections: [],
   });
   const [error, setError] = useState<string | null>(null);
@@ -181,8 +177,6 @@ const HomePageSettingsPage = () => {
   const heroVideoRef = useRef<HTMLInputElement>(null);
   const newArrivalsImageRef = useRef<HTMLInputElement>(null);
   const newArrivalsVideoRef = useRef<HTMLInputElement>(null);
-  const ourCollectionImageRef = useRef<HTMLInputElement>(null);
-  const ourCollectionVideoRef = useRef<HTMLInputElement>(null);
   const promoImageRef = useRef<HTMLInputElement>(null);
   const collectionImageRef = useRef<HTMLInputElement>(null);
 
@@ -230,7 +224,7 @@ const HomePageSettingsPage = () => {
             };
           }
         ).promoBanner;
-        const collections = (d.homeCollections ?? []).map(
+        const collectionsRaw = (d.homeCollections ?? []).map(
           (
             c: {
               title?: { en?: string; ar?: string };
@@ -249,6 +243,14 @@ const HomePageSettingsPage = () => {
             order: (c.order ?? i) as number,
           }),
         );
+        // Remove duplicate collections by url
+        const seenUrls = new Set<string>();
+        const collections = collectionsRaw.filter((c: { url?: string }) => {
+          const key = (c.url ?? "").trim() || "_empty_";
+          if (seenUrls.has(key)) return false;
+          seenUrls.add(key);
+          return true;
+        });
         setForm({
           announcementBar: {
             textEn: ab?.text?.en ?? "",
@@ -286,12 +288,18 @@ const HomePageSettingsPage = () => {
               (d as { newArrivalsLimit?: number }).newArrivalsLimit ?? 8,
             ),
           ),
-          newArrivalsSectionImages:
-            (d as { newArrivalsSectionImages?: string[] })
-              .newArrivalsSectionImages ?? [],
-          newArrivalsSectionVideos:
-            (d as { newArrivalsSectionVideos?: string[] })
-              .newArrivalsSectionVideos ?? [],
+          newArrivalsSectionImages: [
+            ...new Set(
+              (d as { newArrivalsSectionImages?: string[] })
+                .newArrivalsSectionImages ?? [],
+            ),
+          ],
+          newArrivalsSectionVideos: [
+            ...new Set(
+              (d as { newArrivalsSectionVideos?: string[] })
+                .newArrivalsSectionVideos ?? [],
+            ),
+          ],
           featuredProductsEnabled:
             (d as { featuredProductsEnabled?: boolean })
               .featuredProductsEnabled ?? false,
@@ -314,12 +322,6 @@ const HomePageSettingsPage = () => {
             (d as { homeCollectionsDisplayLimit?: number })
               .homeCollectionsDisplayLimit ?? 0,
           ),
-          ourCollectionSectionImages:
-            (d as { ourCollectionSectionImages?: string[] })
-              .ourCollectionSectionImages ?? [],
-          ourCollectionSectionVideos:
-            (d as { ourCollectionSectionVideos?: string[] })
-              .ourCollectionSectionVideos ?? [],
           homeCollections: collections,
         });
       })
@@ -425,7 +427,7 @@ const HomePageSettingsPage = () => {
     setForm((f) => ({ ...f, [field]: [...(f[field] as string[]), path] }));
 
   const removeMedia = (
-    section: "hero" | "newArrivals" | "ourCollection",
+    section: "hero" | "newArrivals",
     type: "images" | "videos",
     index: number,
   ) => {
@@ -434,20 +436,11 @@ const HomePageSettingsPage = () => {
         ...f,
         hero: { ...f.hero, [type]: f.hero[type].filter((_, i) => i !== index) },
       }));
-    } else if (section === "newArrivals") {
+    } else {
       const key =
         type === "images"
           ? "newArrivalsSectionImages"
           : "newArrivalsSectionVideos";
-      setForm((f) => ({
-        ...f,
-        [key]: (f[key] as string[]).filter((_, i) => i !== index),
-      }));
-    } else {
-      const key =
-        type === "images"
-          ? "ourCollectionSectionImages"
-          : "ourCollectionSectionVideos";
       setForm((f) => ({
         ...f,
         [key]: (f[key] as string[]).filter((_, i) => i !== index),
@@ -569,8 +562,6 @@ const HomePageSettingsPage = () => {
         feedbackSectionEnabled: form.feedbackSectionEnabled,
         feedbackDisplayLimit: form.feedbackDisplayLimit,
         homeCollectionsDisplayLimit: form.homeCollectionsDisplayLimit,
-        ourCollectionSectionImages: form.ourCollectionSectionImages,
-        ourCollectionSectionVideos: form.ourCollectionSectionVideos,
         homeCollections: form.homeCollections.map((c, idx) => ({
           titleEn: c.titleEn.trim(),
           titleAr: c.titleAr.trim(),
@@ -635,7 +626,7 @@ const HomePageSettingsPage = () => {
   const renderMediaGrid = (
     images: string[],
     videos: string[],
-    section: "hero" | "newArrivals" | "ourCollection",
+    section: "hero" | "newArrivals",
   ) => {
     const items: { path: string; type: "image" | "video"; idx: number }[] = [
       ...images.map((path, idx) => ({ path, type: "image" as const, idx })),
@@ -1656,94 +1647,7 @@ const HomePageSettingsPage = () => {
           <h2 className="home-section-card-title">
             {t("settings.section_our_collection")}
           </h2>
-          <p className="settings-hint home-section-hint">
-            {t("settings.our_collection_hint")}
-          </p>
           <div className="home-section-body">
-            <label className="home-section-media-label">
-              {t("settings.section_media")}
-            </label>
-
-            {renderUploadZone(
-              "ourCollectionImage",
-              "image",
-              ourCollectionImageRef,
-              "image/png,image/jpeg,image/jpg,image/gif,image/webp",
-              (e) =>
-                handleFileChange(
-                  e,
-                  "image",
-                  api.uploadSectionImage,
-                  "ourCollectionImage",
-                  (p) => addToArray("ourCollectionSectionImages", p),
-                ),
-              (e) =>
-                handleDrop(
-                  e,
-                  "image",
-                  api.uploadSectionImage,
-                  "ourCollectionImage",
-                  (p) => addToArray("ourCollectionSectionImages", p),
-                ),
-            )}
-            {renderMediaGrid(
-              form.ourCollectionSectionImages,
-              [],
-              "ourCollection",
-            )}
-
-            {renderUploadZone(
-              "ourCollectionVideo",
-              "video",
-              ourCollectionVideoRef,
-              "video/mp4,video/webm,video/quicktime,video/ogg",
-              (e) =>
-                handleFileChange(
-                  e,
-                  "video",
-                  api.uploadSectionVideo,
-                  "ourCollectionVideo",
-                  (p) => addToArray("ourCollectionSectionVideos", p),
-                ),
-              (e) =>
-                handleDrop(
-                  e,
-                  "video",
-                  api.uploadSectionVideo,
-                  "ourCollectionVideo",
-                  (p) => addToArray("ourCollectionSectionVideos", p),
-                ),
-            )}
-            {renderMediaGrid(
-              [],
-              form.ourCollectionSectionVideos,
-              "ourCollection",
-            )}
-
-            <div className="form-group form-group-narrow">
-              <label htmlFor="home-collections-limit">
-                {t("settings.our_collection_display_limit")}
-              </label>
-              <input
-                id="home-collections-limit"
-                type="number"
-                min={0}
-                value={form.homeCollectionsDisplayLimit}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    homeCollectionsDisplayLimit: Math.max(
-                      0,
-                      Number(e.target.value) || 0,
-                    ),
-                  })
-                }
-              />
-              <p className="settings-hint">
-                {t("settings.our_collection_limit_hint")}
-              </p>
-            </div>
-
             <div className="home-collections-block">
               <div className="home-collections-header">
                 <h4>{t("settings.home_collections")}</h4>

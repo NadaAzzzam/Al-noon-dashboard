@@ -6,6 +6,7 @@ import { env } from "../config/env.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { logoPath, collectionImagePath, heroImagePath, heroVideoPath, sectionImagePath, sectionVideoPath, promoImagePath } from "../middlewares/upload.js";
+import { getDefaultLocale } from "../i18n.js";
 import { sendResponse } from "../utils/response.js";
 import { sendMail } from "../utils/email.js";
 
@@ -96,7 +97,7 @@ function normalizeSettings(raw: Record<string, unknown> | null): Record<string, 
 export const getPublicSettings = asyncHandler(async (req, res) => {
   const currencyDefaults = { currency: "EGP", currencySymbol: "LE" };
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, {
+    return sendResponse(res, req.locale ?? getDefaultLocale(), {
       data: {
         settings: {
           storeName: defaults.storeName,
@@ -127,7 +128,7 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
   const advanced = s?.advancedSettings as { currency?: string; currencySymbol?: string } | undefined;
   const currency = (advanced?.currency && String(advanced.currency).trim()) || currencyDefaults.currency;
   const currencySymbol = (advanced?.currencySymbol && String(advanced.currencySymbol).trim()) || currencyDefaults.currencySymbol;
-  sendResponse(res, req.locale, {
+  sendResponse(res, req.locale ?? getDefaultLocale(), {
     data: {
       settings: {
         storeName,
@@ -145,16 +146,16 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
 
 export const getSettings = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, { data: { settings: defaults } });
+    return sendResponse(res, req.locale ?? getDefaultLocale(), { data: { settings: defaults } });
   }
   const settings = await Settings.findOne().lean();
   const normalized = normalizeSettings(settings as Record<string, unknown> | null);
-  sendResponse(res, req.locale, { data: { settings: normalized } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { data: { settings: normalized } });
 });
 
 export const updateSettings = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
-  const updates = req.body;
+  const updates = req.body as Record<string, unknown>;
   const toSet: Record<string, unknown> = {};
   if (updates.storeNameEn !== undefined || updates.storeNameAr !== undefined) {
     toSet.storeName = {
@@ -165,9 +166,10 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.logo !== undefined) toSet.logo = String(updates.logo);
   if (updates.instaPayNumber !== undefined) toSet.instaPayNumber = String(updates.instaPayNumber);
   if (updates.paymentMethods !== undefined) {
+    const pm = updates.paymentMethods as Record<string, unknown>;
     toSet.paymentMethods = {
-      cod: Boolean(updates.paymentMethods?.cod),
-      instaPay: Boolean(updates.paymentMethods?.instaPay)
+      cod: Boolean(pm?.cod),
+      instaPay: Boolean(pm?.instaPay)
     };
   }
   if (updates.lowStockThreshold !== undefined) {
@@ -189,10 +191,11 @@ export const updateSettings = asyncHandler(async (req, res) => {
       url: String(item.url ?? "").trim()
     })).filter((item: { url: string }) => item.url);
   }
-  if (updates.socialLinks !== undefined && typeof updates.socialLinks === "object") {
+  if (updates.socialLinks !== undefined && updates.socialLinks !== null && typeof updates.socialLinks === "object") {
+    const sl = updates.socialLinks as Record<string, unknown>;
     toSet.socialLinks = {
-      facebook: String(updates.socialLinks.facebook ?? "").trim(),
-      instagram: String(updates.socialLinks.instagram ?? "").trim()
+      facebook: String(sl.facebook ?? "").trim(),
+      instagram: String(sl.instagram ?? "").trim()
     };
   }
   if (updates.newsletterEnabled !== undefined) toSet.newsletterEnabled = Boolean(updates.newsletterEnabled);
@@ -217,10 +220,18 @@ export const updateSettings = asyncHandler(async (req, res) => {
         return entry;
       })
       .filter((item: { image: string; url: string }) => item.image || item.url);
-    toSet.homeCollections = items.sort((a: { order: number }, b: { order: number }) => a.order - b.order);
+    // Remove duplicates by url (keep first occurrence per url)
+    const seen = new Set<string>();
+    const deduped = items.filter((item: { url: string }) => {
+      const key = item.url || "_empty_";
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    toSet.homeCollections = deduped.sort((a: { order: number }, b: { order: number }) => a.order - b.order);
   }
   if (updates.hero !== undefined && typeof updates.hero === "object") {
-    const h = updates.hero;
+    const h = updates.hero as Record<string, unknown>;
     const images = Array.isArray(h.images) ? h.images.map((x: unknown) => String(x ?? "").trim()).filter(Boolean) : [];
     const videos = Array.isArray(h.videos) ? h.videos.map((x: unknown) => String(x ?? "").trim()).filter(Boolean) : [];
     toSet.hero = {
@@ -260,16 +271,16 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.ourCollectionSectionVideos !== undefined && Array.isArray(updates.ourCollectionSectionVideos)) {
     toSet.ourCollectionSectionVideos = updates.ourCollectionSectionVideos.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
   }
-  if (updates.announcementBar !== undefined && typeof updates.announcementBar === "object") {
-    const ab = updates.announcementBar;
+  if (updates.announcementBar !== undefined && updates.announcementBar !== null && typeof updates.announcementBar === "object") {
+    const ab = updates.announcementBar as Record<string, unknown>;
     toSet.announcementBar = {
       text: { en: String(ab.textEn ?? "").trim(), ar: String(ab.textAr ?? "").trim() },
       enabled: Boolean(ab.enabled),
       backgroundColor: String(ab.backgroundColor ?? DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND).trim()
     };
   }
-  if (updates.promoBanner !== undefined && typeof updates.promoBanner === "object") {
-    const pb = updates.promoBanner;
+  if (updates.promoBanner !== undefined && updates.promoBanner !== null && typeof updates.promoBanner === "object") {
+    const pb = updates.promoBanner as Record<string, unknown>;
     toSet.promoBanner = {
       enabled: Boolean(pb.enabled),
       image: String(pb.image ?? "").trim(),
@@ -314,22 +325,23 @@ export const updateSettings = asyncHandler(async (req, res) => {
     const v = String(updates.orderNotificationEmail ?? "").trim().toLowerCase();
     toSet.orderNotificationEmail = v || "";
   }
-  if (updates.aiAssistant !== undefined && typeof updates.aiAssistant === "object") {
-    const ai = updates.aiAssistant;
+  if (updates.aiAssistant !== undefined && updates.aiAssistant !== null && typeof updates.aiAssistant === "object") {
+    const ai = updates.aiAssistant as Record<string, unknown>;
+    const greeting = ai.greeting as Record<string, unknown> | undefined;
     toSet.aiAssistant = {
       enabled: Boolean(ai.enabled),
       geminiApiKey: String(ai.geminiApiKey ?? "").trim(),
       assistantName: String(ai.assistantName ?? "alnoon-admin").trim() || "alnoon-admin",
       greeting: {
-        en: String(ai.greetingEn ?? ai.greeting?.en ?? "").trim(),
-        ar: String(ai.greetingAr ?? ai.greeting?.ar ?? "").trim()
+        en: String(ai.greetingEn ?? greeting?.en ?? "").trim(),
+        ar: String(ai.greetingAr ?? greeting?.ar ?? "").trim()
       },
       systemPrompt: String(ai.systemPrompt ?? "").trim(),
       suggestedQuestions: Array.isArray(ai.suggestedQuestions)
-        ? ai.suggestedQuestions.map((q: { en?: string; ar?: string }) => ({
+        ? (ai.suggestedQuestions as { en?: string; ar?: string }[]).map((q) => ({
           en: String(q.en ?? "").trim(),
           ar: String(q.ar ?? "").trim()
-        })).filter((q: { en: string; ar: string }) => q.en || q.ar)
+        })).filter((q) => q.en || q.ar)
         : []
     };
   }
@@ -347,7 +359,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
     { $set: toSet },
     { new: true, upsert: true }
   ).lean();
-  sendResponse(res, req.locale, { message: "success.settings.updated", data: { settings } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message: "success.settings.updated", data: { settings } });
 });
 
 /** Send a test "New order" email to the configured notification address (or admin). */
@@ -376,7 +388,7 @@ export const sendTestOrderEmail = asyncHandler(async (req, res) => {
   if (!result.ok) {
     throw new ApiError(503, result.error || "Email could not be sent.", { code: "errors.settings.email_send_failed" });
   }
-  sendResponse(res, req.locale, { message: "success.settings.test_email_sent", data: { to } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message: "success.settings.test_email_sent", data: { to } });
 });
 
 export const uploadLogo = asyncHandler(async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -385,7 +397,7 @@ export const uploadLogo = asyncHandler(async (req: Request, res: Response, _next
   if (!file) throw new ApiError(400, "No image file uploaded", { code: "errors.upload.no_image" });
   const pathUrl = logoPath(file.filename);
   await Settings.findOneAndUpdate({}, { $set: { logo: pathUrl } }, { new: true, upsert: true });
-  sendResponse(res, req.locale, { message: "success.settings.logo_uploaded", data: { logo: pathUrl } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message: "success.settings.logo_uploaded", data: { logo: pathUrl } });
 });
 
 /**
@@ -402,7 +414,7 @@ export const uploadHomePageMedia = asyncHandler(async (req: Request, res: Respon
     });
   }
 
-  const mediaType = req.query.type as string || 'section';
+  const mediaType = (req.query?.type as string) || 'section';
   const isVideo = file.mimetype.startsWith('video/');
 
   let pathUrl: string;
@@ -435,42 +447,42 @@ export const uploadHomePageMedia = asyncHandler(async (req: Request, res: Respon
   const message = isVideo ? "success.settings.video_uploaded" : "success.settings.image_uploaded";
   const dataKey = isVideo ? 'video' : 'image';
 
-  sendResponse(res, req.locale, { message, data: { [dataKey]: pathUrl } });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { message, data: { [dataKey]: pathUrl } });
 });
 
 // Backward compatibility - keep old endpoints but delegate to unified handler
 /** @deprecated Use uploadHomePageMedia with type=collection */
 export const uploadCollectionImage = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  req.query.type = 'collection';
-  return uploadHomePageMedia(req, res, next);
+  (req.query ??= {}).type = 'collection';
+  return uploadHomePageMedia(req as Parameters<typeof uploadHomePageMedia>[0], res, next);
 });
 
 /** @deprecated Use uploadHomePageMedia with type=hero */
 export const uploadHeroImage = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  req.query.type = 'hero';
-  return uploadHomePageMedia(req, res, next);
+  (req.query ??= {}).type = 'hero';
+  return uploadHomePageMedia(req as Parameters<typeof uploadHomePageMedia>[0], res, next);
 });
 
 /** @deprecated Use uploadHomePageMedia with type=section */
 export const uploadSectionImage = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  req.query.type = 'section';
-  return uploadHomePageMedia(req, res, next);
+  (req.query ??= {}).type = 'section';
+  return uploadHomePageMedia(req as Parameters<typeof uploadHomePageMedia>[0], res, next);
 });
 
 /** @deprecated Use uploadHomePageMedia with type=hero */
 export const uploadHeroVideo = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  req.query.type = 'hero';
-  return uploadHomePageMedia(req, res, next);
+  (req.query ??= {}).type = 'hero';
+  return uploadHomePageMedia(req as Parameters<typeof uploadHomePageMedia>[0], res, next);
 });
 
 /** @deprecated Use uploadHomePageMedia with type=section */
 export const uploadSectionVideo = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  req.query.type = 'section';
-  return uploadHomePageMedia(req, res, next);
+  (req.query ??= {}).type = 'section';
+  return uploadHomePageMedia(req as Parameters<typeof uploadHomePageMedia>[0], res, next);
 });
 
 /** @deprecated Use uploadHomePageMedia with type=promo */
 export const uploadPromoImage = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  req.query.type = 'promo';
-  return uploadHomePageMedia(req, res, next);
+  (req.query ??= {}).type = 'promo';
+  return uploadHomePageMedia(req as Parameters<typeof uploadHomePageMedia>[0], res, next);
 });

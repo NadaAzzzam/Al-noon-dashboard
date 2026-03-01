@@ -108,4 +108,11 @@ describe("Products API", () => {
       expect([404, 503]).toContain(res.status);
     });
   });
+
+  describe("POST /api/products/videos", () => {
+    it("returns 401 without auth", async () => {
+      const res = await request(app).post("/api/products/videos");
+      expect(res.status).toBe(401);
+    });
+  });
 });

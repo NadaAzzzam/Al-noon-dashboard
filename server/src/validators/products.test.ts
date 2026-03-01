@@ -109,6 +109,22 @@ describe("products validators", () => {
       expect(productSchema.safeParse({ body: { ...validBody, hoverMediaType: "invalid" } }).success).toBe(false);
     });
 
+    it("accepts videos array up to 10 items", () => {
+      const videos = Array(10).fill("/uploads/video.mp4");
+      expect(productSchema.safeParse({ body: { ...validBody, videos } }).success).toBe(true);
+    });
+
+    it("rejects videos array with more than 10 items", () => {
+      const videos = Array(11).fill("/uploads/video.mp4");
+      expect(productSchema.safeParse({ body: { ...validBody, videos } }).success).toBe(false);
+    });
+
+    it("accepts defaultMediaType video and hoverMediaType video with videos", () => {
+      expect(productSchema.safeParse({
+        body: { ...validBody, videos: ["/v.mp4"], defaultMediaType: "video", hoverMediaType: "video" },
+      }).success).toBe(true);
+    });
+
     it("accepts optional localized and SEO fields", () => {
       expect(productSchema.safeParse({
         body: {

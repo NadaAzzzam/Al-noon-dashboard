@@ -6,7 +6,7 @@ import { Product } from "../models/Product.js";
 import { isDbConnected } from "../config/db.js";
 import { withProductMedia } from "../types/productMedia.js";
 import type { ProductMedia } from "../types/productMedia.js";
-import { t } from "../i18n.js";
+import { t, getDefaultLocale } from "../i18n.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
@@ -67,7 +67,7 @@ function toStoreProductShape(p: Record<string, unknown>): {
     category: category
       ? { _id: category._id, name: category.name }
       : { _id: null, name: { en: "", ar: "" } },
-    price: Number(p.price) ?? 0,
+    price: Number(p.price) || 0,
     ...(p.discountPrice != null && p.discountPrice !== "" ? { discountPrice: Number(p.discountPrice) } : {}),
     media: p.media as ProductMedia,
     sizes: Array.isArray(p.sizes) ? (p.sizes as string[]) : [],
@@ -143,7 +143,7 @@ function normalizeHero(hero: { image?: string; images?: string[]; videos?: strin
 /** Public: single home page API – returns all sections (store meta, hero, newArrivals products, collections, feedbacks). */
 export const getStoreHome = asyncHandler(async (req, res) => {
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, {
+    return sendResponse(res, req.locale ?? getDefaultLocale(), {
       data: {
         home: {
           store: { storeName: storeDefaults.storeName, logo: storeDefaults.logo, quickLinks: storeDefaults.quickLinks, socialLinks: storeDefaults.socialLinks, newsletterEnabled: storeDefaults.newsletterEnabled, discountCodeSupported: true },
@@ -162,7 +162,15 @@ export const getStoreHome = asyncHandler(async (req, res) => {
   }
   const settings = await Settings.findOne().lean();
   const s = settings ?? null;
-  const homeCollections = (s?.homeCollections ?? storeDefaults.homeCollections).sort((a, b) => a.order - b.order);
+  const homeCollectionsRaw = (s?.homeCollections ?? storeDefaults.homeCollections).sort((a, b) => a.order - b.order);
+  // Remove duplicates by url (keep first occurrence)
+  const seenUrls = new Set<string>();
+  const homeCollections = homeCollectionsRaw.filter((c: { url?: string }) => {
+    const key = (c.url ?? "").trim() || "_empty_";
+    if (seenUrls.has(key)) return false;
+    seenUrls.add(key);
+    return true;
+  });
   const displayLimit = s?.homeCollectionsDisplayLimit ?? storeDefaults.homeCollectionsDisplayLimit;
   const collectionsToShow = displayLimit > 0 ? homeCollections.slice(0, displayLimit) : homeCollections;
   const hero = normalizeHero(s?.hero as { image?: string; images?: string[]; videos?: string[] } | null);
@@ -194,12 +202,14 @@ export const getStoreHome = asyncHandler(async (req, res) => {
   const announcementBar = (s as { announcementBar?: { text: { en: string; ar: string }; enabled: boolean; backgroundColor: string } })?.announcementBar ?? { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND };
   const promoBanner = (s as { promoBanner?: { enabled: boolean; image: string; title: { en: string; ar: string }; subtitle: { en: string; ar: string }; ctaLabel: { en: string; ar: string }; ctaUrl: string } })?.promoBanner ?? { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" };
 
-  const newArrivalsImages = Array.isArray((s as { newArrivalsSectionImages?: string[] })?.newArrivalsSectionImages)
+  const newArrivalsImagesRaw = Array.isArray((s as { newArrivalsSectionImages?: string[] })?.newArrivalsSectionImages)
     ? (s as { newArrivalsSectionImages: string[] }).newArrivalsSectionImages
     : ((s as unknown as { newArrivalsSectionImage?: string })?.newArrivalsSectionImage ? [(s as unknown as { newArrivalsSectionImage: string }).newArrivalsSectionImage] : storeDefaults.newArrivalsSectionImages);
-  const newArrivalsVideos = Array.isArray((s as { newArrivalsSectionVideos?: string[] })?.newArrivalsSectionVideos)
+  const newArrivalsImages = [...new Set(newArrivalsImagesRaw)];
+  const newArrivalsVideosRaw = Array.isArray((s as { newArrivalsSectionVideos?: string[] })?.newArrivalsSectionVideos)
     ? (s as { newArrivalsSectionVideos: string[] }).newArrivalsSectionVideos
     : storeDefaults.newArrivalsSectionVideos;
+  const newArrivalsVideos = [...new Set(newArrivalsVideosRaw)];
   const ourCollectionImages = Array.isArray((s as { ourCollectionSectionImages?: string[] })?.ourCollectionSectionImages)
     ? (s as { ourCollectionSectionImages: string[] }).ourCollectionSectionImages
     : ((s as unknown as { ourCollectionSectionImage?: string })?.ourCollectionSectionImage ? [(s as unknown as { ourCollectionSectionImage: string }).ourCollectionSectionImage] : storeDefaults.ourCollectionSectionImages);
@@ -212,7 +222,7 @@ export const getStoreHome = asyncHandler(async (req, res) => {
   const advanced = s?.advancedSettings as { discountCodeSupported?: boolean } | undefined;
   const discountCodeSupported = advanced?.discountCodeSupported ?? true;
 
-  sendResponse(res, req.locale, {
+  sendResponse(res, req.locale ?? getDefaultLocale(), {
     data: {
       home: {
         store: {
@@ -247,7 +257,7 @@ export const getStoreHome = asyncHandler(async (req, res) => {
 export const getStoreSettings = asyncHandler(async (req, res) => {
   const currencyDefaults = { currency: "EGP", currencySymbol: "LE" };
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, {
+    return sendResponse(res, req.locale ?? getDefaultLocale(), {
       data: {
         settings: {
           storeName: storeDefaults.storeName,
@@ -280,7 +290,7 @@ export const getStoreSettings = asyncHandler(async (req, res) => {
   const currency = (advanced?.currency && String(advanced.currency).trim()) || currencyDefaults.currency;
   const currencySymbol = (advanced?.currencySymbol && String(advanced.currencySymbol).trim()) || currencyDefaults.currencySymbol;
   const discountCodeSupported = advanced?.discountCodeSupported ?? true;
-  sendResponse(res, req.locale, {
+  sendResponse(res, req.locale ?? getDefaultLocale(), {
     data: {
       settings: { storeName, logo, announcementBar, socialLinks, newsletterEnabled, contentPages, currency, currencySymbol, discountCodeSupported }
     }
@@ -291,20 +301,20 @@ const CONTENT_SLUGS = ["privacy", "return-policy", "shipping-policy", "about", "
 
 /** Public: get one content page by slug for storefront (e.g. /policy/privacy). */
 export const getPageBySlug = asyncHandler(async (req, res) => {
-  const slug = String(req.params.slug ?? "").trim().toLowerCase();
+  const slug = String(req.params?.slug ?? "").trim().toLowerCase();
   if (!CONTENT_SLUGS.includes(slug as typeof CONTENT_SLUGS[number])) {
     throw new ApiError(404, "Page not found", { code: "errors.page.not_found" });
   }
   if (!isDbConnected()) {
-    return sendResponse(res, req.locale, { data: { page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } } });
+    return sendResponse(res, req.locale ?? getDefaultLocale(), { data: { page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } } });
   }
   const settings = await Settings.findOne().lean();
   const list = settings?.contentPages ?? [];
   const page = list.find((p: { slug: string }) => p.slug === slug);
   if (!page) {
-    return sendResponse(res, req.locale, { data: { page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } } });
+    return sendResponse(res, req.locale ?? getDefaultLocale(), { data: { page: { slug, title: { en: "", ar: "" }, content: { en: "", ar: "" } } } });
   }
-  sendResponse(res, req.locale, {
+  sendResponse(res, req.locale ?? getDefaultLocale(), {
     data: {
       page: {
         slug: page.slug,
@@ -318,23 +328,25 @@ export const getPageBySlug = asyncHandler(async (req, res) => {
 /** Public: submit Contact Us form (name, email, phone, comment). */
 export const submitContact = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Service temporarily unavailable", { code: "errors.common.db_unavailable" });
-  const name = String(req.body?.name ?? "").trim();
-  const email = String(req.body?.email ?? "").trim().toLowerCase();
-  const phone = String(req.body?.phone ?? "").trim();
-  const comment = String(req.body?.comment ?? "").trim();
+  const body = req.body as Record<string, unknown>;
+  const name = String(body?.name ?? "").trim();
+  const email = String(body?.email ?? "").trim().toLowerCase();
+  const phone = String(body?.phone ?? "").trim();
+  const comment = String(body?.comment ?? "").trim();
   if (!name) throw new ApiError(400, "Name is required", { code: "errors.contact.name_required" });
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new ApiError(400, "Valid email is required", { code: "errors.contact.email_required" });
   }
   if (!comment) throw new ApiError(400, "Comment is required", { code: "errors.contact.comment_required" });
   await ContactSubmission.create({ name, email, phone: phone || undefined, comment });
-  sendResponse(res, req.locale, { status: 201, message: "success.contact.submitted" });
+  sendResponse(res, req.locale ?? getDefaultLocale(), { status: 201, message: "success.contact.submitted" });
 });
 
 /** Public: subscribe to newsletter (e-commerce footer form). */
 export const subscribeNewsletter = asyncHandler(async (req, res) => {
   if (!isDbConnected()) throw new ApiError(503, "Service temporarily unavailable", { code: "errors.common.db_unavailable" });
-  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  const body = req.body as Record<string, unknown>;
+  const email = String(body?.email ?? "").trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new ApiError(400, "Valid email is required", { code: "errors.contact.email_required" });
   }
@@ -344,12 +356,12 @@ export const subscribeNewsletter = asyncHandler(async (req, res) => {
   }
   try {
     await Subscriber.create({ email });
-    sendResponse(res, req.locale, { status: 201, message: "success.newsletter.subscribed" });
+    sendResponse(res, req.locale ?? getDefaultLocale(), { status: 201, message: "success.newsletter.subscribed" });
   } catch (err: unknown) {
     if (err && typeof err === "object" && "code" in err && err.code === 11000) {
       res.status(409).json({
         success: false,
-        message: t(req.locale, "errors.newsletter.already_subscribed"),
+        message: t(req.locale ?? getDefaultLocale(), "errors.newsletter.already_subscribed"),
         code: "CONFLICT",
         data: null,
         alreadySubscribed: true

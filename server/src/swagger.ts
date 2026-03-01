@@ -34,6 +34,17 @@ function buildPaths() {
     },
   };
 
+  paths["/api/store/settings"] = {
+    get: {
+      operationId: "getStoreSettings",
+      tags: ["Store"],
+      summary: "Get storefront-safe settings (no auth). Store name, logo, announcement bar, social links, newsletter flag, content page slugs, currency.",
+      responses: {
+        "200": { description: "Public store settings for e-commerce frontend", ...refSchema("StoreSettingsResponse") },
+      },
+    },
+  };
+
   paths["/api/store/page/{slug}"] = {
     get: {
       operationId: "getPageBySlug",
@@ -72,6 +83,7 @@ function buildPaths() {
       responses: {
         "201": { description: "Contact form submitted", ...refSchema("MessageDataResponse") },
         "400": errDesc("Validation error"),
+        "503": errDesc("Service temporarily unavailable (DB down)"),
       },
     },
   };
@@ -92,8 +104,9 @@ function buildPaths() {
       },
       responses: {
         "201": { description: "Subscribed", ...refSchema("MessageDataResponse") },
-        "400": errDesc("Validation error"),
+        "400": errDesc("Validation error (invalid email or newsletter disabled)"),
         "409": { description: "Email already subscribed", ...refSchema("NewsletterConflictResponse") },
+        "503": errDesc("Service temporarily unavailable (DB down)"),
       },
     },
   };
@@ -2018,6 +2031,7 @@ export const swaggerSpec = {
                       quickLinks: { type: "array", items: { type: "object" } },
                       socialLinks: { type: "object" },
                       newsletterEnabled: { type: "boolean" },
+                      discountCodeSupported: { type: "boolean", description: "Whether discount codes are enabled at checkout" },
                     },
                   },
                   hero: { type: "object", description: "Hero section config with images/videos, title, subtitle, CTA" },
@@ -2026,7 +2040,7 @@ export const swaggerSpec = {
                   newArrivals: { type: "array", items: { $ref: "#/components/schemas/ProductListItem" }, description: "New-arrival products with media" },
                   newArrivalsSectionImages: { type: "array", items: { type: "string" }, description: "Section media for New Arrivals block" },
                   newArrivalsSectionVideos: { type: "array", items: { type: "string" } },
-                  homeCollections: { type: "array", items: { type: "object" }, description: "Home page collections/categories" },
+                  homeCollections: { type: "array", items: { type: "object" }, description: "Home page collections/categories. Duplicates by url are deduplicated (first occurrence kept)." },
                   homeCollectionsDisplayLimit: { type: "integer" },
                   ourCollectionSectionImages: { type: "array", items: { type: "string" }, description: "Section media for Our Collection block" },
                   ourCollectionSectionVideos: { type: "array", items: { type: "string" } },
@@ -2035,6 +2049,32 @@ export const swaggerSpec = {
                   feedbacks: { type: "array", items: { type: "object" }, description: "Approved customer feedback/reviews" },
                   announcementBar: { type: "object", description: "Top announcement bar config" },
                   promoBanner: { type: "object", description: "Promotional banner config" },
+                },
+              },
+            },
+          },
+        },
+      },
+      StoreSettingsResponse: {
+        type: "object",
+        description: "Public store settings (GET /api/store/settings). No auth required.",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "object",
+            properties: {
+              settings: {
+                type: "object",
+                properties: {
+                  storeName: { type: "object", properties: { en: { type: "string" }, ar: { type: "string" } } },
+                  logo: { type: "string" },
+                  announcementBar: { type: "object", description: "Top announcement bar config" },
+                  socialLinks: { type: "object" },
+                  newsletterEnabled: { type: "boolean" },
+                  contentPages: { type: "array", items: { type: "object", properties: { slug: { type: "string" }, title: { type: "object" } } } },
+                  currency: { type: "string", example: "EGP" },
+                  currencySymbol: { type: "string", example: "LE" },
+                  discountCodeSupported: { type: "boolean" },
                 },
               },
             },
