@@ -34,6 +34,11 @@ describe("Settings API (integration)", () => {
       const uniqueUrls = [...new Set(urls)];
       expect(urls.length).toBe(uniqueUrls.length);
       expect(saved.filter((c: { url?: string }) => c.url === "/collection/abayas").length).toBe(1);
+
+      const dbSettings = await Settings.findOne().lean();
+      expect(dbSettings?.homeCollections).toBeDefined();
+      const dbUrls = (dbSettings?.homeCollections ?? []).map((c: { url?: string }) => c.url);
+      expect(dbUrls.length).toBe([...new Set(dbUrls)].length);
     });
   });
 });
