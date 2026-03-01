@@ -39,6 +39,7 @@ export const updateSettingsSchema = z.object({
       instagram: z.string().trim().max(500).optional()
     }).optional(),
     newsletterEnabled: z.boolean().optional(),
+    discountCodeSupported: z.boolean().optional(),
     homeCollections: z.array(homeCollectionSchema).max(20).optional(),
     hero: z.object({
       images: z.array(z.string().max(2000)).max(10).optional(),
@@ -52,12 +53,6 @@ export const updateSettingsSchema = z.object({
       ctaUrl: z.string().trim().max(2000).optional()
     }).optional(),
     heroEnabled: z.boolean().optional(),
-    newArrivalsLimit: z.number().int().min(1).max(24).optional(),
-    newArrivalsSectionImages: z.array(z.string().max(2000)).max(10).optional(),
-    newArrivalsSectionVideos: z.array(z.string().max(2000)).max(5).optional(),
-    homeCollectionsDisplayLimit: z.number().int().min(0).optional(),
-    ourCollectionSectionImages: z.array(z.string().max(2000)).max(10).optional(),
-    ourCollectionSectionVideos: z.array(z.string().max(2000)).max(5).optional(),
     featuredProductsEnabled: z.boolean().optional(),
     featuredProductsLimit: z.number().int().min(1).max(24).optional(),
     feedbackSectionEnabled: z.boolean().optional(),
@@ -79,6 +74,8 @@ export const updateSettingsSchema = z.object({
       greetingAr: z.string().trim().max(500).optional(),
       systemPrompt: z.string().max(10000).optional(),
       suggestedQuestions: z.array(z.object({ en: z.string().trim().max(200), ar: z.string().trim().max(200) })).max(10).optional()
-    }).optional()
+    }).optional(),
+    currency: z.string().trim().max(10).optional(),
+    currencySymbol: z.string().trim().max(10).optional()
   })
 });

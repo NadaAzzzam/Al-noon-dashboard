@@ -29,15 +29,10 @@ const defaults = {
   quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
+  discountCodeSupported: true,
   homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: string }[],
   hero: heroDefault,
   heroEnabled: true,
-  newArrivalsLimit: 8,
-  newArrivalsSectionImages: [] as string[],
-  newArrivalsSectionVideos: [] as string[],
-  homeCollectionsDisplayLimit: 0,
-  ourCollectionSectionImages: [] as string[],
-  ourCollectionSectionVideos: [] as string[],
   announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND },
   promoBanner: { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" },
   featuredProductsEnabled: false,
@@ -70,14 +65,6 @@ function normalizeSettings(raw: Record<string, unknown> | null): Record<string, 
     if (!Array.isArray(hero.videos)) hero.videos = [];
     delete (hero as Record<string, unknown>).image;
   }
-  if (!Array.isArray(s.newArrivalsSectionImages)) {
-    s.newArrivalsSectionImages = (s.newArrivalsSectionImage && String(s.newArrivalsSectionImage)) ? [String(s.newArrivalsSectionImage)] : [];
-  }
-  if (!Array.isArray(s.newArrivalsSectionVideos)) s.newArrivalsSectionVideos = [];
-  if (!Array.isArray(s.ourCollectionSectionImages)) {
-    s.ourCollectionSectionImages = (s.ourCollectionSectionImage && String(s.ourCollectionSectionImage)) ? [String(s.ourCollectionSectionImage)] : [];
-  }
-  if (!Array.isArray(s.ourCollectionSectionVideos)) s.ourCollectionSectionVideos = [];
   if (s && typeof s === "object" && !s.aiAssistant) {
     (s as Record<string, unknown>).aiAssistant = defaults.aiAssistant;
   }
@@ -199,6 +186,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
     };
   }
   if (updates.newsletterEnabled !== undefined) toSet.newsletterEnabled = Boolean(updates.newsletterEnabled);
+  if (updates.discountCodeSupported !== undefined) toSet.discountCodeSupported = Boolean(updates.discountCodeSupported);
   if (updates.homeCollections !== undefined && Array.isArray(updates.homeCollections)) {
     const items = updates.homeCollections
       .map((item: { titleEn?: string; titleAr?: string; image?: string; hoverImage?: string; video?: string; url?: string; order?: number; categoryId?: string }, idx: number) => {
@@ -253,24 +241,6 @@ export const updateSettings = asyncHandler(async (req, res) => {
     };
   }
   if (updates.heroEnabled !== undefined) toSet.heroEnabled = Boolean(updates.heroEnabled);
-  if (updates.newArrivalsLimit !== undefined) {
-    toSet.newArrivalsLimit = Math.max(1, Math.min(24, Math.floor(Number(updates.newArrivalsLimit))));
-  }
-  if (updates.newArrivalsSectionImages !== undefined && Array.isArray(updates.newArrivalsSectionImages)) {
-    toSet.newArrivalsSectionImages = updates.newArrivalsSectionImages.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
-  }
-  if (updates.newArrivalsSectionVideos !== undefined && Array.isArray(updates.newArrivalsSectionVideos)) {
-    toSet.newArrivalsSectionVideos = updates.newArrivalsSectionVideos.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
-  }
-  if (updates.homeCollectionsDisplayLimit !== undefined) {
-    toSet.homeCollectionsDisplayLimit = Math.max(0, Math.floor(Number(updates.homeCollectionsDisplayLimit)));
-  }
-  if (updates.ourCollectionSectionImages !== undefined && Array.isArray(updates.ourCollectionSectionImages)) {
-    toSet.ourCollectionSectionImages = updates.ourCollectionSectionImages.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
-  }
-  if (updates.ourCollectionSectionVideos !== undefined && Array.isArray(updates.ourCollectionSectionVideos)) {
-    toSet.ourCollectionSectionVideos = updates.ourCollectionSectionVideos.map((x: unknown) => String(x ?? "").trim()).filter(Boolean);
-  }
   if (updates.announcementBar !== undefined && updates.announcementBar !== null && typeof updates.announcementBar === "object") {
     const ab = updates.announcementBar as Record<string, unknown>;
     toSet.announcementBar = {

@@ -38,16 +38,6 @@ export interface SettingsDocument {
   };
   /** Whether the hero section is shown on the storefront. */
   heroEnabled: boolean;
-  /** Number of products to show in "New Arrivals" on home page. */
-  newArrivalsLimit: number;
-  /** Section media for "New Arrivals" block on home page. */
-  newArrivalsSectionImages: string[];
-  newArrivalsSectionVideos: string[];
-  /** Max number of collection cards to show in "Our Collection" on home (0 = show all). */
-  homeCollectionsDisplayLimit: number;
-  /** Section media for "Our Collection" block on home page. */
-  ourCollectionSectionImages: string[];
-  ourCollectionSectionVideos: string[];
   /** Announcement bar text shown at top of storefront. backgroundColor: CSS color or gradient (e.g. linear-gradient). */
   announcementBar: { text: LocalizedString; enabled: boolean; backgroundColor: string };
   /** Promotional banner for sales / seasonal campaigns. */
@@ -141,12 +131,6 @@ const settingsSchema = new Schema<SettingsDocument>(
       ctaUrl: { type: String, default: "" }
     },
     heroEnabled: { type: Boolean, default: true },
-    newArrivalsLimit: { type: Number, default: 8 },
-    newArrivalsSectionImages: { type: [String], default: [] },
-    newArrivalsSectionVideos: { type: [String], default: [] },
-    homeCollectionsDisplayLimit: { type: Number, default: 0 },
-    ourCollectionSectionImages: { type: [String], default: [] },
-    ourCollectionSectionVideos: { type: [String], default: [] },
     announcementBar: {
       text: { type: localizedSchema, default: () => ({ en: "", ar: "" }) },
       enabled: { type: Boolean, default: false },
