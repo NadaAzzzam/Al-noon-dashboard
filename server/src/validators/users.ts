@@ -2,38 +2,44 @@ import { z } from "zod";
 
 export const userParamsSchema = z.object({
   params: z.object({
-    id: z.string().min(1)
+    id: z.string().trim().min(1, "User ID is required")
   })
 });
 
 export const updateRoleSchema = z.object({
   body: z.object({
-    role: z.string().min(1)
+    /** Required: Role ID or key. */
+    role: z.string().trim().min(1, "Role is required")
   }),
   params: z.object({
-    id: z.string().min(1)
+    id: z.string().trim().min(1, "User ID is required")
   })
 });
 
 export const createUserSchema = z.object({
   body: z.object({
-    name: z.string().min(1, "Name is required").max(100),
-    email: z.string().email("Invalid email"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    role: z.string().min(1, "Role is required"),
-    departmentId: z.string().optional(),
+    /** Required: Full name. */
+    name: z.string().trim().min(1, "Name is required").max(100, "Name must be at most 100 characters"),
+    /** Required: Valid email. */
+    email: z.string().trim().toLowerCase().email("Invalid email"),
+    /** Required: Password (min 6 chars). */
+    password: z.string().min(6, "Password must be at least 6 characters").max(128, "Password must be at most 128 characters"),
+    /** Required: Role ID or key. */
+    role: z.string().trim().min(1, "Role is required"),
+    /** Optional: Department ID. */
+    departmentId: z.string().trim().optional(),
   }),
 });
 
 export const updateUserSchema = z.object({
   body: z.object({
-    name: z.string().min(1).max(100).optional(),
-    email: z.string().email().optional(),
-    password: z.string().min(6).optional(),
-    role: z.string().min(1).optional(),
+    name: z.string().trim().min(1).max(100).optional(),
+    email: z.string().trim().toLowerCase().email().optional(),
+    password: z.string().min(6).max(128).optional(),
+    role: z.string().trim().min(1).optional(),
     departmentId: z.string().nullable().optional(),
   }),
   params: z.object({
-    id: z.string().min(1)
+    id: z.string().trim().min(1, "User ID is required")
   })
 });

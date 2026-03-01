@@ -10,10 +10,10 @@ export interface ContactSubmissionDocument {
 
 const contactSubmissionSchema = new Schema<ContactSubmissionDocument>(
   {
-    name: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true, minlength: 1, maxlength: 200 },
     email: { type: String, required: true, lowercase: true, trim: true },
-    phone: { type: String, default: "", trim: true },
-    comment: { type: String, required: true, trim: true }
+    phone: { type: String, default: "", trim: true, maxlength: 50 },
+    comment: { type: String, required: true, trim: true, minlength: 1, maxlength: 5000 }
   },
   { timestamps: true }
 );

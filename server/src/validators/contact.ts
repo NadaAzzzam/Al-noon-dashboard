@@ -2,10 +2,14 @@ import { z } from "zod";
 
 export const submitContactSchema = z.object({
   body: z.object({
-    name: z.string().min(1, "Name is required").max(200),
-    email: z.string().email("Valid email is required"),
-    phone: z.string().max(50).optional(),
-    comment: z.string().min(1, "Comment is required").max(5000)
+    /** Required: Sender name. */
+    name: z.string().trim().min(1, "Name is required").max(200, "Name must be at most 200 characters"),
+    /** Required: Valid email for reply. */
+    email: z.string().trim().toLowerCase().email("Valid email is required"),
+    /** Optional: Phone number. */
+    phone: z.string().trim().max(50).optional(),
+    /** Required: Message content. */
+    comment: z.string().trim().min(1, "Comment is required").max(5000, "Comment must be at most 5000 characters")
   })
 });
 

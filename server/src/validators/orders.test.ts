@@ -14,6 +14,11 @@ const validGuestOrder = {
   guestEmail: "john@example.com",
 };
 
+const minimalOrderWithShipping = {
+  items: [{ product: "507f1f77bcf86cd799439011", quantity: 1, price: 50 }],
+  shippingAddress: { address: "123 St", city: "Cairo" },
+};
+
 describe("orders validators", () => {
   describe("orderSchema", () => {
     // === Items ===
@@ -28,6 +33,7 @@ describe("orders validators", () => {
     it("rejects item with empty product", () => {
       expect(orderSchema.safeParse({
         body: {
+          ...minimalOrderWithShipping,
           items: [{ product: "", quantity: 1, price: 50 }],
           guestName: "John",
           guestEmail: "john@test.com",
@@ -38,6 +44,7 @@ describe("orders validators", () => {
     it("rejects item with zero quantity", () => {
       expect(orderSchema.safeParse({
         body: {
+          ...minimalOrderWithShipping,
           items: [{ product: "507f1f77bcf86cd799439011", quantity: 0, price: 50 }],
           guestName: "John",
           guestEmail: "john@test.com",
@@ -48,6 +55,7 @@ describe("orders validators", () => {
     it("rejects item with negative price", () => {
       expect(orderSchema.safeParse({
         body: {
+          ...minimalOrderWithShipping,
           items: [{ product: "507f1f77bcf86cd799439011", quantity: 1, price: -10 }],
           guestName: "John",
           guestEmail: "john@test.com",
@@ -58,6 +66,7 @@ describe("orders validators", () => {
     it("rejects item with non-integer quantity", () => {
       expect(orderSchema.safeParse({
         body: {
+          ...minimalOrderWithShipping,
           items: [{ product: "507f1f77bcf86cd799439011", quantity: 1.5, price: 50 }],
           guestName: "John",
           guestEmail: "john@test.com",
@@ -66,20 +75,30 @@ describe("orders validators", () => {
     });
 
     // === Guest fields ===
-    it("accepts minimal guest checkout", () => {
+    it("accepts minimal guest checkout with shipping", () => {
       expect(orderSchema.safeParse({
         body: {
-          items: [{ product: "507f1f77bcf86cd799439011", quantity: 1, price: 50 }],
+          ...minimalOrderWithShipping,
           guestName: "Jane",
           guestEmail: "jane@test.com",
         },
       }).success).toBe(true);
     });
 
-    it("rejects invalid guest email", () => {
+    it("rejects order without shipping address", () => {
       expect(orderSchema.safeParse({
         body: {
           items: [{ product: "507f1f77bcf86cd799439011", quantity: 1, price: 50 }],
+          guestName: "Jane",
+          guestEmail: "jane@test.com",
+        },
+      }).success).toBe(false);
+    });
+
+    it("rejects invalid guest email", () => {
+      expect(orderSchema.safeParse({
+        body: {
+          ...minimalOrderWithShipping,
           guestName: "John",
           guestEmail: "not-an-email",
         },
@@ -154,6 +173,15 @@ describe("orders validators", () => {
           shippingAddress: "123 Main St, Cairo",
         },
       }).success).toBe(true);
+    });
+
+    it("rejects empty shipping address string", () => {
+      expect(orderSchema.safeParse({
+        body: {
+          ...minimalOrderWithShipping,
+          shippingAddress: "",
+        },
+      }).success).toBe(false);
     });
 
     it("rejects structured address with empty address", () => {

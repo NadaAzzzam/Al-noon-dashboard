@@ -58,12 +58,12 @@ function buildPaths() {
           "application/json": {
             schema: {
               type: "object",
-              required: ["email"],
+              required: ["name", "email", "comment"],
               properties: {
-                name: { type: "string" },
-                email: { type: "string", format: "email" },
-                phone: { type: "string" },
-                comment: { type: "string" },
+                name: { type: "string", minLength: 1, maxLength: 200, description: "Required" },
+                email: { type: "string", format: "email", description: "Required" },
+                phone: { type: "string", maxLength: 50, description: "Optional" },
+                comment: { type: "string", minLength: 1, maxLength: 5000, description: "Required" },
               },
             },
           },
@@ -86,7 +86,7 @@ function buildPaths() {
         required: true,
         content: {
           "application/json": {
-            schema: { type: "object", required: ["email"], properties: { email: { type: "string", format: "email" } } },
+            schema: { type: "object", required: ["email"], properties: { email: { type: "string", format: "email", maxLength: 254 } } },
           },
         },
       },
@@ -111,7 +111,10 @@ function buildPaths() {
             schema: {
               type: "object",
               required: ["email", "password"],
-              properties: { email: { type: "string", format: "email" }, password: { type: "string" } },
+              properties: {
+                email: { type: "string", format: "email" },
+                password: { type: "string", minLength: 6, description: "Required, min 6 characters" },
+              },
             },
           },
         },
@@ -137,8 +140,8 @@ function buildPaths() {
               required: ["email", "password", "name"],
               properties: {
                 email: { type: "string", format: "email" },
-                password: { type: "string" },
-                name: { type: "string" },
+                password: { type: "string", minLength: 6, maxLength: 128 },
+                name: { type: "string", minLength: 2, maxLength: 100 },
               },
             },
           },
@@ -243,7 +246,44 @@ function buildPaths() {
       tags: ["Products"],
       summary: "Create product (Admin)",
       security: [{ bearerAuth: [] }],
-      requestBody: { content: { "application/json": { schema: { type: "object" } } } },
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["nameEn", "nameAr", "price", "stock", "category"],
+              properties: {
+                nameEn: { type: "string", minLength: 1, maxLength: 500 },
+                nameAr: { type: "string", minLength: 1, maxLength: 500 },
+                descriptionEn: { type: "string", maxLength: 10000 },
+                descriptionAr: { type: "string", maxLength: 10000 },
+                price: { type: "number", exclusiveMinimum: 0 },
+                discountPrice: { type: "number", exclusiveMinimum: 0 },
+                costPerItem: { type: "number", exclusiveMinimum: 0 },
+                stock: { type: "integer", minimum: 0 },
+                category: { type: "string", minLength: 1 },
+                status: { type: "string", enum: ["ACTIVE", "INACTIVE", "DRAFT"] },
+                isNewArrival: { type: "boolean" },
+                images: { type: "array", items: { type: "string" }, maxItems: 20 },
+                viewImage: { type: "string" },
+                hoverImage: { type: "string" },
+                detailsEn: { type: "string" },
+                detailsAr: { type: "string" },
+                sizes: { type: "array", items: { type: "string" } },
+                colors: { type: "array", items: { type: "string" } },
+                tags: { type: "array", items: { type: "string" } },
+                vendor: { type: "string", maxLength: 200 },
+                slugEn: { type: "string" },
+                slugAr: { type: "string" },
+                metaTitleEn: { type: "string", maxLength: 70 },
+                metaDescriptionEn: { type: "string", maxLength: 160 },
+                weight: { type: "number" },
+                weightUnit: { type: "string", enum: ["g", "kg"] },
+              },
+            },
+          },
+        },
+      },
       responses: {
         "201": { description: "Created product", ...refSchema("ProductResponse") },
         "401": errDesc("Unauthorized"),
@@ -515,21 +555,21 @@ function buildPaths() {
       operationId: "createOrder",
       tags: ["Orders"],
       summary: "Create order (authenticated or guest checkout)",
-      description: "Accepts both old flat fields (guestName, guestEmail, shippingAddress as string) and new Shopify-style structured fields. When new structured fields are present they take priority. Backward compatible.",
+      description: "Required: items and shippingAddress. Guest checkout: also require guestName/guestEmail (or firstName/lastName/email). Logged-in: contact fields can be omitted (filled from account).",
       security: [],
       requestBody: {
         content: {
           "application/json": {
             schema: {
               type: "object",
-              required: ["items"],
+              required: ["items", "shippingAddress"],
               properties: {
-                items: { type: "array", items: { type: "object", properties: { product: { type: "string" }, quantity: { type: "integer" }, price: { type: "number" } } } },
+                items: { type: "array", minItems: 1, items: { type: "object", required: ["product", "quantity", "price"], properties: { product: { type: "string" }, quantity: { type: "integer", minimum: 1 }, price: { type: "number", exclusiveMinimum: 0 } } } },
                 paymentMethod: { type: "string", enum: ["COD", "INSTAPAY"] },
                 shippingAddress: {
-                  description: "Flat string (legacy) OR structured address object",
+                  description: "Required. Flat string (max 1000 chars) OR structured address object { address, city required }",
                   oneOf: [
-                    { type: "string" },
+                    { type: "string", minLength: 1, maxLength: 1000 },
                     { $ref: "#/components/schemas/StructuredAddress" }
                   ]
                 },
@@ -554,7 +594,7 @@ function buildPaths() {
       },
       responses: {
         "201": { description: "Success, message, data.order (includes both legacy guest fields and new structured fields)", ...refSchema("OrderResponse") },
-        "400": errDesc("Validation error (e.g. guest checkout requires guestName/guestEmail or firstName/lastName/email), or invalid discount code"),
+        "400": errDesc("Validation error: items and shippingAddress required; guest checkout requires guestName/guestEmail or firstName/lastName/email; invalid discount code"),
       },
     },
   };
@@ -664,7 +704,7 @@ function buildPaths() {
       requestBody: {
         content: {
           "application/json": {
-            schema: { type: "object", required: ["confirmed"], properties: { confirmed: { type: "boolean" } } },
+            schema: { type: "object", required: ["approved"], properties: { approved: { type: "boolean", description: "true = confirm payment, false = revoke" } } },
           },
         },
       },
@@ -683,14 +723,14 @@ function buildPaths() {
       operationId: "checkout",
       tags: ["Checkout"],
       summary: "Complete checkout (create order)",
-      description: "Used by the ecommerce storefront when the user submits the order on the checkout page (e.g. \"Pay now\" button). Same request body as POST /api/orders. Guest checkout: no auth, require firstName/lastName/email (or legacy guestName/guestEmail). Logged-in: send optional Bearer token; contact fields (firstName, lastName, email) can be omitted and are filled from the account. shippingAddress.city can be city name or city _id (from cities select); backend resolves _id to name for display and confirmation emails.",
+      description: "Same request body as POST /api/orders. Required: items and shippingAddress. Guest: also require guestName/guestEmail (or firstName/lastName/email). Logged-in: contact fields optional (filled from account). shippingAddress.city can be city name or city _id; backend resolves _id to name.",
       security: [],
       requestBody: {
         content: {
           "application/json": {
             schema: {
               type: "object",
-              required: ["items"],
+              required: ["items", "shippingAddress"],
               properties: {
                 items: {
                   type: "array",
@@ -707,9 +747,9 @@ function buildPaths() {
                 },
                 paymentMethod: { type: "string", enum: ["COD", "INSTAPAY"] },
                 shippingAddress: {
-                  description: "Flat string (legacy) OR structured { address, apartment?, city, postalCode?, country? }. city can be city name or city _id (e.g. from cities dropdown); backend resolves _id to name.",
+                  description: "Required. Flat string (max 1000) OR structured { address, city required }. city can be name or city _id.",
                   oneOf: [
-                    { type: "string" },
+                    { type: "string", minLength: 1, maxLength: 1000 },
                     { $ref: "#/components/schemas/StructuredAddress" },
                   ],
                 },
@@ -734,7 +774,7 @@ function buildPaths() {
       },
       responses: {
         "201": { description: "Order created; data.order returned (includes guest fields, discountCode, discountAmount when applied)", ...refSchema("OrderResponse") },
-        "400": errDesc("Validation error, guest checkout missing name/email, or invalid/expired discount code"),
+        "400": errDesc("Validation error: items and shippingAddress required; guest checkout missing name/email; invalid/expired discount code"),
         "503": errDesc("Database unavailable"),
       },
     },
@@ -1171,7 +1211,21 @@ function buildPaths() {
       tags: ["Cities"],
       summary: "Create city (Admin)",
       security: [{ bearerAuth: [] }],
-      requestBody: { content: { "application/json": { schema: { type: "object" } } } },
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["nameEn", "nameAr"],
+              properties: {
+                nameEn: { type: "string", minLength: 1, maxLength: 100 },
+                nameAr: { type: "string", minLength: 1, maxLength: 100 },
+                deliveryFee: { type: "number", minimum: 0 },
+              },
+            },
+          },
+        },
+      },
       responses: {
         "201": { description: "Created city", ...refSchema("CityResponse") },
         "401": errDesc("Unauthorized"),
@@ -1275,7 +1329,25 @@ function buildPaths() {
       tags: ["Feedback"],
       summary: "Create feedback (Admin)",
       security: [{ bearerAuth: [] }],
-      requestBody: { content: { "application/json": { schema: { type: "object" } } } },
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["product", "customerName", "message", "rating"],
+              properties: {
+                product: { type: "string", description: "Product ID (required)" },
+                customerName: { type: "string", minLength: 1, maxLength: 200, description: "Required" },
+                message: { type: "string", minLength: 1, maxLength: 2000, description: "Required" },
+                rating: { type: "integer", minimum: 1, maximum: 5, description: "Required, 1-5" },
+                image: { type: "string", maxLength: 500, description: "Optional" },
+                approved: { type: "boolean", default: false, description: "Optional" },
+                order: { type: "integer", minimum: 0, default: 0, description: "Display order" },
+              },
+            },
+          },
+        },
+      },
       responses: {
         "201": { description: "Created feedback", ...refSchema("FeedbackResponse") },
         "401": errDesc("Unauthorized"),
@@ -1616,8 +1688,9 @@ function buildPaths() {
               type: "object",
               required: ["message"],
               properties: {
-                message: { type: "string" },
+                message: { type: "string", minLength: 1, maxLength: 4000, description: "Required" },
                 sessionId: { type: "string", description: "Optional; omit to start new session" },
+                locale: { type: "string", enum: ["en", "ar"], description: "Optional response language" },
               },
             },
           },
@@ -2377,11 +2450,11 @@ export const swaggerSpec = {
         type: "object",
         description: "Shopify-style structured address (Egypt only)",
         properties: {
-          address: { type: "string", description: "Street address", example: "735 Clarendon Street" },
-          apartment: { type: "string", description: "Apartment, suite, etc.", example: "Apt 4B" },
-          city: { type: "string", description: "City (Egyptian governorate)", example: "Cairo" },
-          postalCode: { type: "string", description: "Postal code", example: "11511" },
-          country: { type: "string", description: "Always Egypt", default: "Egypt", example: "Egypt" },
+          address: { type: "string", minLength: 1, maxLength: 500, description: "Required. Street address", example: "735 Clarendon Street" },
+          apartment: { type: "string", maxLength: 100, description: "Optional", example: "Apt 4B" },
+          city: { type: "string", minLength: 1, maxLength: 100, description: "Required. City or governorate", example: "Cairo" },
+          postalCode: { type: "string", maxLength: 20, description: "Optional", example: "11511" },
+          country: { type: "string", maxLength: 50, description: "Optional, default Egypt", default: "Egypt", example: "Egypt" },
         },
         required: ["address", "city"],
       },

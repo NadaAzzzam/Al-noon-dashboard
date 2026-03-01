@@ -1,54 +1,83 @@
 import { z } from "zod";
 
+/** Shared string constraints for localized fields */
+const MAX_NAME = 500;
+const MAX_DESCRIPTION = 10000;
+const MAX_META = 70;
+const MAX_META_DESC = 160;
+
 const localizedBody = z.object({
-  nameEn: z.string().min(1, "Name (EN) required"),
-  nameAr: z.string().min(1, "Name (AR) required"),
-  descriptionEn: z.string().optional(),
-  descriptionAr: z.string().optional()
+  /** Required: Product name in English (display, search, SEO). */
+  nameEn: z.string().trim().min(1, "Name (EN) is required").max(MAX_NAME, `Name (EN) must be at most ${MAX_NAME} characters`),
+  /** Required: Product name in Arabic (display, search, SEO). */
+  nameAr: z.string().trim().min(1, "Name (AR) is required").max(MAX_NAME, `Name (AR) must be at most ${MAX_NAME} characters`),
+  /** Optional: Product description in English. */
+  descriptionEn: z.string().trim().max(MAX_DESCRIPTION).optional(),
+  /** Optional: Product description in Arabic. */
+  descriptionAr: z.string().trim().max(MAX_DESCRIPTION).optional()
 });
 
 const productBodySchema = z.object({
   body: localizedBody.merge(z.object({
-    price: z.number().positive(),
+    /** Required: Base price in EGP. */
+    price: z.number().positive("Price must be greater than 0"),
+    /** Optional: Discounted price (must be less than price). */
     discountPrice: z.number().positive().optional(),
+    /** Optional: Cost per item for margin calculation. */
     costPerItem: z.number().positive().optional(),
-    stock: z.number().int().nonnegative(),
-    category: z.string().min(1),
+    /** Required: Available stock quantity. */
+    stock: z.number().int().nonnegative("Stock must be 0 or greater"),
+    /** Required: Category ID. */
+    category: z.string().trim().min(1, "Category is required"),
+    /** Optional: Product status. */
     status: z.enum(["ACTIVE", "INACTIVE", "DRAFT"]).optional(),
+    /** Optional: Show in New Arrivals. */
     isNewArrival: z.boolean().optional(),
-    images: z.array(z.string()).optional(),
-    viewImage: z.string().optional(),
-    hoverImage: z.string().optional(),
-    imageColors: z.array(z.string()).optional(),
-    videos: z.array(z.string()).optional(),
+    /** Optional: Product image paths/URLs. */
+    images: z.array(z.string().min(1).max(2000)).max(20).optional(),
+    /** Optional: Main display image. */
+    viewImage: z.string().max(2000).optional(),
+    /** Optional: Hover image. */
+    hoverImage: z.string().max(2000).optional(),
+    /** Optional: Color labels for images. */
+    imageColors: z.array(z.string().max(50)).max(20).optional(),
+    /** Optional: Product video URLs. */
+    videos: z.array(z.string().max(2000)).max(10).optional(),
+    /** Optional: Default media type for listing. */
     defaultMediaType: z.enum(["image", "video"]).optional(),
+    /** Optional: Hover media type. */
     hoverMediaType: z.enum(["image", "video"]).optional(),
-    detailsEn: z.string().optional(),
-    detailsAr: z.string().optional(),
-    stylingTipEn: z.string().optional(),
-    stylingTipAr: z.string().optional(),
-    sizes: z.array(z.string()).optional(),
-    sizeDescriptions: z.array(z.string()).optional(),
-    colors: z.array(z.string()).optional(),
-    /** URL-friendly slug (EN). Auto-generated from name.en if omitted. */
-    slugEn: z.string().regex(/^[a-z0-9\u0600-\u06FF]+(?:-[a-z0-9\u0600-\u06FF]+)*$/, "Slug (EN) must be lowercase alphanumeric with hyphens").optional(),
-    /** URL-friendly slug (AR). Auto-generated from name.ar if omitted. */
-    slugAr: z.string().regex(/^[a-z0-9\u0600-\u06FF]+(?:-[a-z0-9\u0600-\u06FF]+)*$/u, "Slug (AR) must be alphanumeric with hyphens").optional(),
-    /** Free-form tags for filtering/search. */
-    tags: z.array(z.string()).optional(),
-    /** Brand / manufacturer name. */
-    vendor: z.string().optional(),
-    /** SEO meta title (EN). */
-    metaTitleEn: z.string().optional(),
-    /** SEO meta title (AR). */
-    metaTitleAr: z.string().optional(),
-    /** SEO meta description (EN). */
-    metaDescriptionEn: z.string().optional(),
-    /** SEO meta description (AR). */
-    metaDescriptionAr: z.string().optional(),
-    /** Product weight for shipping. */
-    weight: z.number().positive().optional(),
-    /** Weight unit: grams or kilograms. */
+    /** Optional: Details content (rich text). */
+    detailsEn: z.string().max(50000).optional(),
+    detailsAr: z.string().max(50000).optional(),
+    /** Optional: Styling tip. */
+    stylingTipEn: z.string().max(1000).optional(),
+    stylingTipAr: z.string().max(1000).optional(),
+    /** Optional: Available sizes. */
+    sizes: z.array(z.string().max(50)).max(50).optional(),
+    /** Optional: Size descriptions. */
+    sizeDescriptions: z.array(z.string().max(200)).max(50).optional(),
+    /** Optional: Available colors. */
+    colors: z.array(z.string().max(50)).max(30).optional(),
+    /** Optional: URL-friendly slug (EN). Auto-generated from name if omitted. */
+    slugEn: z.string().regex(/^[a-z0-9\u0600-\u06FF]+(?:-[a-z0-9\u0600-\u06FF]+)*$/, "Slug (EN) must be lowercase alphanumeric with hyphens").max(200).optional(),
+    /** Optional: URL-friendly slug (AR). Auto-generated from name if omitted. */
+    slugAr: z.string().regex(/^[a-z0-9\u0600-\u06FF]+(?:-[a-z0-9\u0600-\u06FF]+)*$/u, "Slug (AR) must be alphanumeric with hyphens").max(200).optional(),
+    /** Optional: Tags for filtering/search. */
+    tags: z.array(z.string().trim().max(50)).max(30).optional(),
+    /** Optional: Brand/vendor name. */
+    vendor: z.string().trim().max(200).optional(),
+    /** Optional: SEO meta title (EN). */
+    metaTitleEn: z.string().trim().max(MAX_META).optional(),
+    /** Optional: SEO meta title (AR). */
+    metaTitleAr: z.string().trim().max(MAX_META).optional(),
+    /** Optional: SEO meta description (EN). */
+    metaDescriptionEn: z.string().trim().max(MAX_META_DESC).optional(),
+    /** Optional: SEO meta description (AR). */
+    metaDescriptionAr: z.string().trim().max(MAX_META_DESC).optional(),
+    /** Optional: Product weight for shipping (g or kg). */
+    weight: z.number().positive().max(1000000).optional(),
+    /** Optional: Weight unit. */
     weightUnit: z.enum(["g", "kg"]).optional()
   }))
 });

@@ -19,12 +19,12 @@ export interface UserDocument {
 
 const userSchema = new Schema<UserDocument>(
   {
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    password: { type: String, required: true },
+    name: { type: String, required: true, trim: true, minlength: 1, maxlength: 100 },
+    email: { type: String, required: true, trim: true, lowercase: true },
+    password: { type: String, required: true, minlength: 6 },
     role: { type: String, required: true, default: "USER" },
     department: { type: Schema.Types.ObjectId, ref: "Department", required: false },
-    avatar: { type: String, required: false }
+    avatar: { type: String, required: false, maxlength: 2000 }
   },
   { timestamps: true }
 );

@@ -2,48 +2,70 @@ import { z } from "zod";
 
 const orderStatusEnum = z.enum(["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"]);
 
-/** Structured address schema (Shopify-style) – Egypt only */
+/** Structured address schema (Shopify-style) – Egypt only. Required for delivery. */
 const structuredAddressSchema = z.object({
-  address: z.string().min(1),
-  apartment: z.string().optional().default(""),
-  city: z.string().min(1),
-  postalCode: z.string().optional().default(""),
-  country: z.string().optional().default("Egypt")
+  /** Required: Street address. */
+  address: z.string().trim().min(1, "Address is required").max(500, "Address must be at most 500 characters"),
+  /** Optional: Apartment, suite, building. */
+  apartment: z.string().trim().max(100).optional().default(""),
+  /** Required: City name or ID. */
+  city: z.string().trim().min(1, "City is required").max(100),
+  /** Optional: Postal code. */
+  postalCode: z.string().trim().max(20).optional().default(""),
+  /** Optional: Country (defaults to Egypt). */
+  country: z.string().trim().max(50).optional().default("Egypt")
 });
 
-export const orderSchema = z.object({
-  body: z.object({
-    items: z
-      .array(
-        z.object({
-          product: z.string().min(1),
-          quantity: z.number().int().positive(),
-          price: z.number().positive()
-        })
-      )
-      .min(1),
-    paymentMethod: z.enum(["COD", "INSTAPAY"]).optional(),
-    // Backward compat: accepts flat string OR structured object
-    shippingAddress: z.union([z.string(), structuredAddressSchema]).optional(),
-    deliveryFee: z.number().min(0).optional(),
-    /** Guest checkout: required when not authenticated */
-    guestName: z.string().min(1).optional(),
-    guestEmail: z.string().email().optional(),
-    guestPhone: z.string().optional(),
-    // New Shopify-style checkout fields
-    email: z.string().email().optional(),
-    firstName: z.string().min(1).optional(),
-    lastName: z.string().min(1).optional(),
-    phone: z.string().optional(),
-    billingAddress: structuredAddressSchema.nullable().optional(),
-    specialInstructions: z.string().optional(),
-    shippingMethod: z.string().optional().default("standard"),
-    emailNews: z.boolean().optional().default(false),
-    textNews: z.boolean().optional().default(false),
-    /** Optional discount code to apply at checkout. */
-    discountCode: z.string().trim().optional()
-  })
+const orderItemSchema = z.object({
+  /** Required: Product ID. */
+  product: z.string().trim().min(1, "Product ID is required"),
+  /** Required: Quantity (positive integer). */
+  quantity: z.number().int().positive("Quantity must be at least 1"),
+  /** Required: Unit price in EGP. */
+  price: z.number().positive("Price must be greater than 0")
 });
+
+const orderBodyBase = z.object({
+  /** Required: At least one item. */
+  items: z.array(orderItemSchema).min(1, "At least one item is required"),
+  /** Required: Shipping address for delivery. Flat string or structured. */
+  shippingAddress: z.union([
+    z.string().trim().min(1, "Shipping address is required").max(1000),
+    structuredAddressSchema
+  ], { errorMap: () => ({ message: "Shipping address is required for delivery" }) }),
+  /** Optional: Payment method. */
+  paymentMethod: z.enum(["COD", "INSTAPAY"]).optional(),
+  /** Optional: Delivery fee (calculated server-side if omitted). */
+  deliveryFee: z.number().min(0, "Delivery fee cannot be negative").max(100000).optional(),
+  /** Optional: Guest name (required for guest checkout when not authenticated). */
+  guestName: z.string().trim().min(1).max(200).optional(),
+  /** Optional: Guest email (required for guest checkout). */
+  guestEmail: z.string().email("Valid email is required").optional(),
+  /** Optional: Guest phone (recommended for delivery coordination). */
+  guestPhone: z.string().trim().max(30).optional(),
+  /** Optional: Customer email (Shopify-style). */
+  email: z.string().email().optional(),
+  /** Optional: First name (Shopify-style). */
+  firstName: z.string().trim().min(1).max(100).optional(),
+  /** Optional: Last name (Shopify-style). */
+  lastName: z.string().trim().min(1).max(100).optional(),
+  /** Optional: Phone number. */
+  phone: z.string().trim().max(30).optional(),
+  /** Optional: Billing address (null = same as shipping). */
+  billingAddress: structuredAddressSchema.nullable().optional(),
+  /** Optional: Delivery notes. */
+  specialInstructions: z.string().trim().max(1000).optional(),
+  /** Optional: Shipping method ID. */
+  shippingMethod: z.string().trim().max(100).optional().default("standard"),
+  /** Optional: Subscribe to email newsletter. */
+  emailNews: z.boolean().optional().default(false),
+  /** Optional: Subscribe to SMS newsletter. */
+  textNews: z.boolean().optional().default(false),
+  /** Optional: Discount code to apply. */
+  discountCode: z.string().trim().max(50).optional()
+});
+
+export const orderSchema = z.object({ body: orderBodyBase });
 
 export const orderStatusSchema = z.object({
   params: z.object({
