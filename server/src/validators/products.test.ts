@@ -222,12 +222,12 @@ describe("products validators", () => {
       expect(productQuerySchema.safeParse({ query: { slug: "x", availability: "maybe" } }).success).toBe(false);
     });
 
-    it("rejects limit > 100", () => {
-      expect(productQuerySchema.safeParse({ query: { slug: "x", limit: 101 } }).success).toBe(false);
+    it("rejects limit > 500", () => {
+      expect(productQuerySchema.safeParse({ query: { slug: "x", limit: 501 } }).success).toBe(false);
     });
 
-    it("accepts limit 100", () => {
-      expect(productQuerySchema.safeParse({ query: { slug: "x", limit: 100 } }).success).toBe(true);
+    it("accepts limit up to 500 (e.g. FeedbackPage product dropdown)", () => {
+      expect(productQuerySchema.safeParse({ query: { slug: "x", limit: 500 } }).success).toBe(true);
     });
 
     it("rejects minRating > 5", () => {

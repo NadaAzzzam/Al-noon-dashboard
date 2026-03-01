@@ -4,6 +4,7 @@ import { createApp } from "../app.js";
 import { Product } from "../models/Product.js";
 import { Category } from "../models/Category.js";
 import { Order } from "../models/Order.js";
+import { Payment } from "../models/Payment.js";
 
 describe("Orders API (integration)", () => {
   let app: ReturnType<typeof createApp>;
@@ -128,5 +129,71 @@ describe("Orders API (integration)", () => {
       .get(`/api/orders/guest/${orderId}`)
       .query({ email: "wrong@email.com" });
     expect(getRes.status).toBe(404);
+  });
+
+  it("POST /api/orders/:id/payments/confirm approves InstaPay payment and decrements stock", async () => {
+    const order = await Order.create({
+      items: [{ product: productId, quantity: 3, price: 50 }],
+      total: 200,
+      status: "PENDING",
+      paymentMethod: "INSTAPAY",
+      guestName: "InstaPay Guest",
+      guestEmail: "instapay-confirm@test.com",
+      shippingAddress: { address: "456 InstaPay St", city: "Cairo" },
+    });
+    await Payment.create({
+      order: order._id,
+      method: "INSTAPAY",
+      status: "UNPAID",
+    });
+    const orderId = order._id.toString();
+
+    const productBefore = await Product.findById(productId);
+    const stockBefore = productBefore!.stock ?? 0;
+
+    const confirmRes = await request(app)
+      .post(`/api/orders/${orderId}/payments/confirm`)
+      .set("Authorization", `Bearer ${authToken}`)
+      .send({ approved: true });
+    expect(confirmRes.status).toBe(200);
+    expect(confirmRes.body.success).toBe(true);
+    expect(confirmRes.body.data?.payment?.status).toBe("PAID");
+
+    const payment = await Payment.findOne({ order: orderId });
+    expect(payment?.status).toBe("PAID");
+
+    const updatedOrder = await Order.findById(orderId);
+    expect(updatedOrder?.status).toBe("CONFIRMED");
+
+    const productAfter = await Product.findById(productId);
+    expect(productAfter!.stock).toBe(stockBefore - 3);
+  });
+
+  it("POST /api/orders/:id/payments/confirm rejects payment when approved is false", async () => {
+    const order = await Order.create({
+      items: [{ product: productId, quantity: 1, price: 50 }],
+      total: 50,
+      status: "PENDING",
+      paymentMethod: "INSTAPAY",
+      guestName: "Reject Guest",
+      guestEmail: "instapay-reject@test.com",
+      shippingAddress: { address: "789 Reject St", city: "Cairo" },
+    });
+    await Payment.create({
+      order: order._id,
+      method: "INSTAPAY",
+      status: "UNPAID",
+    });
+    const orderId = order._id.toString();
+
+    const confirmRes = await request(app)
+      .post(`/api/orders/${orderId}/payments/confirm`)
+      .set("Authorization", `Bearer ${authToken}`)
+      .send({ approved: false });
+    expect(confirmRes.status).toBe(200);
+    expect(confirmRes.body.data?.payment?.status).toBe("UNPAID");
+
+    const updatedOrder = await Order.findById(orderId);
+    expect(updatedOrder?.status).toBe("PENDING");
   });
 });

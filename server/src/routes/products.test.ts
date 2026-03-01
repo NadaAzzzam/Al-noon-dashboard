@@ -42,7 +42,7 @@ describe("Products API", () => {
         totalPages: expect.any(Number),
       });
       expect(typeof body.pagination.limit).toBe("number");
-      expect(body.pagination.limit).toBeLessThanOrEqual(100);
+      expect(body.pagination.limit).toBeLessThanOrEqual(500);
       expect(Array.isArray(body.data)).toBe(true);
     });
 
@@ -72,9 +72,15 @@ describe("Products API", () => {
       expect(res.status).toBe(400);
     });
 
-    it("rejects limit > 100", async () => {
-      const res = await request(app).get("/api/products?slug=test&limit=101");
+    it("rejects limit > 500", async () => {
+      const res = await request(app).get("/api/products?slug=test&limit=501");
       expect(res.status).toBe(400);
+    });
+
+    it("accepts limit up to 500 (e.g. for FeedbackPage product dropdown)", async () => {
+      const res = await request(app).get("/api/products?slug=*&limit=500&status=ACTIVE");
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 

@@ -1,4 +1,11 @@
+import toast from "react-hot-toast";
+
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
+
+function showErrorToast(status: number, message: string, code?: string) {
+  const codeOrStatus = code ?? (status > 0 ? String(status) : "NETWORK");
+  toast.error(`[${codeOrStatus}] ${message}`, { duration: 5000 });
+}
 
 /** Default logo path used when no custom logo is set (storefront always shows this). */
 export const DEFAULT_LOGO_PATH = "/uploads/logos/default-logo.png";
@@ -618,6 +625,12 @@ async function parseErrorResponse(response: Response): Promise<{ message: string
   return { message, body, code };
 }
 
+async function handleErrorResponse(response: Response): Promise<never> {
+  const { message, body, code } = await parseErrorResponse(response);
+  showErrorToast(response.status, message, code);
+  throw new ApiError(response.status, message, body, code);
+}
+
 /** Backend success shape: { success: true, data?, message?, pagination? }. We return the full body so callers use body.data / body.pagination. */
 const request = async (path: string, options: RequestInit = {}): Promise<unknown> => {
   const token = getToken();
@@ -631,11 +644,13 @@ const request = async (path: string, options: RequestInit = {}): Promise<unknown
     response = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: "include" });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Network error";
+    showErrorToast(0, `Cannot reach server. ${msg}`);
     throw new ApiError(0, `Cannot reach server. ${msg}`);
   }
 
   if (!response.ok) {
     const { message, body, code } = await parseErrorResponse(response);
+    showErrorToast(response.status, message, code);
     if (response.status === 401 && !path.startsWith("/auth/")) {
       clearToken();
       setCurrentUser(null);
@@ -733,10 +748,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const body = (await response.json()) as { data?: { paths?: string[] }; paths?: string[] };
     const data = body?.data ?? body;
     return data?.paths ?? [];
@@ -755,10 +767,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const resBody = (await response.json()) as { data?: { paths?: string[] }; paths?: string[] };
     const data = resBody?.data ?? resBody;
     return data?.paths ?? [];
@@ -835,10 +844,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
   },
   confirmPayment: (orderId: string, approved: boolean) =>
     request(`/orders/${orderId}/payments/confirm`, { method: "POST", body: JSON.stringify({ approved }) }),
@@ -913,10 +919,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const body = (await response.json()) as { data?: { image?: string }; image?: string };
     const data = body?.data ?? body;
     return data?.image ?? "";
@@ -936,10 +939,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const body = (await response.json()) as { data?: { logo?: string }; logo?: string };
     const data = body?.data ?? body;
     return data?.logo ?? "";
@@ -958,10 +958,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
     const data = resBody?.data ?? resBody;
     return data?.image ?? "";
@@ -980,10 +977,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
     const data = resBody?.data ?? resBody;
     return data?.image ?? "";
@@ -1002,10 +996,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
     const data = resBody?.data ?? resBody;
     return data?.image ?? "";
@@ -1024,10 +1015,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const resBody = (await response.json()) as { data?: { video?: string }; video?: string };
     const data = resBody?.data ?? resBody;
     return data?.video ?? "";
@@ -1046,10 +1034,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const resBody = (await response.json()) as { data?: { video?: string }; video?: string };
     const data = resBody?.data ?? resBody;
     return data?.video ?? "";
@@ -1098,10 +1083,7 @@ export const api = {
       credentials: "include",
       body: formData
     });
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
     const resBody = (await response.json()) as { data?: { image?: string }; image?: string };
     const data = resBody?.data ?? resBody;
     return data?.image ?? "";
@@ -1131,10 +1113,7 @@ export const api = {
       body: formData
     });
 
-    if (!response.ok) {
-      const { message, body, code } = await parseErrorResponse(response);
-      throw new ApiError(response.status, message, body, code);
-    }
+    if (!response.ok) await handleErrorResponse(response);
 
     const resBody = (await response.json()) as {
       data?: { image?: string; video?: string };

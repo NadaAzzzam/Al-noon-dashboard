@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import Layout from "./components/Layout";
 import RequirePermission from "./components/RequirePermission";
 import CategoriesPage from "./pages/CategoriesPage";
@@ -38,6 +39,8 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
 };
 
 const App = () => (
+  <>
+  <Toaster position="top-center" toastOptions={{ duration: 5000 }} />
   <Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route
@@ -82,6 +85,7 @@ const App = () => (
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>
+  </>
 );
 
 export default App;

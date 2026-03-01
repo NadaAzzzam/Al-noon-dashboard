@@ -85,4 +85,13 @@ describe("Orders API", () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe("POST /api/orders/:id/payments/confirm", () => {
+    it("requires authentication", async () => {
+      const res = await request(app)
+        .post("/api/orders/507f1f77bcf86cd799439011/payments/confirm")
+        .send({ approved: true });
+      expect(res.status).toBe(401);
+    });
+  });
 });
