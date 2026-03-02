@@ -157,4 +157,50 @@ describe("AiChatHistoryPage", () => {
       expect(screen.getByText(/loading/i)).toBeInTheDocument();
     });
   });
+
+  it("calls deleteAiSession when delete confirmed", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockListAiSessions.mockResolvedValue({
+      data: {
+        sessions: [
+          {
+            id: "s1",
+            sessionId: "session-abc123",
+            messageCount: 5,
+            status: "active",
+            createdAt: "2024-01-15T10:00:00Z",
+            updatedAt: "2024-01-15T10:05:00Z",
+          },
+        ],
+        total: 1,
+      },
+    });
+    mockDeleteAiSession.mockResolvedValue({});
+    const user = userEvent.setup();
+    renderAiChatHistory("/ai-chats");
+    await waitFor(() => expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument());
+    const deleteBtn = screen.getByRole("button", { name: /delete/i });
+    await user.click(deleteBtn);
+    await waitFor(() => expect(mockDeleteAiSession).toHaveBeenCalledWith("s1"));
+    confirmSpy.mockRestore();
+  });
+
+  it("does not delete when confirm cancelled", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    mockListAiSessions.mockResolvedValue({
+      data: {
+        sessions: [
+          { id: "s1", sessionId: "sess1", messageCount: 1, status: "active", createdAt: "", updatedAt: "" },
+        ],
+        total: 1,
+      },
+    });
+    const user = userEvent.setup();
+    renderAiChatHistory("/ai-chats");
+    await waitFor(() => expect(mockListAiSessions).toHaveBeenCalled());
+    const deleteBtn = screen.getByRole("button", { name: /delete/i });
+    await user.click(deleteBtn);
+    expect(mockDeleteAiSession).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
 });

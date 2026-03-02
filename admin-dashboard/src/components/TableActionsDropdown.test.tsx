@@ -37,4 +37,19 @@ describe("TableActionsDropdown", () => {
     const link = screen.getByRole("menuitem", { name: "View" });
     expect(link).toHaveAttribute("href", "/products/1");
   });
+
+  it("closes menu when clicking outside", () => {
+    render(
+      <MemoryRouter>
+        <div>
+          <TableActionsDropdown actions={[{ label: "Edit", onClick: () => {} }]} />
+          <button type="button">Outside</button>
+        </div>
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole("button", { name: /actions/i }));
+    expect(screen.getByRole("menuitem", { name: "Edit" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Outside" }));
+    expect(screen.queryByRole("menuitem", { name: "Edit" })).not.toBeInTheDocument();
+  });
 });

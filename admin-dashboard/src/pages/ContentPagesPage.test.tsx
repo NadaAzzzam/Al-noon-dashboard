@@ -59,8 +59,8 @@ describe("ContentPagesPage", () => {
     );
     await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
     expect(screen.getByDisplayValue("Privacy")).toBeInTheDocument();
-    const returnPolicyTab = screen.getByRole("button", { name: /return policy|return_policy/i });
-    await user.click(returnPolicyTab);
+    const aboutTab = screen.getByRole("button", { name: /about us/i });
+    await user.click(aboutTab);
     const saveBtn = screen.getByRole("button", { name: /save settings/i });
     expect(saveBtn).toBeInTheDocument();
   });
@@ -74,7 +74,7 @@ describe("ContentPagesPage", () => {
       </MemoryRouter>
     );
     await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
-    const titleInput = screen.getByPlaceholderText(/title.*en|content_title_en/i);
+    const titleInput = screen.getByPlaceholderText("Page title (English)");
     await user.type(titleInput, "Privacy Policy");
     await user.click(screen.getByRole("button", { name: /save settings/i }));
     await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalled());

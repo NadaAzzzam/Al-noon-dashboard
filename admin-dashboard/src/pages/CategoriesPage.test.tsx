@@ -7,6 +7,9 @@ import "../i18n";
 
 const mockListCategories = vi.fn();
 const mockCreateCategory = vi.fn();
+const mockUpdateCategory = vi.fn();
+const mockSetCategoryStatus = vi.fn();
+const mockDeleteCategory = vi.fn();
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -15,8 +18,9 @@ vi.mock("../services/api", async (importOriginal) => {
     api: {
       listCategories: (...args: unknown[]) => mockListCategories(...args),
       createCategory: (...args: unknown[]) => mockCreateCategory(...args),
-      updateCategory: vi.fn(),
-      setCategoryStatus: vi.fn(),
+      updateCategory: (...args: unknown[]) => mockUpdateCategory(...args),
+      setCategoryStatus: (...args: unknown[]) => mockSetCategoryStatus(...args),
+      deleteCategory: (...args: unknown[]) => mockDeleteCategory(...args),
       listProducts: vi.fn(),
       listOrders: vi.fn(),
       getOrder: vi.fn(),
@@ -96,5 +100,54 @@ describe("CategoriesPage", () => {
     await user.type(screen.getByPlaceholderText(/name.*arabic/i), "فساتين");
     await user.click(screen.getByRole("button", { name: /create/i }));
     await waitFor(() => expect(mockCreateCategory).toHaveBeenCalled());
+  });
+
+  it("calls setCategoryStatus when hide clicked", async () => {
+    mockListCategories.mockResolvedValue({
+      data: {
+        categories: [
+          { _id: "c1", name: { en: "Abayas", ar: "عباءات" }, status: "visible" },
+        ],
+      },
+    });
+    mockSetCategoryStatus.mockResolvedValue({});
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <CategoriesPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("Abayas")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: /hide/i }));
+    await waitFor(() => expect(mockSetCategoryStatus).toHaveBeenCalledWith("c1", "hidden"));
+  });
+
+  it("calls updateCategory when edit and save", async () => {
+    mockListCategories
+      .mockResolvedValueOnce({
+        data: {
+          categories: [
+            { _id: "c1", name: { en: "Abayas", ar: "عباءات" }, status: "visible" },
+          ],
+        },
+      })
+      .mockResolvedValue({ data: { categories: [] } });
+    mockUpdateCategory.mockResolvedValue({});
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <CategoriesPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("Abayas")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit/i }));
+    await waitFor(() => expect(screen.getByDisplayValue("Abayas")).toBeInTheDocument());
+    const titleInput = screen.getByDisplayValue("Abayas");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Abaya Collection");
+    await user.click(screen.getByRole("button", { name: /update/i }));
+    await waitFor(() => expect(mockUpdateCategory).toHaveBeenCalledWith("c1", expect.objectContaining({ nameEn: "Abaya Collection" })));
   });
 });
