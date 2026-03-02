@@ -30,7 +30,7 @@ const defaults = {
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
   discountCodeSupported: true,
-  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: string }[],
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; hoverVideo?: string; url: string; order: number; categoryId?: string }[],
   hero: heroDefault,
   heroEnabled: true,
   announcementBar: { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND },
@@ -189,8 +189,8 @@ export const updateSettings = asyncHandler(async (req, res) => {
   if (updates.discountCodeSupported !== undefined) toSet.discountCodeSupported = Boolean(updates.discountCodeSupported);
   if (updates.homeCollections !== undefined && Array.isArray(updates.homeCollections)) {
     const items = updates.homeCollections
-      .map((item: { titleEn?: string; titleAr?: string; image?: string; hoverImage?: string; video?: string; url?: string; order?: number; categoryId?: string }, idx: number) => {
-        const entry: { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: mongoose.Types.ObjectId } = {
+      .map((item: { titleEn?: string; titleAr?: string; image?: string; hoverImage?: string; video?: string; hoverVideo?: string; defaultMediaType?: "image" | "video"; hoverMediaType?: "image" | "video"; url?: string; order?: number; categoryId?: string }, idx: number) => {
+        const entry: { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; hoverVideo?: string; defaultMediaType?: "image" | "video"; hoverMediaType?: "image" | "video"; url: string; order: number; categoryId?: mongoose.Types.ObjectId } = {
           title: {
             en: String(item.titleEn ?? "").trim(),
             ar: String(item.titleAr ?? "").trim()
@@ -198,6 +198,9 @@ export const updateSettings = asyncHandler(async (req, res) => {
           image: String(item.image ?? "").trim(),
           hoverImage: String(item.hoverImage ?? "").trim() || undefined,
           video: String(item.video ?? "").trim() || undefined,
+          hoverVideo: String(item.hoverVideo ?? "").trim() || undefined,
+          defaultMediaType: item.defaultMediaType === "video" || item.defaultMediaType === "image" ? item.defaultMediaType : undefined,
+          hoverMediaType: item.hoverMediaType === "video" || item.hoverMediaType === "image" ? item.hoverMediaType : undefined,
           url: String(item.url ?? "").trim(),
           order: typeof item.order === "number" ? item.order : idx
         };

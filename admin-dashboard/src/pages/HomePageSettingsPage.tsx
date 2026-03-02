@@ -77,7 +77,11 @@ type CollectionCardForm = {
   titleEn: string;
   titleAr: string;
   image: string;
+  hoverImage: string;
   video: string;
+  hoverVideo: string;
+  defaultMediaType: "image" | "video";
+  hoverMediaType: "image" | "video";
   url: string;
   order: number;
 };
@@ -168,9 +172,8 @@ const HomePageSettingsPage = () => {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
-  const [uploadingCollectionIndex, setUploadingCollectionIndex] = useState<
-    number | null
-  >(null);
+  const [uploadingCollectionIndex, setUploadingCollectionIndex] = useState<number | null>(null);
+  const [uploadingCollectionMediaType, setUploadingCollectionMediaType] = useState<"image" | "hoverImage" | "video" | "hoverVideo" | null>(null);
 
   // Refs for file inputs
   const heroImageRef = useRef<HTMLInputElement>(null);
@@ -179,6 +182,9 @@ const HomePageSettingsPage = () => {
   const newArrivalsVideoRef = useRef<HTMLInputElement>(null);
   const promoImageRef = useRef<HTMLInputElement>(null);
   const collectionImageRef = useRef<HTMLInputElement>(null);
+  const collectionHoverImageRef = useRef<HTMLInputElement>(null);
+  const collectionVideoRef = useRef<HTMLInputElement>(null);
+  const collectionHoverVideoRef = useRef<HTMLInputElement>(null);
 
   const isUploading = (key: string) => uploading[key] ?? false;
   const setUploadingKey = (key: string, value: boolean) =>
@@ -229,7 +235,11 @@ const HomePageSettingsPage = () => {
             c: {
               title?: { en?: string; ar?: string };
               image?: string;
+              hoverImage?: string;
               video?: string;
+              hoverVideo?: string;
+              defaultMediaType?: "image" | "video";
+              hoverMediaType?: "image" | "video";
               url?: string;
               order?: number;
             },
@@ -238,7 +248,11 @@ const HomePageSettingsPage = () => {
             titleEn: c.title?.en ?? "",
             titleAr: c.title?.ar ?? "",
             image: c.image ?? "",
+            hoverImage: c.hoverImage ?? "",
             video: c.video ?? "",
+            hoverVideo: c.hoverVideo ?? "",
+            defaultMediaType: (c.defaultMediaType === "video" ? "video" : "image") as "image" | "video",
+            hoverMediaType: (c.hoverMediaType === "video" ? "video" : "image") as "image" | "video",
             url: c.url ?? "",
             order: (c.order ?? i) as number,
           }),
@@ -449,17 +463,21 @@ const HomePageSettingsPage = () => {
   };
 
   // Collection helpers
-  const triggerCollectionImageUpload = (index: number) => {
+  const triggerCollectionMediaUpload = (index: number, type: "image" | "hoverImage" | "video" | "hoverVideo") => {
     setUploadingCollectionIndex(index);
-    collectionImageRef.current?.click();
+    setUploadingCollectionMediaType(type);
+    if (type === "image") collectionImageRef.current?.click();
+    else if (type === "hoverImage") collectionHoverImageRef.current?.click();
+    else if (type === "video") collectionVideoRef.current?.click();
+    else collectionHoverVideoRef.current?.click();
   };
-  const handleCollectionImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleCollectionImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     const idx = uploadingCollectionIndex;
+    const mediaType = uploadingCollectionMediaType;
     e.target.value = "";
     setUploadingCollectionIndex(null);
+    setUploadingCollectionMediaType(null);
     if (file == null || idx == null) return;
     if (!file.type.startsWith("image/")) {
       setError(t("settings.logo_invalid_type"));
@@ -468,18 +486,71 @@ const HomePageSettingsPage = () => {
     setError(null);
     try {
       const imagePath = await api.uploadCollectionImage(file);
+      const key = mediaType === "hoverImage" ? "hoverImage" : "image";
       setForm((f) => ({
         ...f,
         homeCollections: f.homeCollections.map((c, i) =>
-          i === idx ? { ...c, image: imagePath } : c,
+          i === idx ? { ...c, [key]: imagePath } : c,
         ),
       }));
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : t("settings.logo_upload_failed"),
-      );
+      setError(err instanceof ApiError ? err.message : t("settings.logo_upload_failed"));
+    }
+  };
+  const handleCollectionDefaultVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const idx = uploadingCollectionIndex;
+    e.target.value = "";
+    setUploadingCollectionIndex(null);
+    setUploadingCollectionMediaType(null);
+    if (file == null || idx == null) return;
+    if (!file.type.startsWith("video/")) {
+      setError(t("settings.upload_video_hint") || "Only video files are allowed (MP4, WebM, MOV, OGG).");
+      return;
+    }
+    setError(null);
+    const key = `collection-video-${idx}`;
+    setUploadingKey(key, true);
+    try {
+      const videoPath = await api.uploadHomePageMedia(file, "collection");
+      setForm((f) => ({
+        ...f,
+        homeCollections: f.homeCollections.map((c, i) =>
+          i === idx ? { ...c, video: videoPath } : c,
+        ),
+      }));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.logo_upload_failed"));
+    } finally {
+      setUploadingKey(key, false);
+    }
+  };
+  const handleCollectionHoverVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const idx = uploadingCollectionIndex;
+    e.target.value = "";
+    setUploadingCollectionIndex(null);
+    setUploadingCollectionMediaType(null);
+    if (file == null || idx == null) return;
+    if (!file.type.startsWith("video/")) {
+      setError(t("settings.upload_video_hint") || "Only video files are allowed (MP4, WebM, MOV, OGG).");
+      return;
+    }
+    setError(null);
+    const key = `collection-hover-video-${idx}`;
+    setUploadingKey(key, true);
+    try {
+      const videoPath = await api.uploadHomePageMedia(file, "collection");
+      setForm((f) => ({
+        ...f,
+        homeCollections: f.homeCollections.map((c, i) =>
+          i === idx ? { ...c, hoverVideo: videoPath } : c,
+        ),
+      }));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("settings.logo_upload_failed"));
+    } finally {
+      setUploadingKey(key, false);
     }
   };
   const addCollection = () => {
@@ -491,7 +562,11 @@ const HomePageSettingsPage = () => {
           titleEn: "",
           titleAr: "",
           image: "",
+          hoverImage: "",
           video: "",
+          hoverVideo: "",
+          defaultMediaType: "image" as const,
+          hoverMediaType: "image" as const,
           url: "",
           order: f.homeCollections.length,
         },
@@ -566,7 +641,11 @@ const HomePageSettingsPage = () => {
           titleEn: c.titleEn.trim(),
           titleAr: c.titleAr.trim(),
           image: c.image.trim(),
+          hoverImage: c.hoverImage.trim() || undefined,
           video: c.video.trim() || undefined,
+          hoverVideo: c.hoverVideo.trim() || undefined,
+          defaultMediaType: c.defaultMediaType,
+          hoverMediaType: c.hoverMediaType,
           url: c.url.trim(),
           order: idx,
         })),
@@ -1666,6 +1745,27 @@ const HomePageSettingsPage = () => {
                 onChange={handleCollectionImageChange}
                 style={{ display: "none" }}
               />
+              <input
+                ref={collectionHoverImageRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                onChange={handleCollectionImageChange}
+                style={{ display: "none" }}
+              />
+              <input
+                ref={collectionVideoRef}
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime,video/ogg"
+                onChange={handleCollectionDefaultVideoChange}
+                style={{ display: "none" }}
+              />
+              <input
+                ref={collectionHoverVideoRef}
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime,video/ogg"
+                onChange={handleCollectionHoverVideoChange}
+                style={{ display: "none" }}
+              />
               {form.homeCollections.length === 0 ? (
                 <p className="settings-hint">
                   {t("settings.home_collections_hint")}
@@ -1674,32 +1774,6 @@ const HomePageSettingsPage = () => {
                 <ul className="home-collections-list">
                   {form.homeCollections.map((col, idx) => (
                     <li key={idx} className="home-collection-item card">
-                      <div className="home-collection-item-image">
-                        {col.image ? (
-                          <>
-                            <img
-                              src={getMediaUrl(col.image)}
-                              alt=""
-                              className="home-image-preview"
-                            />
-                            <button
-                              type="button"
-                              className="button secondary small"
-                              onClick={() => triggerCollectionImageUpload(idx)}
-                            >
-                              {t("settings.upload_image")}
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            className="button secondary"
-                            onClick={() => triggerCollectionImageUpload(idx)}
-                          >
-                            {t("settings.upload_image")}
-                          </button>
-                        )}
-                      </div>
                       <div className="home-collection-item-fields">
                         <div className="form-group">
                           <label>{t("settings.collection_title_en")}</label>
@@ -1734,17 +1808,93 @@ const HomePageSettingsPage = () => {
                             placeholder="/category/summer"
                           />
                         </div>
-                        <div className="form-group">
-                          <label>{t("settings.collection_video_url")}</label>
-                          <input
-                            type="text"
-                            value={col.video}
-                            onChange={(e) =>
-                              updateCollection(idx, { video: e.target.value })
-                            }
-                            placeholder="https://... or leave empty for image only"
-                          />
+
+                        <div className="home-collection-media-section">
+                          <label className="home-section-media-label">{t("settings.section_media")}</label>
+                          <div className="home-collection-media-grid">
+                            <div className="home-collection-media-cell">
+                              <span className="home-collection-media-label-small">{t("settings.collection_image_default")}</span>
+                              {col.image ? (
+                                <div className="home-collection-media-preview">
+                                  <img src={getMediaUrl(col.image)} alt="" />
+                                  <button type="button" className="product-form-image-remove" onClick={() => updateCollection(idx, { image: "" })} title={t("common.remove")}>&times;</button>
+                                </div>
+                              ) : null}
+                              <button type="button" className="button secondary small" onClick={() => triggerCollectionMediaUpload(idx, "image")} disabled={uploadingCollectionIndex === idx && uploadingCollectionMediaType === "image"}>
+                                {uploadingCollectionIndex === idx && uploadingCollectionMediaType === "image" ? (t("common.loading") || "Uploading…") : t("settings.upload_image")}
+                              </button>
+                            </div>
+                            <div className="home-collection-media-cell">
+                              <span className="home-collection-media-label-small">{t("settings.collection_image_hover")}</span>
+                              {col.hoverImage ? (
+                                <div className="home-collection-media-preview">
+                                  <img src={getMediaUrl(col.hoverImage)} alt="" />
+                                  <button type="button" className="product-form-image-remove" onClick={() => updateCollection(idx, { hoverImage: "" })} title={t("common.remove")}>&times;</button>
+                                </div>
+                              ) : null}
+                              <button type="button" className="button secondary small" onClick={() => triggerCollectionMediaUpload(idx, "hoverImage")} disabled={uploadingCollectionIndex === idx && uploadingCollectionMediaType === "hoverImage"}>
+                                {uploadingCollectionIndex === idx && uploadingCollectionMediaType === "hoverImage" ? (t("common.loading") || "Uploading…") : t("settings.upload_image")}
+                              </button>
+                            </div>
+                            <div className="home-collection-media-cell">
+                              <span className="home-collection-media-label-small">{t("settings.collection_video_default")}</span>
+                              {col.video ? (
+                                <div className="home-collection-media-preview">
+                                  <video src={getMediaUrl(col.video)} muted playsInline />
+                                  <button type="button" className="product-form-image-remove" onClick={() => updateCollection(idx, { video: "" })} title={t("common.remove")}>&times;</button>
+                                </div>
+                              ) : null}
+                              <button type="button" className="button secondary small" onClick={() => triggerCollectionMediaUpload(idx, "video")} disabled={isUploading(`collection-video-${idx}`)}>
+                                {isUploading(`collection-video-${idx}`) ? (t("common.loading") || "Uploading…") : t("settings.upload_video")}
+                              </button>
+                            </div>
+                            <div className="home-collection-media-cell">
+                              <span className="home-collection-media-label-small">{t("settings.collection_video_hover")}</span>
+                              {col.hoverVideo ? (
+                                <div className="home-collection-media-preview">
+                                  <video src={getMediaUrl(col.hoverVideo)} muted playsInline />
+                                  <button type="button" className="product-form-image-remove" onClick={() => updateCollection(idx, { hoverVideo: "" })} title={t("common.remove")}>&times;</button>
+                                </div>
+                              ) : null}
+                              <button type="button" className="button secondary small" onClick={() => triggerCollectionMediaUpload(idx, "hoverVideo")} disabled={isUploading(`collection-hover-video-${idx}`)}>
+                                {isUploading(`collection-hover-video-${idx}`) ? (t("common.loading") || "Uploading…") : t("settings.upload_video")}
+                              </button>
+                            </div>
+                          </div>
                         </div>
+
+                        <div className="home-collection-card-display">
+                          <h4 className="home-collection-card-display-title">{t("settings.collection_card_display")}</h4>
+                          <p className="settings-hint">{t("settings.collection_card_display_hint")}</p>
+                          <div className="home-collection-card-display-options">
+                            <div className="form-group">
+                              <label htmlFor={`collection-default-media-${idx}`}>{t("settings.collection_default_media")}</label>
+                              <select
+                                id={`collection-default-media-${idx}`}
+                                value={col.defaultMediaType}
+                                onChange={(e) => updateCollection(idx, { defaultMediaType: e.target.value as "image" | "video" })}
+                              >
+                                <option value="image">🖼️ {t("settings.show_image")}</option>
+                                <option value="video">🎥 {t("settings.show_video")}</option>
+                              </select>
+                            </div>
+                            <div className="form-group">
+                              <label htmlFor={`collection-hover-media-${idx}`}>{t("settings.collection_hover_media")}</label>
+                              <select
+                                id={`collection-hover-media-${idx}`}
+                                value={col.hoverMediaType}
+                                onChange={(e) => updateCollection(idx, { hoverMediaType: e.target.value as "image" | "video" })}
+                              >
+                                <option value="image">🖼️ {t("settings.show_image")}</option>
+                                <option value="video">🎥 {t("settings.show_video")}</option>
+                              </select>
+                            </div>
+                          </div>
+                          <p className="settings-hint" style={{ marginTop: 8 }}>
+                            {t("settings.collection_preview")}: {t("settings.default")} = <strong>{col.defaultMediaType === "image" ? "🖼️ Image" : "🎥 Video"}</strong>, {t("settings.hover")} = <strong>{col.hoverMediaType === "image" ? "🖼️ Image" : "🎥 Video"}</strong>
+                          </p>
+                        </div>
+
                         <button
                           type="button"
                           className="button danger secondary"

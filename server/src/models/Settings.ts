@@ -26,7 +26,19 @@ export interface SettingsDocument {
   /** Whether newsletter signup is shown and accepted on storefront. */
   newsletterEnabled: boolean;
   /** Homepage collection cards (title, default image, optional hover image, optional video, link, optional category id) for e-commerce home. */
-  homeCollections: { title: LocalizedString; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: mongoose.Types.ObjectId }[];
+  homeCollections: { title: LocalizedString; image: string; hoverImage?: string; video?: string; hoverVideo?: string; defaultMediaType?: "image" | "video"; hoverMediaType?: "image" | "video"; url: string; order: number; categoryId?: mongoose.Types.ObjectId }[];
+  /** Max number of home collections to display on storefront (0 = show all). */
+  homeCollectionsDisplayLimit?: number;
+  /** Max number of new arrival products to show on home page. */
+  newArrivalsLimit?: number;
+  /** Section images for New Arrivals block. */
+  newArrivalsSectionImages?: string[];
+  /** Section videos for New Arrivals block. */
+  newArrivalsSectionVideos?: string[];
+  /** Section images for Our Collection block. */
+  ourCollectionSectionImages?: string[];
+  /** Section videos for Our Collection block. */
+  ourCollectionSectionVideos?: string[];
   /** Hero section (top of e-commerce home): multiple images/videos, title, subtitle, CTA. */
   hero: {
     images: string[];
@@ -119,9 +131,15 @@ const settingsSchema = new Schema<SettingsDocument>(
     },
     newsletterEnabled: { type: Boolean, default: true },
     homeCollections: {
-      type: [{ title: localizedSchema, image: String, hoverImage: String, video: String, url: String, order: Number, categoryId: Schema.Types.ObjectId }],
+      type: [{ title: localizedSchema, image: String, hoverImage: String, video: String, hoverVideo: String, defaultMediaType: String, hoverMediaType: String, url: String, order: Number, categoryId: Schema.Types.ObjectId }],
       default: []
     },
+    homeCollectionsDisplayLimit: { type: Number },
+    newArrivalsLimit: { type: Number },
+    newArrivalsSectionImages: { type: [String], default: [] },
+    newArrivalsSectionVideos: { type: [String], default: [] },
+    ourCollectionSectionImages: { type: [String], default: [] },
+    ourCollectionSectionVideos: { type: [String], default: [] },
     hero: {
       images: { type: [String], default: [] },
       videos: { type: [String], default: [] },

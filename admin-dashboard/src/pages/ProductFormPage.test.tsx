@@ -8,6 +8,7 @@ import "../i18n";
 const mockListCategories = vi.fn();
 const mockGetProduct = vi.fn();
 const mockCreateProduct = vi.fn();
+const mockUpdateProduct = vi.fn();
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -17,7 +18,7 @@ vi.mock("../services/api", async (importOriginal) => {
       listCategories: (...args: unknown[]) => mockListCategories(...args),
       getProduct: (...args: unknown[]) => mockGetProduct(...args),
       createProduct: (...args: unknown[]) => mockCreateProduct(...args),
-      updateProduct: vi.fn(),
+      updateProduct: (...args: unknown[]) => mockUpdateProduct(...args),
       uploadProductImages: vi.fn(),
       uploadProductVideos: vi.fn(),
       listProducts: vi.fn(),
@@ -94,5 +95,76 @@ describe("ProductFormPage", () => {
       expect(screen.getByText("Name (EN) is required")).toBeInTheDocument();
     });
     expect(mockCreateProduct).not.toHaveBeenCalled();
+  });
+
+  it("calls createProduct when submitting valid new product form", async () => {
+    const user = userEvent.setup();
+    mockListCategories.mockResolvedValue({
+      data: { categories: [{ _id: "cat1", name: { en: "Cat1", ar: "تصنيف" }, status: "visible" }] },
+    });
+    mockCreateProduct.mockResolvedValue({});
+    renderProductForm("/products/new");
+    await waitFor(() => expect(mockListCategories).toHaveBeenCalled());
+    const nameEnInput = screen.getByLabelText(/name.*en/i);
+    const nameArInput = screen.getByLabelText(/name.*ar/i);
+    const priceInput = screen.getByLabelText(/price/i);
+    await user.type(nameEnInput, "Widget");
+    await user.type(nameArInput, "ودجت");
+    await user.clear(priceInput);
+    await user.type(priceInput, "50");
+    const categorySelect = screen.getByLabelText(/category/i);
+    await user.selectOptions(categorySelect, "cat1");
+    await user.click(screen.getByRole("button", { name: /create/i }));
+    await waitFor(() => {
+      expect(mockCreateProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ nameEn: "Widget", nameAr: "ودجت", price: 50, category: "cat1" }),
+      );
+    });
+  });
+
+  it("shows error when product load fails in edit mode", async () => {
+    mockGetProduct.mockRejectedValue(new Error("Not found"));
+    renderProductForm("/products/p1/edit");
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load|error/i)).toBeInTheDocument();
+    });
+  });
+
+  it("calls updateProduct when submitting edit form", async () => {
+    const user = userEvent.setup();
+    mockListCategories.mockResolvedValue({
+      data: [{ _id: "cat1", name: { en: "Cat1", ar: "تصنيف1" }, status: "visible" }],
+    });
+    mockGetProduct.mockResolvedValue({
+      data: {
+        product: {
+          _id: "p1",
+          name: { en: "Test Product", ar: "منتج" },
+          description: { en: "", ar: "" },
+          price: 99,
+          stock: 10,
+          category: "cat1",
+          status: "ACTIVE",
+          images: [],
+          videos: [],
+          sizes: [],
+          colors: [],
+          variants: [],
+        },
+      },
+    });
+    mockUpdateProduct.mockResolvedValue({});
+    renderProductForm("/products/p1/edit");
+    await waitFor(() => expect(mockGetProduct).toHaveBeenCalled());
+    const priceInput = screen.getByLabelText(/price/i);
+    await user.clear(priceInput);
+    await user.type(priceInput, "149");
+    await user.click(screen.getByRole("button", { name: /save|update/i }));
+    await waitFor(() => {
+      expect(mockUpdateProduct).toHaveBeenCalledWith(
+        "p1",
+        expect.objectContaining({ price: 149 }),
+      );
+    });
   });
 });

@@ -8,6 +8,9 @@ import "../i18n";
 const mockListFeedback = vi.fn();
 const mockListProducts = vi.fn();
 const mockCreateFeedback = vi.fn();
+const mockUpdateFeedback = vi.fn();
+const mockDeleteFeedback = vi.fn();
+const mockSetFeedbackApproved = vi.fn();
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -17,8 +20,9 @@ vi.mock("../services/api", async (importOriginal) => {
       listFeedback: (...args: unknown[]) => mockListFeedback(...args),
       listProducts: (...args: unknown[]) => mockListProducts(...args),
       createFeedback: (...args: unknown[]) => mockCreateFeedback(...args),
-      updateFeedback: vi.fn(),
-      deleteFeedback: vi.fn(),
+      updateFeedback: (...args: unknown[]) => mockUpdateFeedback(...args),
+      deleteFeedback: (...args: unknown[]) => mockDeleteFeedback(...args),
+      setFeedbackApproved: (...args: unknown[]) => mockSetFeedbackApproved(...args),
       uploadFeedbackImage: vi.fn(),
       listCategories: vi.fn(),
       listOrders: vi.fn(),
@@ -69,5 +73,85 @@ describe("FeedbackPage", () => {
       expect(screen.getByText("Product is required")).toBeInTheDocument();
     });
     expect(mockCreateFeedback).not.toHaveBeenCalled();
+  });
+
+  it("changes approved filter and reloads", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <FeedbackPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListFeedback).toHaveBeenCalled());
+    const filterSelects = screen.getAllByRole("combobox");
+    const filterSelect = filterSelects.find((s) => (s as HTMLSelectElement).options.length >= 2) ?? filterSelects[0];
+    await user.selectOptions(filterSelect, "true");
+    await waitFor(() => {
+      expect(mockListFeedback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ approved: "true" }),
+      );
+    });
+  });
+
+  it("calls createFeedback when submitting valid form", async () => {
+    const user = userEvent.setup();
+    mockCreateFeedback.mockResolvedValue({});
+    render(
+      <MemoryRouter>
+        <FeedbackPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListFeedback).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: /add feedback/i }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    const dialog = screen.getByRole("dialog");
+    const productSelect = within(dialog).getAllByRole("combobox")[0];
+    await user.selectOptions(productSelect, "p1");
+    await user.type(within(dialog).getByPlaceholderText(/sarah/i), "Test User");
+    await user.type(within(dialog).getByPlaceholderText(/what the customer/i), "Great product");
+    await user.click(within(dialog).getByRole("button", { name: /add|save/i }));
+    await waitFor(() => {
+      expect(mockCreateFeedback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          product: "p1",
+          customerName: "Test User",
+          message: "Great product",
+          rating: 5,
+        }),
+      );
+    });
+  });
+
+  it("calls setFeedbackApproved when clicking approve button", async () => {
+    const user = userEvent.setup();
+    mockListFeedback.mockResolvedValue({
+      data: {
+        feedback: [
+          {
+            _id: "fb1",
+            product: { _id: "p1", name: { en: "Product 1" } },
+            customerName: "Jane",
+            message: "Nice",
+            rating: 5,
+            approved: false,
+            order: 0,
+            createdAt: "2024-01-01",
+          },
+        ],
+      },
+      pagination: { total: 1 },
+    });
+    mockSetFeedbackApproved.mockResolvedValue({});
+    render(
+      <MemoryRouter>
+        <FeedbackPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("Jane")).toBeInTheDocument());
+    const approveBtn = screen.getByRole("button", { name: /no|unapprove/i });
+    await user.click(approveBtn);
+    await waitFor(() => {
+      expect(mockSetFeedbackApproved).toHaveBeenCalledWith("fb1", true);
+    });
   });
 });

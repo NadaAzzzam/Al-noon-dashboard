@@ -15,7 +15,34 @@ describe("Settings API (integration)", () => {
     authToken = loginRes.body?.data?.token ?? loginRes.body?.token ?? "";
   });
 
-  describe("PUT /api/settings homeCollections deduplication", () => {
+  describe("PUT /api/settings homeCollections", () => {
+    it("saves and returns homeCollections with video and hoverVideo fields", async () => {
+      const collectionsWithVideo = [
+        { titleEn: "Abayas", titleAr: "عباءات", image: "/a.jpg", video: "/uploads/abaya.mp4", hoverVideo: "/uploads/abaya-hover.mp4", url: "/collection/abayas", order: 0 },
+        { titleEn: "Capes", titleAr: "كابات", image: "/b.jpg", url: "/collection/capes", order: 1 },
+      ];
+
+      const res = await request(app)
+        .put("/api/settings")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({ homeCollections: collectionsWithVideo });
+
+      expect(res.status).toBe(200);
+      const saved = res.body.data?.settings?.homeCollections ?? [];
+      expect(saved.length).toBe(2);
+
+      const withVideo = saved.find((c: { url?: string }) => c.url === "/collection/abayas");
+      expect(withVideo).toBeDefined();
+      expect(withVideo).toHaveProperty("video", "/uploads/abaya.mp4");
+      expect(withVideo).toHaveProperty("hoverVideo", "/uploads/abaya-hover.mp4");
+      expect(withVideo).toHaveProperty("image", "/a.jpg");
+
+      const withoutVideo = saved.find((c: { url?: string }) => c.url === "/collection/capes");
+      expect(withoutVideo).toBeDefined();
+      expect(withoutVideo?.video).toBeUndefined();
+      expect(withoutVideo?.hoverVideo).toBeUndefined();
+    });
+
     it("deduplicates homeCollections by url on update", async () => {
       const duplicateCollections = [
         { titleEn: "Abayas", titleAr: "عباءات", image: "/a.jpg", url: "/collection/abayas", order: 0 },

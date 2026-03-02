@@ -62,4 +62,39 @@ describe("CategoriesPage", () => {
     });
     expect(mockCreateCategory).not.toHaveBeenCalled();
   });
+
+  it("displays categories when data returned", async () => {
+    mockListCategories.mockResolvedValue({
+      data: {
+        categories: [
+          { _id: "c1", name: { en: "Abayas", ar: "عباءات" }, status: "visible" },
+        ],
+      },
+    });
+    render(
+      <MemoryRouter>
+        <CategoriesPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListCategories).toHaveBeenCalled());
+    expect(screen.getByText("Abayas")).toBeInTheDocument();
+  });
+
+  it("creates category when form valid", async () => {
+    const user = userEvent.setup();
+    mockListCategories.mockResolvedValue({ data: { categories: [] } });
+    mockCreateCategory.mockResolvedValue({});
+    render(
+      <MemoryRouter>
+        <CategoriesPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListCategories).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: /add category/i }));
+    await waitFor(() => expect(screen.getByText("New category")).toBeInTheDocument());
+    await user.type(screen.getByPlaceholderText(/name.*english/i), "Dresses");
+    await user.type(screen.getByPlaceholderText(/name.*arabic/i), "فساتين");
+    await user.click(screen.getByRole("button", { name: /create/i }));
+    await waitFor(() => expect(mockCreateCategory).toHaveBeenCalled());
+  });
 });

@@ -13,6 +13,9 @@ const homeCollectionSchema = z.object({
   image: z.string().trim().min(1),
   hoverImage: z.string().trim().max(2000).optional(),
   video: z.string().trim().max(2000).optional(),
+  hoverVideo: z.string().trim().max(2000).optional(),
+  defaultMediaType: z.enum(["image", "video"]).optional(),
+  hoverMediaType: z.enum(["image", "video"]).optional(),
   url: z.string().trim().min(1).max(2000),
   order: z.number().int().min(0),
   categoryId: z.string().trim().optional()

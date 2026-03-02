@@ -29,7 +29,7 @@ const storeDefaults = {
   quickLinks: [] as { label: { en: string; ar: string }; url: string }[],
   socialLinks: { facebook: "", instagram: "" },
   newsletterEnabled: true,
-  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: string }[],
+  homeCollections: [] as { title: { en: string; ar: string }; image: string; hoverImage?: string; video?: string; hoverVideo?: string; defaultMediaType?: "image" | "video"; hoverMediaType?: "image" | "video"; url: string; order: number; categoryId?: string }[],
   hero: heroDefault,
   heroEnabled: true,
   newArrivalsLimit: 8,
@@ -75,24 +75,34 @@ function toStoreProductShape(p: Record<string, unknown>): {
   };
 }
 
-/** Store-facing home collection: title, default image, optional hover image, optional video, url, order, optional categoryId. */
-function toStoreCollectionShape(c: { title?: unknown; image?: string; hoverImage?: string; video?: string; url?: string; order?: number; categoryId?: unknown }): {
+/** Store-facing home collection: title, image, hoverImage, video, hoverVideo, defaultMediaType, hoverMediaType, url, order, optional categoryId. Storefront uses defaultMediaType/hoverMediaType to choose what to display. */
+function toStoreCollectionShape(c: { title?: unknown; image?: string; hoverImage?: string; video?: string; hoverVideo?: string; defaultMediaType?: "image" | "video"; hoverMediaType?: "image" | "video"; url?: string; order?: number; categoryId?: unknown }): {
   title: unknown;
   image: string;
   hoverImage?: string;
-  video?: string;
+  video: string;
+  hoverVideo: string;
+  defaultMediaType: "image" | "video";
+  hoverMediaType: "image" | "video";
   url: string;
   order: number;
   categoryId?: string;
 } {
-  const out: { title: unknown; image: string; hoverImage?: string; video?: string; url: string; order: number; categoryId?: string } = {
+  const videoVal = typeof c.video === "string" && c.video.trim() !== "" ? c.video.trim() : "";
+  const hoverVideoVal = typeof c.hoverVideo === "string" && c.hoverVideo.trim() !== "" ? c.hoverVideo.trim() : "";
+  const defaultMT = c.defaultMediaType === "video" || c.defaultMediaType === "image" ? c.defaultMediaType : "image";
+  const hoverMT = c.hoverMediaType === "video" || c.hoverMediaType === "image" ? c.hoverMediaType : "image";
+  const out: { title: unknown; image: string; hoverImage?: string; video: string; hoverVideo: string; defaultMediaType: "image" | "video"; hoverMediaType: "image" | "video"; url: string; order: number; categoryId?: string } = {
     title: c.title ?? { en: "", ar: "" },
     image: typeof c.image === "string" ? c.image : "",
+    video: videoVal,
+    hoverVideo: hoverVideoVal,
+    defaultMediaType: defaultMT,
+    hoverMediaType: hoverMT,
     url: typeof c.url === "string" ? c.url : "",
     order: typeof c.order === "number" ? c.order : 0
   };
   if (typeof c.hoverImage === "string" && c.hoverImage.trim() !== "") out.hoverImage = c.hoverImage.trim();
-  if (typeof c.video === "string" && c.video.trim() !== "") out.video = c.video.trim();
   const catId = c.categoryId;
   if (catId != null && catId !== "") {
     const idStr = typeof catId === "string" ? catId : String(catId);
@@ -202,19 +212,19 @@ export const getStoreHome = asyncHandler(async (req, res) => {
   const announcementBar = (s as { announcementBar?: { text: { en: string; ar: string }; enabled: boolean; backgroundColor: string } })?.announcementBar ?? { text: { en: "", ar: "" }, enabled: false, backgroundColor: DEFAULT_ANNOUNCEMENT_BAR_BACKGROUND };
   const promoBanner = (s as { promoBanner?: { enabled: boolean; image: string; title: { en: string; ar: string }; subtitle: { en: string; ar: string }; ctaLabel: { en: string; ar: string }; ctaUrl: string } })?.promoBanner ?? { enabled: false, image: "", title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaUrl: "" };
 
-  const newArrivalsImagesRaw = Array.isArray((s as { newArrivalsSectionImages?: string[] })?.newArrivalsSectionImages)
-    ? (s as { newArrivalsSectionImages: string[] }).newArrivalsSectionImages
+  const newArrivalsImagesRaw = Array.isArray((s as unknown as { newArrivalsSectionImages?: string[] })?.newArrivalsSectionImages)
+    ? (s as unknown as { newArrivalsSectionImages: string[] }).newArrivalsSectionImages
     : ((s as unknown as { newArrivalsSectionImage?: string })?.newArrivalsSectionImage ? [(s as unknown as { newArrivalsSectionImage: string }).newArrivalsSectionImage] : storeDefaults.newArrivalsSectionImages);
   const newArrivalsImages = [...new Set(newArrivalsImagesRaw)];
-  const newArrivalsVideosRaw = Array.isArray((s as { newArrivalsSectionVideos?: string[] })?.newArrivalsSectionVideos)
-    ? (s as { newArrivalsSectionVideos: string[] }).newArrivalsSectionVideos
+  const newArrivalsVideosRaw = Array.isArray((s as unknown as { newArrivalsSectionVideos?: string[] })?.newArrivalsSectionVideos)
+    ? (s as unknown as { newArrivalsSectionVideos: string[] }).newArrivalsSectionVideos
     : storeDefaults.newArrivalsSectionVideos;
   const newArrivalsVideos = [...new Set(newArrivalsVideosRaw)];
-  const ourCollectionImages = Array.isArray((s as { ourCollectionSectionImages?: string[] })?.ourCollectionSectionImages)
-    ? (s as { ourCollectionSectionImages: string[] }).ourCollectionSectionImages
+  const ourCollectionImages = Array.isArray((s as unknown as { ourCollectionSectionImages?: string[] })?.ourCollectionSectionImages)
+    ? (s as unknown as { ourCollectionSectionImages: string[] }).ourCollectionSectionImages
     : ((s as unknown as { ourCollectionSectionImage?: string })?.ourCollectionSectionImage ? [(s as unknown as { ourCollectionSectionImage: string }).ourCollectionSectionImage] : storeDefaults.ourCollectionSectionImages);
-  const ourCollectionVideos = Array.isArray((s as { ourCollectionSectionVideos?: string[] })?.ourCollectionSectionVideos)
-    ? (s as { ourCollectionSectionVideos: string[] }).ourCollectionSectionVideos
+  const ourCollectionVideos = Array.isArray((s as unknown as { ourCollectionSectionVideos?: string[] })?.ourCollectionSectionVideos)
+    ? (s as unknown as { ourCollectionSectionVideos: string[] }).ourCollectionSectionVideos
     : storeDefaults.ourCollectionSectionVideos;
 
   const quickLinks = (s?.quickLinks ?? storeDefaults.quickLinks).map((q) => toStoreQuickLinkShape(q));

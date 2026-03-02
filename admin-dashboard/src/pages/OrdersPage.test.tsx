@@ -7,6 +7,7 @@ import "../i18n";
 import { setCurrentUser } from "../services/api";
 
 const mockListOrders = vi.fn();
+const mockUpdateOrderStatus = vi.fn();
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -14,7 +15,7 @@ vi.mock("../services/api", async (importOriginal) => {
     ...mod,
     api: {
       listOrders: (...args: unknown[]) => mockListOrders(...args),
-      updateOrderStatus: vi.fn(),
+      updateOrderStatus: (...args: unknown[]) => mockUpdateOrderStatus(...args),
       getOrder: vi.fn(),
       confirmPayment: vi.fn(),
       attachPaymentProof: vi.fn(),
@@ -81,6 +82,39 @@ describe("OrdersPage", () => {
     await user.selectOptions(selects[0], "PENDING");
     await waitFor(() => {
       expect(screen.getByText(/clear filters/i)).toBeInTheDocument();
+    });
+  });
+
+  it("calls updateOrderStatus when changing order status via select", async () => {
+    const user = userEvent.setup();
+    mockListOrders
+      .mockResolvedValueOnce({
+        data: [
+          {
+            _id: "ord1",
+            status: "PENDING",
+            total: 100,
+            deliveryFee: 10,
+            items: [],
+            createdAt: "2024-01-01",
+            user: { name: "Test", email: "t@t.com" },
+          },
+        ],
+        pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      })
+      .mockResolvedValue({ data: [], pagination: { total: 0 } });
+    mockUpdateOrderStatus.mockResolvedValue({});
+    render(
+      <MemoryRouter>
+        <OrdersPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText(/100|LE|EGP/i)).toBeInTheDocument());
+    const rowSelects = screen.getAllByRole("combobox").filter((s) => (s as HTMLSelectElement).value === "PENDING");
+    const statusSelect = rowSelects[0];
+    await user.selectOptions(statusSelect, "CONFIRMED");
+    await waitFor(() => {
+      expect(mockUpdateOrderStatus).toHaveBeenCalledWith("ord1", "CONFIRMED");
     });
   });
 });

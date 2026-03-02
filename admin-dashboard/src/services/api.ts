@@ -1,4 +1,5 @@
 import toast from "react-hot-toast";
+import i18n from "../i18n";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -429,7 +430,7 @@ export type ContentPage = {
   content: LocalizedString;
 };
 
-export type HomeCollection = { title: LocalizedString; image: string; video?: string; url: string; order: number };
+export type HomeCollection = { title: LocalizedString; image: string; hoverImage?: string; video?: string; hoverVideo?: string; defaultMediaType?: "image" | "video"; hoverMediaType?: "image" | "video"; url: string; order: number };
 
 export type HeroConfig = {
   images: string[];
@@ -453,7 +454,7 @@ export type SettingsPayload = Partial<{
   quickLinks: { labelEn: string; labelAr: string; url: string }[];
   socialLinks: { facebook: string; instagram: string };
   newsletterEnabled: boolean;
-  homeCollections: { titleEn: string; titleAr: string; image: string; video?: string; url: string; order: number }[];
+  homeCollections: { titleEn: string; titleAr: string; image: string; hoverImage?: string; video?: string; hoverVideo?: string; defaultMediaType?: "image" | "video"; hoverMediaType?: "image" | "video"; url: string; order: number }[];
   hero: { images: string[]; videos: string[]; titleEn: string; titleAr: string; subtitleEn: string; subtitleAr: string; ctaLabelEn: string; ctaLabelAr: string; ctaUrl: string };
   heroEnabled: boolean;
   newArrivalsLimit: number;
@@ -658,6 +659,13 @@ const request = async (path: string, options: RequestInit = {}): Promise<unknown
     }
     throw new ApiError(response.status, message, body, code);
   }
+
+  const method = (options.method ?? "GET").toUpperCase();
+  const isMutation = method === "POST" || method === "PUT" || method === "PATCH";
+  if (isMutation && !path.startsWith("/auth/")) {
+    toast.success(i18n.t("common.saved"), { duration: 3000 });
+  }
+
   if (response.status === 204) return null;
   const body = (await response.json()) as { success?: boolean; data?: unknown; message?: string; pagination?: unknown };
   return body;

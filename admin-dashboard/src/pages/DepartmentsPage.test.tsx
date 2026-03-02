@@ -41,4 +41,48 @@ describe("DepartmentsPage", () => {
     });
     expect(screen.getByRole("heading", { level: 1, name: /^departments$/i })).toBeInTheDocument();
   });
+
+  it("displays departments when data is returned", async () => {
+    mockListDepartments.mockResolvedValue({
+      data: {
+        departments: [
+          { id: "d1", name: "Marketing", key: "marketing", status: "ACTIVE" },
+          { id: "d2", name: "Sales", key: "sales", status: "INACTIVE" },
+        ],
+      },
+    });
+    render(
+      <MemoryRouter>
+        <DepartmentsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Marketing")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Sales")).toBeInTheDocument();
+  });
+
+  it("shows empty state when no departments", async () => {
+    render(
+      <MemoryRouter>
+        <DepartmentsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => {
+      expect(mockListDepartments).toHaveBeenCalled();
+    });
+    expect(screen.getByText(/no departments found/i)).toBeInTheDocument();
+  });
+
+  it("displays error when load fails", async () => {
+    mockListDepartments.mockRejectedValue(new Error("Failed to load"));
+    render(
+      <MemoryRouter>
+        <DepartmentsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load/i)).toBeInTheDocument();
+    });
+  });
 });

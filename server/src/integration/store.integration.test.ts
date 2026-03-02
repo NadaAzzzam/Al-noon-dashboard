@@ -29,6 +29,43 @@ describe("Store API (integration)", () => {
       expect(typeof home.store?.discountCodeSupported).toBe("boolean");
     });
 
+    it("returns homeCollections with image and video field for each item", async () => {
+      await Settings.findOneAndUpdate(
+        {},
+        {
+          $set: {
+            homeCollections: [
+              { title: { en: "Abayas", ar: "عباءات" }, image: "/a.jpg", video: "/uploads/videos/abaya.mp4", url: "/cat/abayas", order: 0 },
+              { title: { en: "Capes", ar: "كابات" }, image: "/b.jpg", url: "/cat/capes", order: 1 },
+            ],
+          },
+        },
+        { upsert: true }
+      );
+
+      const res = await request(app).get("/api/store/home");
+      expect(res.status).toBe(200);
+      const collections = res.body.data?.home?.homeCollections ?? [];
+      expect(collections.length).toBeGreaterThanOrEqual(2);
+
+      const withVideo = collections.find((c: { url?: string }) => c.url === "/cat/abayas");
+      expect(withVideo).toBeDefined();
+      expect(withVideo).toHaveProperty("image", "/a.jpg");
+      expect(withVideo).toHaveProperty("video", "/uploads/videos/abaya.mp4");
+      expect(withVideo).toHaveProperty("hoverVideo", "");
+      expect(withVideo).toHaveProperty("defaultMediaType");
+      expect(withVideo).toHaveProperty("hoverMediaType");
+      expect(withVideo).toHaveProperty("title");
+      expect(withVideo).toHaveProperty("url", "/cat/abayas");
+
+      const withoutVideo = collections.find((c: { url?: string }) => c.url === "/cat/capes");
+      expect(withoutVideo).toBeDefined();
+      expect(withoutVideo).toHaveProperty("image", "/b.jpg");
+      expect(withoutVideo).toHaveProperty("video", "");
+      expect(withoutVideo).toHaveProperty("hoverVideo", "");
+      expect(withoutVideo).toHaveProperty("url", "/cat/capes");
+    });
+
     it("deduplicates homeCollections by url", async () => {
       // Seed settings with duplicate collection URLs
       await Settings.findOneAndUpdate(

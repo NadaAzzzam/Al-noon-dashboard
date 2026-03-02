@@ -82,4 +82,40 @@ describe("UsersPage", () => {
     });
     expect(mockCreateUser).not.toHaveBeenCalled();
   });
+
+  it("displays user list when data returned", async () => {
+    mockListUsers.mockResolvedValue({
+      data: {
+        users: [
+          { _id: "u1", name: "Alice", email: "alice@test.com", role: "ADMIN" },
+        ],
+      },
+    });
+    render(
+      <MemoryRouter>
+        <UsersPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListUsers).toHaveBeenCalled());
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.getByText("alice@test.com")).toBeInTheDocument();
+  });
+
+  it("creates user when form valid", async () => {
+    const user = userEvent.setup();
+    mockCreateUser.mockResolvedValue({});
+    render(
+      <MemoryRouter>
+        <UsersPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListUsers).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: /new user/i }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    await user.type(screen.getByPlaceholderText(/john doe/i), "Bob Smith");
+    await user.type(screen.getByPlaceholderText(/user@example/i), "bob@test.com");
+    await user.type(screen.getByLabelText(/password/i), "Secret123!");
+    await user.click(screen.getByRole("button", { name: /create/i }));
+    await waitFor(() => expect(mockCreateUser).toHaveBeenCalled());
+  });
 });

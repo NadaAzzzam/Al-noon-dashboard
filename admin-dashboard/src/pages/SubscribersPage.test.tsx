@@ -58,4 +58,14 @@ describe("SubscribersPage", () => {
       expect(screen.getByText("sub@test.com")).toBeInTheDocument();
     });
   });
+
+  it("displays empty state when no subscribers", async () => {
+    render(
+      <MemoryRouter>
+        <SubscribersPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListSubscribers).toHaveBeenCalled());
+    expect(screen.getByText(/no subscribers yet|no_subscribers/i)).toBeInTheDocument();
+  });
 });
