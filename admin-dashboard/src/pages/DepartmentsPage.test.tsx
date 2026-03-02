@@ -8,6 +8,10 @@ import "../i18n";
 const mockListDepartments = vi.fn();
 const mockDeleteDepartment = vi.fn();
 
+vi.mock("../utils/confirmToast", () => ({
+  confirmRemove: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
   return {
@@ -89,7 +93,6 @@ describe("DepartmentsPage", () => {
   });
 
   it("calls deleteDepartment when delete confirmed", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     mockListDepartments
       .mockResolvedValueOnce({
         data: {
@@ -110,6 +113,5 @@ describe("DepartmentsPage", () => {
     await user.click(screen.getByRole("button", { name: /actions/i }));
     await user.click(screen.getByRole("menuitem", { name: /delete/i }));
     expect(mockDeleteDepartment).toHaveBeenCalledWith("d1");
-    confirmSpy.mockRestore();
   });
 });

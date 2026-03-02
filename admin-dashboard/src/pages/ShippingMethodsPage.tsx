@@ -10,6 +10,7 @@ import {
 } from "../services/api";
 import { validateShippingMethod } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
+import { confirmRemove } from "../utils/confirmToast";
 import { useLocalized } from "../utils/localized";
 
 type CityPriceRow = { cityId: string; price: number };
@@ -191,7 +192,7 @@ const ShippingMethodsPage = () => {
   };
 
   const remove = async (id: string) => {
-    if (!confirm(t("shipping_methods.delete_confirm"))) return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     setError(null);
     try {
       await api.deleteShippingMethod(id);

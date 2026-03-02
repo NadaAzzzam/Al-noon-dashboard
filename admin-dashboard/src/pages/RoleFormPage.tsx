@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, hasPermission } from "../services/api";
 import { validateRole } from "../utils/formValidation";
+import { confirmRemove } from "../utils/confirmToast";
 
 type Role = {
   id: string;
@@ -175,7 +176,7 @@ const RoleFormPage = () => {
 
   const handleDelete = async () => {
     if (!form.id || form.key === "ADMIN") return;
-    if (!confirm(t("roles.delete_confirm", "Delete this role? This cannot be undone."))) return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     setSaving(true);
     setError(null);
     try {

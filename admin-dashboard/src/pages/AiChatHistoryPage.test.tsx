@@ -9,6 +9,11 @@ const mockListAiSessions = vi.fn();
 const mockGetAiSession = vi.fn();
 const mockDeleteAiSession = vi.fn();
 
+const mockConfirmRemove = vi.fn();
+vi.mock("../utils/confirmToast", () => ({
+  confirmRemove: (...args: unknown[]) => mockConfirmRemove(...args),
+}));
+
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
   return {
@@ -212,7 +217,7 @@ describe("AiChatHistoryPage", () => {
   });
 
   it("calls deleteAiSession when delete confirmed", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockConfirmRemove.mockResolvedValueOnce(true);
     mockListAiSessions.mockResolvedValue({
       data: {
         sessions: [
@@ -235,7 +240,6 @@ describe("AiChatHistoryPage", () => {
     const deleteBtn = screen.getByRole("button", { name: /delete/i });
     await user.click(deleteBtn);
     await waitFor(() => expect(mockDeleteAiSession).toHaveBeenCalledWith("s1"));
-    confirmSpy.mockRestore();
   });
 
   it("closes modal when close button clicked", async () => {
@@ -276,7 +280,7 @@ describe("AiChatHistoryPage", () => {
   });
 
   it("does not delete when confirm cancelled", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    mockConfirmRemove.mockResolvedValueOnce(false);
     mockListAiSessions.mockResolvedValue({
       data: {
         sessions: [
@@ -291,6 +295,5 @@ describe("AiChatHistoryPage", () => {
     const deleteBtn = screen.getByRole("button", { name: /delete/i });
     await user.click(deleteBtn);
     expect(mockDeleteAiSession).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
   });
 });

@@ -11,6 +11,7 @@ import {
 } from "../services/api";
 import { validateFeedback } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
+import { confirmRemove } from "../utils/confirmToast";
 
 const LIMIT = 20;
 
@@ -181,7 +182,7 @@ const FeedbackPage = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm(t("feedback.confirm_delete"))) return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     try {
       await api.deleteFeedback(id);
       loadList();

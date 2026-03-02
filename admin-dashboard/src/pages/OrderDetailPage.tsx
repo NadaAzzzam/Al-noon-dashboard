@@ -30,6 +30,7 @@ function isImageFile(file: File): boolean {
   return file.type.startsWith("image/");
 }
 import { formatPriceEGP } from "../utils/format";
+import { confirmRemove } from "../utils/confirmToast";
 import { useLocalized } from "../utils/localized";
 import { daysSinceOrder, isLongWait } from "../utils/orderUtils";
 
@@ -105,7 +106,7 @@ const OrderDetailPage = () => {
   };
 
   const cancel = async () => {
-    if (!id || !confirm(t("order_detail.cancel_confirm"))) return;
+    if (!id || !(await confirmRemove(t("common.confirm_remove")))) return;
     setError(null);
     try {
       await api.cancelOrder(id);

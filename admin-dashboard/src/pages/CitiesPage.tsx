@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError, City, hasPermission } from "../services/api";
+import { confirmRemove } from "../utils/confirmToast";
 import { validateCity } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
@@ -71,7 +72,7 @@ const CitiesPage = () => {
   };
 
   const remove = async (id: string) => {
-    if (!confirm(t("cities.delete_confirm"))) return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     setError(null);
     try {
       await api.deleteCity(id);

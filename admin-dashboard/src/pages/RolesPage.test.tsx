@@ -8,6 +8,10 @@ import "../i18n";
 const mockListRoles = vi.fn();
 const mockDeleteRole = vi.fn();
 
+vi.mock("../utils/confirmToast", () => ({
+  confirmRemove: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
   return {
@@ -87,7 +91,6 @@ describe("RolesPage", () => {
   });
 
   it("calls deleteRole when delete confirmed", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     mockListRoles
       .mockResolvedValueOnce({
         data: {
@@ -108,7 +111,6 @@ describe("RolesPage", () => {
     await user.click(screen.getByRole("button", { name: /actions/i }));
     await user.click(screen.getByRole("menuitem", { name: /delete/i }));
     expect(mockDeleteRole).toHaveBeenCalledWith("r1");
-    confirmSpy.mockRestore();
   });
 
   it("handles 404 from listRoles as empty", async () => {

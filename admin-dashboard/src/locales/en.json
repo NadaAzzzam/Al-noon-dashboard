@@ -3,6 +3,8 @@
     "loading": "Loading…",
     "save": "Save",
     "cancel": "Cancel",
+    "confirm": "Confirm",
+    "confirm_remove": "Are you sure that you want to remove?",
     "delete": "Delete",
     "edit": "Edit",
     "create": "Create",

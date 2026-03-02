@@ -10,6 +10,10 @@ const mockListCategories = vi.fn();
 const mockSetProductStatus = vi.fn();
 const mockDeleteProduct = vi.fn();
 
+vi.mock("../utils/confirmToast", () => ({
+  confirmRemove: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
   return {
@@ -126,7 +130,6 @@ describe("ProductsPage", () => {
   });
 
   it("calls deleteProduct when delete confirmed", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     mockListProducts
       .mockResolvedValueOnce({
         data: [{ _id: "p1", name: { en: "Prod" }, price: 10, stock: 5, status: "ACTIVE" }],
@@ -144,6 +147,5 @@ describe("ProductsPage", () => {
     await user.click(screen.getByRole("button", { name: /actions/i }));
     await user.click(screen.getByRole("menuitem", { name: /delete/i }));
     await waitFor(() => expect(mockDeleteProduct).toHaveBeenCalledWith("p1"));
-    confirmSpy.mockRestore();
   });
 });

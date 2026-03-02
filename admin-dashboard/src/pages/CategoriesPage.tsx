@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ApiError, Category, hasPermission } from "../services/api";
+import { confirmRemove } from "../utils/confirmToast";
 import { validateCategory } from "../utils/formValidation";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { useLocalized } from "../utils/localized";
@@ -92,7 +93,7 @@ const CategoriesPage = () => {
   };
 
   const remove = async (id: string) => {
-    if (!confirm(t("categories.delete_confirm"))) return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     setError(null);
     try {
       await api.deleteCategory(id);

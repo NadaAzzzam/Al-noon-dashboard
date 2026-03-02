@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, hasPermission } from "../services/api";
 import { validateDepartment } from "../utils/formValidation";
+import { confirmRemove } from "../utils/confirmToast";
 
 type Department = {
   id: string;
@@ -141,15 +142,7 @@ const DepartmentFormPage = () => {
 
   const handleDelete = async () => {
     if (!form.id) return;
-    if (
-      !confirm(
-        t(
-          "departments.delete_confirm",
-          "Delete this department? This cannot be undone.",
-        ),
-      )
-    )
-      return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     setSaving(true);
     setError(null);
     try {

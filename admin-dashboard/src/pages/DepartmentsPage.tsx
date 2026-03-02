@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { api, ApiError, hasPermission } from "../services/api";
+import { confirmRemove } from "../utils/confirmToast";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 
 type Department = {
@@ -38,7 +39,7 @@ const DepartmentsPage = () => {
   const canManage = hasPermission("departments.manage");
 
   const handleDelete = async (dept: Department) => {
-    if (!confirm(t("departments.delete_confirm", "Delete this department? This cannot be undone."))) return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     setError(null);
     try {
       await api.deleteDepartment(dept.id);

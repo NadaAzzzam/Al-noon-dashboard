@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, getProductImageUrl, getUploadsBaseUrl, hasPermission } from "../services/api";
+import { confirmRemove } from "../utils/confirmToast";
 
 type SessionSummary = {
   id: string;
@@ -108,7 +109,7 @@ const AiChatHistoryPage = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm(t("ai_chats.delete_confirm"))) return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     setDeletingId(id);
     try {
       await api.deleteAiSession(id);

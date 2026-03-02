@@ -16,6 +16,7 @@ import {
   hasPermission,
 } from "../services/api";
 import { formatPriceEGP } from "../utils/format";
+import { confirmRemove } from "../utils/confirmToast";
 import { useLocalized } from "../utils/localized";
 
 const PAGE_SIZE = 20;
@@ -159,7 +160,7 @@ const ProductsPage = () => {
   };
 
   const removeProduct = async (id: string) => {
-    if (!confirm(t("products.soft_delete_confirm"))) return;
+    if (!(await confirmRemove(t("common.confirm_remove")))) return;
     setError(null);
     try {
       await api.deleteProduct(id);
