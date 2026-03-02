@@ -85,6 +85,35 @@ describe("OrdersPage", () => {
     });
   });
 
+  it("shows error when load fails", async () => {
+    const { ApiError } = await import("../services/api");
+    mockListOrders.mockRejectedValue(new ApiError(500, "Server error"));
+    render(
+      <MemoryRouter>
+        <OrdersPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/Server error|failed|error/i)).toBeInTheDocument();
+    });
+  });
+
+  it("loads orders from res.orders when res.data is missing", async () => {
+    mockListOrders.mockResolvedValue({
+      orders: [{ _id: "o1", status: "PENDING", total: 50, deliveryFee: 5, items: [], user: { name: "U", email: "u@u.com" } }],
+      total: 1,
+    });
+    render(
+      <MemoryRouter>
+        <OrdersPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListOrders).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(screen.getByText("U")).toBeInTheDocument();
+    });
+  });
+
   it("calls updateOrderStatus when changing order status via select", async () => {
     const user = userEvent.setup();
     mockListOrders

@@ -8,3 +8,17 @@ admin-dashboard/node_modules
 server/node_modules
 server/uploads
 coverage
+
+# Cypress
+cypress/screenshots/
+cypress/videos/
+
+# Miscellaneous
+/.angular/cache
+.sass-cache/
+/connect.lock
+/coverage
+/libpeerconnection.log
+testem.log
+/typings
+__screenshots__/

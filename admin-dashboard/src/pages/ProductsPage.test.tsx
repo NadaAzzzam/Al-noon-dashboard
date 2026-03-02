@@ -148,4 +148,82 @@ describe("ProductsPage", () => {
     await user.click(screen.getByRole("menuitem", { name: /delete/i }));
     await waitFor(() => expect(mockDeleteProduct).toHaveBeenCalledWith("p1"));
   });
+
+  it("calls setProductStatus with ACTIVE when enable clicked", async () => {
+    mockListProducts
+      .mockResolvedValueOnce({
+        data: [{ _id: "p1", name: { en: "Prod" }, price: 10, stock: 5, status: "INACTIVE" }],
+        pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      })
+      .mockResolvedValue({ data: [], pagination: { total: 0 } });
+    mockSetProductStatus.mockResolvedValue({});
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ProductsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("Prod")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: /enable|activate/i }));
+    await waitFor(() => expect(mockSetProductStatus).toHaveBeenCalledWith("p1", "ACTIVE"));
+  });
+
+  it("shows error when setProductStatus fails", async () => {
+    mockListProducts.mockResolvedValue({
+      data: [{ _id: "p1", name: { en: "Prod" }, price: 10, stock: 5, status: "ACTIVE" }],
+      pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+    });
+    mockSetProductStatus.mockRejectedValue(new Error("Server error"));
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ProductsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("Prod")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: /disable/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/error|failed/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows error when load fails with ApiError", async () => {
+    const { ApiError } = await import("../services/api");
+    mockListProducts.mockRejectedValue(new ApiError(500, "Server unavailable"));
+    render(
+      <MemoryRouter>
+        <ProductsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/Server unavailable|failed|error/i)).toBeInTheDocument();
+    });
+  });
+
+  it("filters by category and search", async () => {
+    mockListProducts.mockResolvedValue({
+      data: [],
+      pagination: { total: 0 },
+      appliedFilters: {},
+    });
+    mockListCategories.mockResolvedValue({
+      data: { categories: [{ _id: "c1", name: { en: "Electronics", ar: "" } }] },
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ProductsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListProducts).toHaveBeenCalled());
+    const searchInput = screen.getByPlaceholderText(/search/i);
+    await user.type(searchInput, "phone");
+    await waitFor(() => {
+      expect(mockListProducts).toHaveBeenLastCalledWith(
+        expect.objectContaining({ search: "phone" }),
+      );
+    });
+  });
 });

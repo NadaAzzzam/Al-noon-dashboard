@@ -63,8 +63,7 @@ describe("LoginPage", () => {
   it("shows validation error when submitting with short password", async () => {
     const user = userEvent.setup();
     renderLoginPage();
-    const emailInput = await screen.findByPlaceholderText(/email/i);
-    const passwordInput = screen.getByPlaceholderText(/password/i);
+    const passwordInput = await screen.findByPlaceholderText(/password/i);
     await user.clear(passwordInput);
     await user.type(passwordInput, "123");
     await user.click(screen.getByRole("button", { name: /sign in/i }));

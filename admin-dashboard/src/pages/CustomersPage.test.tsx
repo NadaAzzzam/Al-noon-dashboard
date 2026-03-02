@@ -80,6 +80,23 @@ describe("CustomersPage", () => {
     });
   });
 
+  it("loads from response.customers when data.customers is missing", async () => {
+    mockListCustomers.mockResolvedValue({
+      customers: [
+        { id: "c1", name: "Fallback User", email: "fallback@test.com", role: "USER", createdAt: "2024-01-01" },
+      ],
+    });
+    render(
+      <MemoryRouter>
+        <CustomersPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListCustomers).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(screen.getByText("Fallback User")).toBeInTheDocument();
+    });
+  });
+
   it("has actions dropdown for each customer", async () => {
     mockListCustomers.mockResolvedValue({
       data: {

@@ -11,6 +11,11 @@ const mockCreateFeedback = vi.fn();
 const mockUpdateFeedback = vi.fn();
 const mockDeleteFeedback = vi.fn();
 const mockSetFeedbackApproved = vi.fn();
+const mockConfirmRemove = vi.fn();
+
+vi.mock("../utils/confirmToast", () => ({
+  confirmRemove: (...args: unknown[]) => mockConfirmRemove(...args),
+}));
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -37,6 +42,7 @@ vi.mock("../services/api", async (importOriginal) => {
 describe("FeedbackPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConfirmRemove.mockResolvedValue(true);
     mockListFeedback.mockResolvedValue({ data: { feedback: [] }, pagination: { total: 0 } });
     mockListProducts.mockResolvedValue({
       data: [{ _id: "p1", name: { en: "Product 1", ar: "منتج 1" } }],
@@ -118,6 +124,60 @@ describe("FeedbackPage", () => {
           message: "Great product",
           rating: 5,
         }),
+      );
+    });
+  });
+
+  it("calls deleteFeedback when delete confirmed", async () => {
+    const user = userEvent.setup();
+    mockConfirmRemove.mockResolvedValue(true);
+    mockListFeedback.mockResolvedValue({
+      data: {
+        feedback: [
+          {
+            _id: "fb1",
+            product: { _id: "p1", name: { en: "Product 1" } },
+            customerName: "Jane",
+            message: "Nice",
+            rating: 5,
+            approved: true,
+            order: 0,
+            createdAt: "2024-01-01",
+          },
+        ],
+      },
+      pagination: { total: 1 },
+    });
+    mockDeleteFeedback.mockResolvedValue({});
+    render(
+      <MemoryRouter>
+        <FeedbackPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("Jane")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: /delete/i }));
+    await waitFor(() => expect(mockDeleteFeedback).toHaveBeenCalledWith("fb1"));
+  });
+
+  it("loads with approved filter false", async () => {
+    mockListFeedback.mockResolvedValue({
+      data: { feedback: [] },
+      pagination: { total: 0 },
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <FeedbackPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockListFeedback).toHaveBeenCalled());
+    const filterSelects = screen.getAllByRole("combobox");
+    const filterSelect = filterSelects.find((s) => (s as HTMLSelectElement).options.length >= 2) ?? filterSelects[0];
+    await user.selectOptions(filterSelect, "false");
+    await waitFor(() => {
+      expect(mockListFeedback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ approved: "false" }),
       );
     });
   });

@@ -11,6 +11,11 @@ const mockConfirmPayment = vi.fn();
 const mockUpdateOrderStatus = vi.fn();
 const mockCancelOrder = vi.fn();
 const mockAttachPaymentProof = vi.fn();
+const mockConfirmRemove = vi.fn();
+
+vi.mock("../utils/confirmToast", () => ({
+  confirmRemove: (...args: unknown[]) => mockConfirmRemove(...args),
+}));
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -59,6 +64,7 @@ const renderOrderDetail = (orderId = "69a267320d47d126e790b2ac") => {
 describe("OrderDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConfirmRemove.mockResolvedValue(true);
     setCurrentUser({ id: "1", name: "Admin", email: "admin@test.com", role: "ADMIN", permissions: ["orders.manage"] });
     mockGetOrder.mockResolvedValue({ data: { order: instaPayUnpaidOrder } });
   });
@@ -122,5 +128,70 @@ describe("OrderDetailPage", () => {
     mockGetOrder.mockImplementation(() => new Promise(() => {}));
     renderOrderDetail();
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  });
+
+  it("calls updateOrderStatus when status changed", async () => {
+    const user = userEvent.setup();
+    mockUpdateOrderStatus.mockResolvedValue(undefined);
+    mockGetOrder
+      .mockResolvedValueOnce({ data: { order: instaPayUnpaidOrder } })
+      .mockResolvedValue({ data: { order: { ...instaPayUnpaidOrder, status: "CONFIRMED" } } });
+    renderOrderDetail();
+    await waitFor(() => expect(screen.getByText(/Test User/)).toBeInTheDocument());
+    const statusSelect = screen.getByDisplayValue("PENDING");
+    await user.selectOptions(statusSelect, "CONFIRMED");
+    await waitFor(() => expect(mockUpdateOrderStatus).toHaveBeenCalledWith("69a267320d47d126e790b2ac", "CONFIRMED"));
+  });
+
+  it("loads order from res.order when res.data is missing", async () => {
+    mockGetOrder.mockResolvedValue({ order: { ...instaPayUnpaidOrder } });
+    renderOrderDetail();
+    await waitFor(() => expect(screen.getByText(/Test User/)).toBeInTheDocument());
+  });
+
+  it("shows error when load fails", async () => {
+    mockGetOrder.mockRejectedValue(new Error("Not found"));
+    renderOrderDetail();
+    await waitFor(() => {
+      expect(screen.getByText(/failed|error|not found/i)).toBeInTheDocument();
+    });
+  });
+
+  it("calls cancelOrder when cancel clicked and confirmed", async () => {
+    const user = userEvent.setup();
+    mockCancelOrder.mockResolvedValue(undefined);
+    mockGetOrder
+      .mockResolvedValueOnce({ data: { order: instaPayUnpaidOrder } })
+      .mockResolvedValue({ data: { order: { ...instaPayUnpaidOrder, status: "CANCELLED" } } });
+    renderOrderDetail();
+    await waitFor(() => expect(screen.getByText(/Test User/)).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /cancel order/i }));
+    await waitFor(() => expect(mockCancelOrder).toHaveBeenCalledWith("69a267320d47d126e790b2ac"));
+  });
+
+  it("attaches proof when file selected and form submitted", async () => {
+    const user = userEvent.setup();
+    const { fireEvent } = await import("@testing-library/react");
+    mockAttachPaymentProof.mockResolvedValue(undefined);
+    mockGetOrder
+      .mockResolvedValueOnce({ data: { order: instaPayUnpaidOrder } })
+      .mockResolvedValue({
+        data: {
+          order: {
+            ...instaPayUnpaidOrder,
+            payment: { ...instaPayUnpaidOrder.payment, instaPayProofUrl: "/new-proof.jpg" },
+          },
+        },
+      });
+    renderOrderDetail();
+    await waitFor(() => expect(screen.getByRole("button", { name: /attach.*proof/i })).toBeInTheDocument());
+    const fileInput = document.getElementById("order-payment-proof") as HTMLInputElement;
+    const file = new File(["proof"], "proof.png", { type: "image/png" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /attach.*proof|attach/i })).not.toBeDisabled();
+    });
+    await user.click(screen.getByRole("button", { name: /attach.*proof/i }));
+    await waitFor(() => expect(mockAttachPaymentProof).toHaveBeenCalledWith("69a267320d47d126e790b2ac", file));
   });
 });

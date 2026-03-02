@@ -81,6 +81,19 @@ describe("SubscribersPage", () => {
     await waitFor(() => expect(mockListSubscribers).toHaveBeenCalledTimes(2));
   });
 
+  it("shows error when load fails", async () => {
+    const { ApiError } = await import("../services/api");
+    mockListSubscribers.mockRejectedValue(new ApiError(500, "Server unavailable"));
+    render(
+      <MemoryRouter>
+        <SubscribersPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/Server unavailable|failed|error/i)).toBeInTheDocument();
+    });
+  });
+
   it("displays empty state when no subscribers", async () => {
     mockListSubscribers.mockReset();
     mockListSubscribers.mockResolvedValue({ data: { subscribers: [] }, pagination: { total: 0 } });
