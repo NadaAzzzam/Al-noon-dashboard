@@ -174,7 +174,9 @@ describe("DashboardPage", () => {
       </MemoryRouter>
     );
     await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalled());
-    expect(screen.getByText(/attention needed|attention_needed/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/attention needed|attention_needed/i)).toBeInTheDocument();
+    });
   });
 
   it("displays all good when no pending orders or stock issues", async () => {
@@ -196,6 +198,8 @@ describe("DashboardPage", () => {
       </MemoryRouter>
     );
     await waitFor(() => expect(mockGetDashboardStats).toHaveBeenCalled());
-    expect(screen.getByText(/all good|all_good/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/all good|all_good/i)).toBeInTheDocument();
+    });
   });
 });

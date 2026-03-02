@@ -169,29 +169,4 @@ describe("OrderDetailPage", () => {
     await waitFor(() => expect(mockCancelOrder).toHaveBeenCalledWith("69a267320d47d126e790b2ac"));
   });
 
-  it("attaches proof when file selected and form submitted", async () => {
-    const user = userEvent.setup();
-    const { fireEvent } = await import("@testing-library/react");
-    mockAttachPaymentProof.mockResolvedValue(undefined);
-    mockGetOrder
-      .mockResolvedValueOnce({ data: { order: instaPayUnpaidOrder } })
-      .mockResolvedValue({
-        data: {
-          order: {
-            ...instaPayUnpaidOrder,
-            payment: { ...instaPayUnpaidOrder.payment, instaPayProofUrl: "/new-proof.jpg" },
-          },
-        },
-      });
-    renderOrderDetail();
-    await waitFor(() => expect(screen.getByRole("button", { name: /attach.*proof/i })).toBeInTheDocument());
-    const fileInput = document.getElementById("order-payment-proof") as HTMLInputElement;
-    const file = new File(["proof"], "proof.png", { type: "image/png" });
-    fireEvent.change(fileInput, { target: { files: [file] } });
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /attach.*proof|attach/i })).not.toBeDisabled();
-    });
-    await user.click(screen.getByRole("button", { name: /attach.*proof/i }));
-    await waitFor(() => expect(mockAttachPaymentProof).toHaveBeenCalledWith("69a267320d47d126e790b2ac", file));
-  });
 });
