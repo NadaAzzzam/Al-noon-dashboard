@@ -10,8 +10,8 @@ server/uploads
 coverage
 
 # Cypress
-cypress/screenshots/
-cypress/videos/
+**/cypress/screenshots/
+**/cypress/videos/
 
 # Miscellaneous
 /.angular/cache
