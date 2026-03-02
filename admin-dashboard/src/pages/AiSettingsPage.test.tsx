@@ -169,6 +169,30 @@ describe("AiSettingsPage", () => {
     });
   });
 
+  it("updates suggested question when typing", async () => {
+    const user = userEvent.setup();
+    mockGetSettings.mockResolvedValue({
+      data: {
+        settings: {
+          aiAssistant: {
+            enabled: false,
+            suggestedQuestions: [{ en: "Q1", ar: "س1" }],
+          },
+        },
+      },
+    });
+    render(
+      <MemoryRouter>
+        <AiSettingsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByDisplayValue("Q1")).toBeInTheDocument());
+    const enInput = screen.getByDisplayValue("Q1");
+    await user.clear(enInput);
+    await user.type(enInput, "Updated question");
+    expect(screen.getByDisplayValue("Updated question")).toBeInTheDocument();
+  });
+
   it("toggles show/hide API key", async () => {
     const user = userEvent.setup();
     mockGetSettings.mockResolvedValue({

@@ -97,7 +97,42 @@ describe("AiChatHistoryPage", () => {
     });
   });
 
-  it("loads session detail when viewing a session", async () => {
+  it("loads session detail when clicking view button", async () => {
+    mockListAiSessions.mockResolvedValue({
+      data: {
+        sessions: [
+          {
+            id: "s1",
+            sessionId: "session-abc123",
+            messageCount: 5,
+            status: "active",
+            createdAt: "2024-01-15T10:00:00Z",
+            updatedAt: "2024-01-15T10:05:00Z",
+          },
+        ],
+        total: 1,
+      },
+    });
+    mockGetAiSession.mockResolvedValue({
+      data: {
+        id: "s1",
+        sessionId: "session-abc123",
+        messages: [{ role: "user", content: "Hello" }],
+        status: "active",
+        createdAt: "2024-01-15T10:00:00Z",
+        updatedAt: "2024-01-15T10:05:00Z",
+      },
+    });
+    const user = userEvent.setup();
+    renderAiChatHistory("/ai-chats");
+    await waitFor(() => expect(screen.getByRole("button", { name: /view/i })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /view/i }));
+    await waitFor(() => {
+      expect(mockGetAiSession).toHaveBeenCalledWith("s1");
+    });
+  });
+
+  it("loads session detail when navigating to /ai-chats/:id", async () => {
     mockListAiSessions.mockResolvedValue({
       data: {
         sessions: [
@@ -129,7 +164,22 @@ describe("AiChatHistoryPage", () => {
     });
   });
 
-  it("displays session messages in detail view", async () => {
+  it("displays session messages in modal when viewing", async () => {
+    mockListAiSessions.mockResolvedValue({
+      data: {
+        sessions: [
+          {
+            id: "s1",
+            sessionId: "session-abc123",
+            messageCount: 2,
+            status: "active",
+            createdAt: "2024-01-15T10:00:00Z",
+            updatedAt: "2024-01-15T10:05:00Z",
+          },
+        ],
+        total: 1,
+      },
+    });
     mockGetAiSession.mockResolvedValue({
       data: {
         id: "s1",
@@ -143,13 +193,16 @@ describe("AiChatHistoryPage", () => {
         updatedAt: "2024-01-15T10:05:00Z",
       },
     });
-    renderAiChatHistory("/ai-chats/s1");
+    const user = userEvent.setup();
+    renderAiChatHistory("/ai-chats");
+    await waitFor(() => expect(screen.getByRole("button", { name: /view/i })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /view/i }));
     await waitFor(() => expect(mockGetAiSession).toHaveBeenCalled());
     expect(screen.getByText("Hello")).toBeInTheDocument();
     expect(screen.getByText(/Hi! How can I help/i)).toBeInTheDocument();
   });
 
-  it("shows loading then empty detail when session load fails", async () => {
+  it("shows loading in modal when session load fails", async () => {
     mockGetAiSession.mockRejectedValue(new Error("Not found"));
     renderAiChatHistory("/ai-chats/s1");
     await waitFor(() => expect(mockGetAiSession).toHaveBeenCalledWith("s1"));
@@ -183,6 +236,43 @@ describe("AiChatHistoryPage", () => {
     await user.click(deleteBtn);
     await waitFor(() => expect(mockDeleteAiSession).toHaveBeenCalledWith("s1"));
     confirmSpy.mockRestore();
+  });
+
+  it("closes modal when close button clicked", async () => {
+    mockListAiSessions.mockResolvedValue({
+      data: {
+        sessions: [
+          {
+            id: "s1",
+            sessionId: "session-abc123",
+            messageCount: 2,
+            status: "active",
+            createdAt: "2024-01-15T10:00:00Z",
+            updatedAt: "2024-01-15T10:05:00Z",
+          },
+        ],
+        total: 1,
+      },
+    });
+    mockGetAiSession.mockResolvedValue({
+      data: {
+        id: "s1",
+        sessionId: "session-abc123",
+        messages: [{ role: "user", content: "Hello" }],
+        status: "active",
+        createdAt: "2024-01-15T10:00:00Z",
+        updatedAt: "2024-01-15T10:05:00Z",
+      },
+    });
+    const user = userEvent.setup();
+    renderAiChatHistory("/ai-chats");
+    await waitFor(() => expect(screen.getByRole("button", { name: /view/i })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /view/i }));
+    await waitFor(() => expect(screen.getByText("Hello")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /close/i }));
+    await waitFor(() => {
+      expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+    });
   });
 
   it("does not delete when confirm cancelled", async () => {

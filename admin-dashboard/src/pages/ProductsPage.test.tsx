@@ -7,6 +7,8 @@ import "../i18n";
 
 const mockListProducts = vi.fn();
 const mockListCategories = vi.fn();
+const mockSetProductStatus = vi.fn();
+const mockDeleteProduct = vi.fn();
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -15,6 +17,8 @@ vi.mock("../services/api", async (importOriginal) => {
     api: {
       listProducts: (...args: unknown[]) => mockListProducts(...args),
       listCategories: (...args: unknown[]) => mockListCategories(...args),
+      setProductStatus: (...args: unknown[]) => mockSetProductStatus(...args),
+      deleteProduct: (...args: unknown[]) => mockDeleteProduct(...args),
       getProduct: vi.fn(),
       listOrders: vi.fn(),
       getOrder: vi.fn(),
@@ -99,5 +103,47 @@ describe("ProductsPage", () => {
     );
     await waitFor(() => expect(mockListProducts).toHaveBeenCalled());
     expect(screen.getByText(/no products found|no_products/i)).toBeInTheDocument();
+  });
+
+  it("calls setProductStatus when disable clicked", async () => {
+    mockListProducts
+      .mockResolvedValueOnce({
+        data: [{ _id: "p1", name: { en: "Prod" }, price: 10, stock: 5, status: "ACTIVE" }],
+        pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      })
+      .mockResolvedValue({ data: [], pagination: { total: 0 } });
+    mockSetProductStatus.mockResolvedValue({});
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ProductsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("Prod")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: /disable/i }));
+    await waitFor(() => expect(mockSetProductStatus).toHaveBeenCalledWith("p1", "INACTIVE"));
+  });
+
+  it("calls deleteProduct when delete confirmed", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockListProducts
+      .mockResolvedValueOnce({
+        data: [{ _id: "p1", name: { en: "Prod" }, price: 10, stock: 5, status: "ACTIVE" }],
+        pagination: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      })
+      .mockResolvedValue({ data: [], pagination: { total: 0 } });
+    mockDeleteProduct.mockResolvedValue({});
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ProductsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("Prod")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: /delete/i }));
+    await waitFor(() => expect(mockDeleteProduct).toHaveBeenCalledWith("p1"));
+    confirmSpy.mockRestore();
   });
 });

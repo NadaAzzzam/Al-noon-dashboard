@@ -7,6 +7,7 @@ import "../i18n";
 
 const mockGetSettings = vi.fn();
 const mockUpdateSettings = vi.fn();
+const mockUploadLogo = vi.fn();
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -16,7 +17,7 @@ vi.mock("../services/api", async (importOriginal) => {
       ...mod.api,
       getSettings: (...args: unknown[]) => mockGetSettings(...args),
       updateSettings: (...args: unknown[]) => mockUpdateSettings(...args),
-      uploadLogo: vi.fn(),
+      uploadLogo: (...args: unknown[]) => mockUploadLogo(...args),
     },
     hasPermission: () => true,
   };
@@ -110,5 +111,82 @@ describe("SettingsPage", () => {
     await user.click(saveBtn);
     await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalled());
     expect(screen.getByText(/saved/i)).toBeInTheDocument();
+  });
+
+  it("uploads logo when valid image file selected", async () => {
+    const { fireEvent } = await import("@testing-library/react");
+    mockUploadLogo.mockResolvedValue("/uploads/logos/new.png");
+    render(
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).toBeInTheDocument();
+    const file = new File(["logo"], "logo.png", { type: "image/png" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    await waitFor(() => expect(mockUploadLogo).toHaveBeenCalledWith(file));
+  });
+
+  it("shows error when non-image file selected for logo", async () => {
+    const { fireEvent } = await import("@testing-library/react");
+    render(
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["data"], "doc.pdf", { type: "application/pdf" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(/Please select an image file \(PNG/i);
+    });
+    expect(mockUploadLogo).not.toHaveBeenCalled();
+  });
+
+  it("removes logo when remove logo clicked", async () => {
+    const user = userEvent.setup();
+    mockGetSettings.mockResolvedValue({
+      data: {
+        settings: {
+          storeName: { en: "Store", ar: "" },
+          logo: "/uploads/logos/current.png",
+          currency: "EGP",
+        },
+      },
+    });
+    render(
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: /remove logo|remove_logo/i }));
+    await user.click(screen.getByRole("button", { name: /save/i }));
+    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalled());
+    expect(mockUpdateSettings.mock.calls[0][0].logo).toBe("");
+  });
+
+  it("loads advancedSettings when present", async () => {
+    mockGetSettings.mockResolvedValue({
+      data: {
+        settings: {
+          storeName: { en: "S", ar: "" },
+          logo: null,
+          advancedSettings: { currency: "USD", currencySymbol: "$" },
+          quickLinks: [{ label: { en: "Link" }, url: "/link" }],
+        },
+      },
+    });
+    render(
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
+    expect(screen.getByDisplayValue("USD")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("$")).toBeInTheDocument();
   });
 });
