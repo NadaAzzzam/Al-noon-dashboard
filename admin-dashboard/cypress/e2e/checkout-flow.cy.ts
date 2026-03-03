@@ -4,6 +4,8 @@
  * These tests verify the admin dashboard side of orders (viewing orders created via checkout).
  * The actual storefront checkout is in a separate storefront app; this tests that
  * orders created via checkout appear correctly in the admin.
+ *
+ * Also tests the apply-discount API (via proxy) - used by storefront before checkout.
  */
 describe("Checkout flow (admin view) E2E", () => {
   beforeEach(() => {
@@ -38,5 +40,41 @@ describe("Checkout flow (admin view) E2E", () => {
   it("dashboard shows order stats", () => {
     cy.visit("/");
     cy.contains(/orders|total|today|dashboard/i).should("be.visible");
+  });
+});
+
+describe("Apply discount API E2E", () => {
+  it("POST /api/checkout/apply-discount returns discount when valid code", () => {
+    cy.request({
+      method: "POST",
+      url: "/api/checkout/apply-discount",
+      body: { discountCode: "SAVE10", subtotal: 200 },
+      failOnStatusCode: false,
+    }).then((res) => {
+      if (res.status === 200) {
+        expect(res.body.success).to.be.true;
+        expect(res.body.data?.valid).to.be.true;
+        expect(res.body.data?.discountCode).to.eq("SAVE10");
+        expect(res.body.data?.discountAmount).to.be.a("number");
+      } else if (res.status === 503) {
+        expect(res.body.success).to.be.false;
+      } else {
+        expect([200, 400, 503]).to.include(res.status);
+      }
+    });
+  });
+
+  it("POST /api/checkout/apply-discount returns 400 for invalid code", () => {
+    cy.request({
+      method: "POST",
+      url: "/api/checkout/apply-discount",
+      body: { discountCode: "INVALID_CODE_XYZ", subtotal: 500 },
+      failOnStatusCode: false,
+    }).then((res) => {
+      expect(res.status).to.be.oneOf([400, 503]);
+      if (res.status === 400) {
+        expect(res.body.success).to.be.false;
+      }
+    });
   });
 });

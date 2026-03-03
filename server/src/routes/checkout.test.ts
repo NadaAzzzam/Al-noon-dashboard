@@ -9,6 +9,51 @@ describe("Checkout API", () => {
     app = createApp();
   });
 
+  describe("POST /api/checkout/apply-discount", () => {
+    it("returns 400 when discountCode is missing", async () => {
+      const res = await request(app)
+        .post("/api/checkout/apply-discount")
+        .set("Content-Type", "application/json")
+        .send({ subtotal: 100 });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 when subtotal is missing", async () => {
+      const res = await request(app)
+        .post("/api/checkout/apply-discount")
+        .set("Content-Type", "application/json")
+        .send({ discountCode: "SAVE10" });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for invalid discount code (or 503 when DB unavailable)", async () => {
+      const res = await request(app)
+        .post("/api/checkout/apply-discount")
+        .set("Content-Type", "application/json")
+        .send({ discountCode: "NONEXISTENT_XYZ", subtotal: 500 });
+      expect([400, 503]).toContain(res.status);
+      if (res.status === 400) expect(res.body.success).toBe(false);
+    });
+
+    it("returns 200 with discount when valid code and DB has matching code", async () => {
+      const res = await request(app)
+        .post("/api/checkout/apply-discount")
+        .set("Content-Type", "application/json")
+        .send({ discountCode: "SAVE10", subtotal: 200 });
+      if (res.status === 200) {
+        expect(res.body.success).toBe(true);
+        expect(res.body.data?.valid).toBe(true);
+        expect(res.body.data?.discountCode).toBe("SAVE10");
+        expect(typeof res.body.data?.discountAmount).toBe("number");
+        expect(res.body.data?.subtotalAfterDiscount).toBe(200 - (res.body.data?.discountAmount ?? 0));
+      } else if (res.status === 503) {
+        expect(res.body.success).toBe(false);
+      } else {
+        expect([200, 503]).toContain(res.status);
+      }
+    });
+  });
+
   describe("GET /api/shipping-methods", () => {
     it("returns shipping methods list or 503 when DB unavailable", async () => {
       const res = await request(app).get("/api/shipping-methods").timeout(15000);

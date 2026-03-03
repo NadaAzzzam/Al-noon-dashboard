@@ -341,6 +341,33 @@ export type City = {
 /** Payload for create/update city (API accepts nameEn, nameAr) */
 export type CityPayload = { nameEn: string; nameAr: string; deliveryFee?: number };
 
+export type DiscountCode = {
+  _id: string;
+  id?: string;
+  code: string;
+  type: "PERCENT" | "FIXED";
+  value: number;
+  minOrderAmount?: number | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  usageLimit?: number | null;
+  usedCount: number;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type DiscountCodePayload = {
+  code: string;
+  type: "PERCENT" | "FIXED";
+  value: number;
+  minOrderAmount?: number | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
+  usageLimit?: number | null;
+  enabled?: boolean;
+};
+
 /** Per-city delivery price (city may be populated with name) */
 export type ShippingMethodCityPrice = {
   city: string | { _id: string; name?: LocalizedString };
@@ -793,6 +820,14 @@ export const api = {
   updateCity: (id: string, payload: Partial<CityPayload>) =>
     request(`/cities/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteCity: (id: string) => request(`/cities/${id}`, { method: "DELETE" }),
+
+  listDiscountCodes: () => request("/discount-codes"),
+  getDiscountCode: (id: string) => request(`/discount-codes/${id}`),
+  createDiscountCode: (payload: DiscountCodePayload) =>
+    request("/discount-codes", { method: "POST", body: JSON.stringify(payload) }),
+  updateDiscountCode: (id: string, payload: Partial<DiscountCodePayload>) =>
+    request(`/discount-codes/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteDiscountCode: (id: string) => request(`/discount-codes/${id}`, { method: "DELETE" }),
 
   listShippingMethods: (includeDisabled?: boolean, cityId?: string) => {
     const params = new URLSearchParams();

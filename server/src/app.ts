@@ -30,6 +30,7 @@ import shippingMethodRoutes from "./routes/shippingMethodRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
 import paymentMethodRoutes from "./routes/paymentMethodRoutes.js";
+import discountCodeRoutes from "./routes/discountCodeRoutes.js";
 import { swaggerSpec } from "./swagger.js";
 import { isDbConnected } from "./config/db.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
@@ -191,6 +192,7 @@ export const createApp = () => {
   app.use("/api/payment-methods", paymentMethodRoutes);
   app.use("/api/roles", roleRoutes);
   app.use("/api/departments", departmentRoutes);
+  app.use("/api/discount-codes", discountCodeRoutes);
   app.use("/api", checkoutRoutes);
 
   const clientBuildPath = path.resolve(__dirname, "../../admin-dashboard/dist");

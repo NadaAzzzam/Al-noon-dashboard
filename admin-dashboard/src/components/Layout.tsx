@@ -94,6 +94,20 @@ const IconShipping = () => (
     <circle cx="18.5" cy="18.5" r="2.5" />
   </svg>
 );
+const IconDiscount = () => (
+  <svg
+    className="nav-link-icon"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+    <line x1="7" y1="7" x2="7.01" y2="7" />
+  </svg>
+);
 const IconInventory = () => (
   <svg
     className="nav-link-icon"
@@ -276,6 +290,7 @@ const getBreadcrumb = (pathname: string): string => {
     "/categories": "nav.categories",
     "/cities": "nav.cities",
     "/shipping-methods": "nav.shipping_methods",
+    "/discount-codes": "nav.discount_codes",
     "/inventory": "nav.inventory",
     "/orders": "nav.orders",
     "/customers": "nav.customers",
@@ -409,7 +424,7 @@ const Layout = () => {
   const hasOverview = hasPermission("dashboard.view") || hasPermission("reports.view");
   const hasStore = hasPermission("products.view") || hasPermission("categories.view") || hasPermission("inventory.view") || hasPermission("orders.view");
   const hasPeople = hasPermission("customers.view") || hasPermission("users.view") || hasPermission("departments.view") || hasPermission("roles.view") || hasPermission("subscribers.view");
-  const hasContent = hasPermission("contact.view") || hasPermission("feedback.view") || hasPermission("ai_chats.view") || hasPermission("cities.view") || hasPermission("shipping_methods.view");
+  const hasContent = hasPermission("contact.view") || hasPermission("feedback.view") || hasPermission("ai_chats.view") || hasPermission("cities.view") || hasPermission("shipping_methods.view") || hasPermission("settings.manage");
   const hasSettings = hasPermission("settings.view") || hasPermission("settings.manage") || hasPermission("home_page.view") || hasPermission("home_page.manage") || hasPermission("content_pages.view") || hasPermission("content_pages.manage") || hasPermission("ai_settings.manage");
 
   if (!authReady) {
@@ -517,6 +532,11 @@ const Layout = () => {
           {hasPermission("shipping_methods.view") && (
             <NavLink className="nav-link" to="/shipping-methods">
               <IconShipping /> {t("nav.shipping_methods")}
+            </NavLink>
+          )}
+          {hasPermission("settings.manage") && (
+            <NavLink className="nav-link" to="/discount-codes">
+              <IconDiscount /> {t("nav.discount_codes")}
             </NavLink>
           )}
           {hasSettings && (

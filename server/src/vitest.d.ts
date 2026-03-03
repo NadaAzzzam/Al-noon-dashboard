@@ -4,6 +4,7 @@ declare module "vitest" {
     toEqual(expected: unknown): void;
     toMatchObject(obj: object): void;
     toContain(expected: unknown): void;
+    toMatch(expected: string | RegExp): void;
     toBeGreaterThan(expected: number): void;
     toBeGreaterThanOrEqual(expected: number): void;
     toBeLessThan(expected: number): void;
@@ -21,7 +22,7 @@ declare module "vitest" {
 
   export function describe(name: string, fn: () => void): void;
   export function it(name: string, fn: () => void | Promise<void>, timeout?: number): void;
-  export const expect: ((actual: unknown) => ExpectMatchers & { not: ExpectMatchers }) & {
+  export const expect: ((actual: unknown) => ExpectMatchers & { not: ExpectMatchers; rejects: ExpectMatchers }) & {
     any(constructor: unknown): unknown;
     objectContaining(obj: object): unknown;
   };

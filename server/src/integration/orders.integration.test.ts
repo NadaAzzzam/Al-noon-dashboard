@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { Product } from "../models/Product.js";
 import { Category } from "../models/Category.js";
 import { Order } from "../models/Order.js";
 import { Payment } from "../models/Payment.js";
+import { Settings } from "../models/Settings.js";
 
 describe("Orders API (integration)", () => {
   let app: ReturnType<typeof createApp>;
@@ -167,6 +168,79 @@ describe("Orders API (integration)", () => {
 
     const productAfter = await Product.findById(productId);
     expect(productAfter!.stock).toBe(stockBefore - 3);
+  });
+
+  describe("Discount code flow", () => {
+    afterEach(async () => {
+      await Settings.findOneAndUpdate(
+        {},
+        { $set: { "advancedSettings.discountCodeSupported": true } },
+        { upsert: true }
+      );
+    });
+
+    it("POST /api/checkout/apply-discount returns valid discount when code exists", async () => {
+      const res = await request(app)
+        .post("/api/checkout/apply-discount")
+        .set("Content-Type", "application/json")
+        .send({ discountCode: "SAVE10", subtotal: 200 });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data?.valid).toBe(true);
+      expect(res.body.data?.discountCode).toBe("SAVE10");
+      expect(res.body.data?.discountAmount).toBe(20);
+      expect(res.body.data?.subtotalAfterDiscount).toBe(180);
+    });
+
+    it("POST /api/checkout with discountCode applies discount to order", async () => {
+      const res = await request(app)
+        .post("/api/checkout")
+        .set("Content-Type", "application/json")
+        .send({
+          items: [{ product: productId, quantity: 2, price: 100 }],
+          guestName: "Discount Guest",
+          guestEmail: "discount-guest@test.com",
+          shippingAddress: { address: "123 St", city: "Cairo" },
+          discountCode: "SAVE10",
+        });
+      expect(res.status).toBe(201);
+      expect(res.body.data?.order?.discountCode).toBe("SAVE10");
+      expect(res.body.data?.order?.discountAmount).toBe(20);
+      expect(res.body.data?.order?.total).toBe(180 + (res.body.data?.order?.deliveryFee ?? 65));
+    });
+
+    it("POST /api/checkout/apply-discount returns 403 when discountCodeSupported is false", async () => {
+      await Settings.findOneAndUpdate(
+        {},
+        { $set: { "advancedSettings.discountCodeSupported": false } },
+        { upsert: true }
+      );
+      const res = await request(app)
+        .post("/api/checkout/apply-discount")
+        .set("Content-Type", "application/json")
+        .send({ discountCode: "SAVE10", subtotal: 200 });
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("POST /api/checkout returns 403 when discountCode provided but discountCodeSupported is false", async () => {
+      await Settings.findOneAndUpdate(
+        {},
+        { $set: { "advancedSettings.discountCodeSupported": false } },
+        { upsert: true }
+      );
+      const res = await request(app)
+        .post("/api/checkout")
+        .set("Content-Type", "application/json")
+        .send({
+          items: [{ product: productId, quantity: 1, price: 100 }],
+          guestName: "Guest",
+          guestEmail: "no-discount@test.com",
+          shippingAddress: { address: "123 St", city: "Cairo" },
+          discountCode: "SAVE10",
+        });
+      expect(res.status).toBe(403);
+    });
   });
 
   it("POST /api/orders/:id/payments/confirm rejects payment when approved is false", async () => {

@@ -38,6 +38,10 @@
       "discount_code_min_not_met": "Order total too low for this discount code",
       "invalid_quantity": "Quantity must be at least 1 for all items"
     },
+    "discount": {
+      "not_enabled": "Discount codes are not enabled for this store",
+      "exists": "A discount code with this code already exists"
+    },
     "payment": {
       "not_found": "Payment not found for this order",
       "instapay_only": "Only InstaPay payments can be processed",
@@ -172,6 +176,10 @@
       "created": "Shipping method created successfully",
       "updated": "Shipping method updated successfully",
       "deleted": "Shipping method deleted successfully"
+    },
+    "discount_code": {
+      "created": "Discount code created successfully",
+      "updated": "Discount code updated successfully"
     },
     "common": {
       "fetched": "Data retrieved successfully"

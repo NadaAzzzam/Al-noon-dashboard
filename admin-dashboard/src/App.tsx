@@ -29,6 +29,7 @@ import RolesPage from "./pages/RolesPage";
 import RoleFormPage from "./pages/RoleFormPage";
 import DepartmentsPage from "./pages/DepartmentsPage";
 import DepartmentFormPage from "./pages/DepartmentFormPage";
+import DiscountCodesPage from "./pages/DiscountCodesPage";
 import { getToken } from "./services/api";
 
 const RequireAuth = ({ children }: { children: JSX.Element }) => {
@@ -59,6 +60,7 @@ const App = () => (
       <Route path="categories" element={<RequirePermission permission="categories.view"><CategoriesPage /></RequirePermission>} />
       <Route path="cities" element={<RequirePermission permission="cities.view"><CitiesPage /></RequirePermission>} />
       <Route path="shipping-methods" element={<RequirePermission permission="shipping_methods.view"><ShippingMethodsPage /></RequirePermission>} />
+      <Route path="discount-codes" element={<RequirePermission permission="settings.manage"><DiscountCodesPage /></RequirePermission>} />
       <Route path="inventory" element={<RequirePermission permission="inventory.view"><InventoryPage /></RequirePermission>} />
       <Route path="orders" element={<RequirePermission permission="orders.view"><OrdersPage /></RequirePermission>} />
       <Route path="orders/:id" element={<RequirePermission permission="orders.view"><OrderDetailPage /></RequirePermission>} />

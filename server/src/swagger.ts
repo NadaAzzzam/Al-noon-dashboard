@@ -731,6 +731,55 @@ function buildPaths() {
   };
 
   // --- Checkout (public) ---
+  paths["/api/checkout/apply-discount"] = {
+    post: {
+      operationId: "applyDiscount",
+      tags: ["Checkout"],
+      summary: "Validate discount code and get discount amount",
+      description: "Validates a discount code against cart subtotal. Use before checkout to show discounted price. Returns 403 when discountCodeSupported is false in store settings. Does NOT apply the discount (that happens at checkout).",
+      security: [],
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["discountCode", "subtotal"],
+              properties: {
+                discountCode: { type: "string", description: "Discount code to validate (e.g. SAVE10)" },
+                subtotal: { type: "number", minimum: 0, description: "Cart/order subtotal in EGP (before discount)" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Discount valid; discount amount and subtotal after discount",
+          ...jsonContent({
+            type: "object",
+            properties: {
+              success: { type: "boolean", example: true },
+              data: {
+                type: "object",
+                properties: {
+                  valid: { type: "boolean", example: true },
+                  discountCode: { type: "string", example: "SAVE10" },
+                  discountAmount: { type: "number", description: "Discount in EGP" },
+                  type: { type: "string", enum: ["PERCENT", "FIXED"] },
+                  value: { type: "number", description: "Percent (1-100) or fixed EGP amount" },
+                  subtotalAfterDiscount: { type: "number", description: "Subtotal minus discount" },
+                },
+              },
+            },
+          }),
+        },
+        "400": errDesc("Invalid/expired discount code or subtotal too low for minOrderAmount"),
+        "403": errDesc("Discount codes not enabled (discountCodeSupported is false)"),
+        "503": errDesc("Database unavailable"),
+      },
+    },
+  };
+
   paths["/api/checkout"] = {
     post: {
       operationId: "checkout",
@@ -788,6 +837,7 @@ function buildPaths() {
       responses: {
         "201": { description: "Order created; data.order returned (includes guest fields, discountCode, discountAmount when applied)", ...refSchema("OrderResponse") },
         "400": errDesc("Validation error: items and shippingAddress required; guest checkout missing name/email; invalid/expired discount code"),
+        "403": errDesc("Discount codes not enabled (when discountCode provided)"),
         "503": errDesc("Database unavailable"),
       },
     },

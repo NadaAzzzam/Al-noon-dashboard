@@ -4,6 +4,7 @@ import { Product } from "../models/Product.js";
 import { Settings } from "../models/Settings.js";
 import { User } from "../models/User.js";
 import { DiscountCode } from "../models/DiscountCode.js";
+import { validateAndComputeDiscount, recordDiscountUsage, type DiscountIdentity } from "../utils/discountUtils.js";
 import { City } from "../models/City.js";
 import { ShippingMethod } from "../models/ShippingMethod.js";
 import mongoose from "mongoose";
@@ -358,7 +359,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (pm !== "COD" && pm !== "INSTAPAY") {
     throw new ApiError(400, "Invalid payment method", { code: "errors.order.invalid_payment_method" });
   }
-  const settings = await Settings.findOne().select("paymentMethods").lean();
+  const settings = await Settings.findOne().select("paymentMethods advancedSettings").lean();
   const pmSettings = (settings as { paymentMethods?: { cod?: boolean; instaPay?: boolean } } | null)?.paymentMethods;
   const codEnabled = pmSettings?.cod !== false;
   const instaPayEnabled = pmSettings?.instaPay === true;
@@ -374,38 +375,26 @@ export const createOrder = asyncHandler(async (req, res) => {
   let discountAmount = 0;
   let appliedDiscountCode: string | undefined;
 
-  // --- Validate and apply discount code (optional) ---
+  // --- Validate and apply discount code (optional, only when discountCodeSupported) ---
   const rawCode = typeof bodyDiscountCode === "string" ? bodyDiscountCode.trim() : "";
+  let discountCodeIdForUsage: string | undefined;
   if (rawCode) {
-    const codeUpper = rawCode.toUpperCase();
-    const discountDoc = await DiscountCode.findOne({ code: codeUpper }).lean();
-    if (!discountDoc) {
-      throw new ApiError(400, "Invalid discount code", { code: "errors.order.invalid_discount_code" });
+    const advanced = (settings as { advancedSettings?: { discountCodeSupported?: boolean } } | null)?.advancedSettings;
+    const discountCodeSupported = advanced?.discountCodeSupported ?? true;
+    if (!discountCodeSupported) {
+      throw new ApiError(403, "Discount codes are not enabled", { code: "errors.discount.not_enabled" });
     }
-    if (!discountDoc.enabled) {
-      throw new ApiError(400, "Invalid discount code", { code: "errors.order.invalid_discount_code" });
-    }
-    const now = new Date();
-    if (discountDoc.validFrom && new Date(discountDoc.validFrom) > now) {
-      throw new ApiError(400, "Discount code not yet valid", { code: "errors.order.discount_code_not_valid" });
-    }
-    if (discountDoc.validUntil && new Date(discountDoc.validUntil) < now) {
-      throw new ApiError(400, "Discount code expired", { code: "errors.order.discount_code_expired" });
-    }
-    if (discountDoc.usageLimit != null && (discountDoc.usedCount ?? 0) >= discountDoc.usageLimit) {
-      throw new ApiError(400, "Discount code expired", { code: "errors.order.discount_code_expired" });
-    }
-    const minAmount = discountDoc.minOrderAmount ?? 0;
-    if (minAmount > 0 && subtotal < minAmount) {
-      throw new ApiError(400, "Order total too low for this discount code", { code: "errors.order.discount_code_min_not_met" });
-    }
-    const dc = discountDoc as { type: string; value: number };
-    if (dc.type === "PERCENT") {
-      discountAmount = Math.min(Math.round((subtotal * dc.value) / 100), subtotal);
-    } else {
-      discountAmount = Math.min(dc.value, subtotal);
-    }
-    appliedDiscountCode = codeUpper;
+    const identity: DiscountIdentity | undefined = effectiveUserId
+      ? { userId: effectiveUserId }
+      : (() => {
+          const e = (bodyEmail ?? guestEmail ?? "").toString().trim().toLowerCase();
+          const p = (phone ?? guestPhone ?? "").toString().trim();
+          return e || p ? { email: e || undefined, phone: p || undefined } : undefined;
+        })();
+    const result = await validateAndComputeDiscount(rawCode, subtotal, identity);
+    discountAmount = result.discountAmount;
+    appliedDiscountCode = result.discountCode;
+    discountCodeIdForUsage = result.discountCodeId;
   }
 
   const total = Math.max(0, subtotal - discountAmount + fee);
@@ -447,12 +436,23 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   const order = await Order.create(orderPayload);
 
-  // Increment discount code usage
-  if (appliedDiscountCode && discountAmount > 0) {
+  // Increment discount code usage and record per-identity usage
+  if (appliedDiscountCode && discountAmount > 0 && discountCodeIdForUsage) {
     await DiscountCode.findOneAndUpdate(
       { code: appliedDiscountCode },
       { $inc: { usedCount: 1 } }
     );
+    const usageIdentity: DiscountIdentity = effectiveUserId
+      ? { userId: effectiveUserId }
+      : {
+          email: (order as { email?: string }).email ?? (order as { guestEmail?: string }).guestEmail ?? undefined,
+          phone: (order as { phone?: string }).phone ?? (order as { guestPhone?: string }).guestPhone ?? undefined,
+        };
+    await recordDiscountUsage({
+      discountCodeId: discountCodeIdForUsage,
+      orderId: order._id.toString(),
+      identity: usageIdentity,
+    });
   }
 
   await Payment.create({
