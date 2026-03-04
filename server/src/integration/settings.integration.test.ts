@@ -129,4 +129,69 @@ describe("Settings API (integration)", () => {
       expect(settings.underConstructionMode).toBe(false);
     });
   });
+
+  describe("PUT /api/settings validation", () => {
+    it("accepts empty orderNotificationEmail (200)", async () => {
+      const res = await request(app)
+        .put("/api/settings")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({ orderNotificationEmail: "" });
+      expect(res.status).toBe(200);
+      const settings = res.body.data?.settings;
+      expect(settings).toBeDefined();
+    });
+
+    it("rejects invalid orderNotificationEmail with 400 and validation details", async () => {
+      const res = await request(app)
+        .put("/api/settings")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({ orderNotificationEmail: "not-an-email" });
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.code).toBe("errors.common.validation_error");
+      expect(res.body.details).toBeDefined();
+      expect(String(res.body.details)).toMatch(/orderNotificationEmail|Invalid email/i);
+    });
+
+    it("accepts valid orderNotificationEmail", async () => {
+      const res = await request(app)
+        .put("/api/settings")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({ orderNotificationEmail: "admin@example.com" });
+      expect(res.status).toBe(200);
+      const settings = res.body.data?.settings;
+      expect(settings?.orderNotificationEmail).toBe("admin@example.com");
+    });
+
+    it("accepts announcementBar and promoBanner", async () => {
+      const res = await request(app)
+        .put("/api/settings")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({
+          announcementBar: {
+            textEn: "Sale!",
+            textAr: "تخفيضات",
+            enabled: true,
+            backgroundColor: "#1a1a2e",
+          },
+          promoBanner: {
+            enabled: false,
+            image: "",
+            titleEn: "",
+            titleAr: "",
+            subtitleEn: "",
+            subtitleAr: "",
+            ctaLabelEn: "",
+            ctaLabelAr: "",
+            ctaUrl: "",
+          },
+        });
+      expect(res.status).toBe(200);
+      const settings = res.body.data?.settings;
+      expect(settings?.announcementBar).toBeDefined();
+      expect(settings?.announcementBar?.text?.en).toBe("Sale!");
+      expect(settings?.announcementBar?.text?.ar).toBe("تخفيضات");
+      expect(settings?.promoBanner).toBeDefined();
+    });
+  });
 });

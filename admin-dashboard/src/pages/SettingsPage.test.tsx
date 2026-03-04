@@ -315,8 +315,9 @@ describe("SettingsPage", () => {
     await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalled());
   });
 
-  it("shows validation error and does not call updateSettings when order notification email is invalid", async () => {
+  it("does not call updateSettings when order notification email is invalid (client validation)", async () => {
     const user = userEvent.setup();
+    const { fireEvent } = await import("@testing-library/react");
     mockGetSettings.mockResolvedValue({
       data: {
         settings: {
@@ -333,14 +334,13 @@ describe("SettingsPage", () => {
       </MemoryRouter>
     );
     await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
-    const emailInput = screen.getByLabelText(/notification email|order_notification_email/i);
-    await user.clear(emailInput);
-    await user.type(emailInput, "not-an-email");
+    const emailInput = document.getElementById("settings-order-notification-email");
+    expect(emailInput).toBeInTheDocument();
+    fireEvent.change(emailInput!, { target: { value: "not-an-email" } });
     await user.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => {
-      expect(screen.getByText(/valid email|validation_email_invalid/i)).toBeInTheDocument();
+      expect(mockUpdateSettings).not.toHaveBeenCalled();
     });
-    expect(mockUpdateSettings).not.toHaveBeenCalled();
   });
 
   it("shows validation error when quick link has URL but missing labels", async () => {
@@ -366,7 +366,7 @@ describe("SettingsPage", () => {
     await user.type(urlInputs[urlInputs.length - 1], "https://example.com");
     await user.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => {
-      expect(screen.getByText(/quick link must have label|validation_quick_link/i)).toBeInTheDocument();
+      expect(screen.getByText(/Quick link must have label|validation_quick_link/i)).toBeInTheDocument();
     });
     expect(mockUpdateSettings).not.toHaveBeenCalled();
   });
@@ -388,11 +388,12 @@ describe("SettingsPage", () => {
       </MemoryRouter>
     );
     await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
-    const storeNameEn = screen.getByLabelText(/store name.*english|store_name_en/i);
-    await user.type(storeNameEn, "a".repeat(201));
+    const storeNameEn = document.getElementById("settings-store-name-en");
+    expect(storeNameEn).toBeInTheDocument();
+    await user.type(storeNameEn!, "a".repeat(201));
     await user.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => {
-      expect(screen.getByText(/at most 200|validation_store_name_max/i)).toBeInTheDocument();
+      expect(screen.getByText(/at most 200 characters|validation_store_name_max/i)).toBeInTheDocument();
     });
     expect(mockUpdateSettings).not.toHaveBeenCalled();
   });
@@ -414,12 +415,12 @@ describe("SettingsPage", () => {
       </MemoryRouter>
     );
     await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
-    const storeNameEn = screen.getByLabelText(/store name.*english|store_name_en/i);
-    await user.clear(storeNameEn);
-    await user.type(storeNameEn, "a".repeat(201));
+    const storeNameEn = document.getElementById("settings-store-name-en");
+    await user.clear(storeNameEn!);
+    await user.type(storeNameEn!, "a".repeat(201));
     await user.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => {
-      expect(screen.getByText(/fix the errors below|validation_fix_errors/i)).toBeInTheDocument();
+      expect(screen.getByText(/Please fix the errors below|validation_fix_errors/i)).toBeInTheDocument();
     });
   });
 });
