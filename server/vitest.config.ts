@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    env: { NODE_ENV: "test" },
     include: ["src/**/*.test.ts", "src/**/*.spec.ts"],
     exclude: ["src/integration/**"],
     coverage: {
