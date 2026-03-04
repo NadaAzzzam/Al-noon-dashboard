@@ -1,13 +1,19 @@
 import { Request, Response } from 'express';
 import { ShippingMethod } from '../models/ShippingMethod';
 import { t } from '../i18n';
+import { isDbConnected } from '../config/db.js';
 
 /**
  * Get all shipping methods (public, returns only enabled methods).
  * Query: includeDisabled=true (admin) | cityId (optional) – when cityId is set, each method's price
  * is resolved from cityPrices for that city, or falls back to default price.
+ * Returns 503 when database is unavailable.
  */
 export const getShippingMethods = async (req: Request, res: Response): Promise<void> => {
+  if (!isDbConnected()) {
+    res.status(503).json({ success: false, message: 'Database not available' });
+    return;
+  }
   try {
     const { includeDisabled, cityId } = req.query;
 

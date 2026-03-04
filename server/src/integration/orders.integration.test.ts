@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, beforeEach } from "vitest";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { Product } from "../models/Product.js";
@@ -6,6 +6,7 @@ import { Category } from "../models/Category.js";
 import { Order } from "../models/Order.js";
 import { Payment } from "../models/Payment.js";
 import { Settings } from "../models/Settings.js";
+import { DiscountCode } from "../models/DiscountCode.js";
 
 describe("Orders API (integration)", () => {
   let app: ReturnType<typeof createApp>;
@@ -171,6 +172,25 @@ describe("Orders API (integration)", () => {
   });
 
   describe("Discount code flow", () => {
+    beforeEach(async () => {
+      await Settings.findOneAndUpdate(
+        {},
+        { $set: { "advancedSettings.discountCodeSupported": true } },
+        { upsert: true }
+      );
+      await DiscountCode.findOneAndUpdate(
+        { code: "SAVE10" },
+        {
+          code: "SAVE10",
+          type: "PERCENT",
+          value: 10,
+          minOrderAmount: 0,
+          enabled: true,
+          usedCount: 0,
+        },
+        { upsert: true, new: true }
+      );
+    });
     afterEach(async () => {
       await Settings.findOneAndUpdate(
         {},
@@ -205,8 +225,9 @@ describe("Orders API (integration)", () => {
         });
       expect(res.status).toBe(201);
       expect(res.body.data?.order?.discountCode).toBe("SAVE10");
-      expect(res.body.data?.order?.discountAmount).toBe(20);
-      expect(res.body.data?.order?.total).toBe(180 + (res.body.data?.order?.deliveryFee ?? 65));
+      // Server uses product price (50), so subtotal = 2*50 = 100, 10% = 10
+      expect(res.body.data?.order?.discountAmount).toBe(10);
+      expect(res.body.data?.order?.total).toBe(90 + (res.body.data?.order?.deliveryFee ?? 65));
     });
 
     it("POST /api/checkout/apply-discount returns 403 when discountCodeSupported is false", async () => {

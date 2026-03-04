@@ -71,6 +71,9 @@ export const applyDiscount = asyncHandler(async (req, res) => {
  * Returns available shipping methods with prices from database.
  */
 export const listShippingMethods = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) {
+    throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  }
   // Fetch enabled shipping methods from database
   const methods = await ShippingMethod.find({ enabled: true }).sort({ order: 1 });
 
