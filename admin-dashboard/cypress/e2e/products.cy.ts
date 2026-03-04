@@ -40,8 +40,8 @@ describe("Products E2E", () => {
 
   it("new product form has required fields", () => {
     cy.visit("/products/new");
-    cy.get('input[name="nameEn"], input[placeholder*="name" i]').should("exist");
-    cy.get('input[name="price"], input[type="number"]').should("exist");
-    cy.get('input[name="stock"], input[placeholder*="stock" i]').should("exist");
+    cy.get("#product-name-en").should("exist");
+    cy.get("#product-price").should("exist");
+    cy.get("#product-stock").should("exist");
   });
 });

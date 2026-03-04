@@ -8,7 +8,7 @@ describe("Settings E2E", () => {
   it("navigates to settings and shows general form", () => {
     cy.visit("/settings", { timeout: 15000 });
     cy.url().should("include", "/settings");
-    cy.contains(/settings/i).should("be.visible");
+    cy.get("main").contains(/settings|store|general/i).should("be.visible");
     cy.contains(/store name|Store information/i).should("be.visible");
     cy.get("#settings-store-name-en").should("be.visible");
     cy.get('button[type="submit"]').contains(/save settings/i).should("be.visible");
