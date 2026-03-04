@@ -68,4 +68,65 @@ describe("Settings API (integration)", () => {
       expect(dbUrls.length).toBe([...new Set(dbUrls)].length);
     });
   });
+
+  describe("PUT /api/settings comingSoon and underConstruction", () => {
+    it("saves and returns comingSoonMode and comingSoonMessage", async () => {
+      const res = await request(app)
+        .put("/api/settings")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({
+          comingSoonMode: true,
+          comingSoonMessageEn: "We'll be back soon!",
+          comingSoonMessageAr: "سنعود قريباً!",
+        });
+      expect(res.status).toBe(200);
+      const settings = res.body.data?.settings;
+      expect(settings).toBeDefined();
+      expect(settings.comingSoonMode).toBe(true);
+      expect(settings.comingSoonMessage).toEqual({ en: "We'll be back soon!", ar: "سنعود قريباً!" });
+    });
+
+    it("saves and returns underConstructionMode and underConstructionMessage", async () => {
+      const res = await request(app)
+        .put("/api/settings")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({
+          underConstructionMode: true,
+          underConstructionMessageEn: "Site under construction",
+          underConstructionMessageAr: "الموقع قيد الإنشاء",
+        });
+      expect(res.status).toBe(200);
+      const settings = res.body.data?.settings;
+      expect(settings).toBeDefined();
+      expect(settings.underConstructionMode).toBe(true);
+      expect(settings.underConstructionMessage).toEqual({
+        en: "Site under construction",
+        ar: "الموقع قيد الإنشاء",
+      });
+    });
+
+    it("GET /api/settings returns comingSoon and underConstruction when set", async () => {
+      await Settings.findOneAndUpdate(
+        {},
+        {
+          $set: {
+            comingSoonMode: true,
+            comingSoonMessage: { en: "Coming soon", ar: "قريباً" },
+            underConstructionMode: false,
+            underConstructionMessage: { en: "", ar: "" },
+          },
+        },
+        { upsert: true }
+      );
+      const res = await request(app)
+        .get("/api/settings")
+        .set("Authorization", `Bearer ${authToken}`);
+      expect(res.status).toBe(200);
+      const settings = res.body.data?.settings;
+      expect(settings).toBeDefined();
+      expect(settings.comingSoonMode).toBe(true);
+      expect(settings.comingSoonMessage).toEqual({ en: "Coming soon", ar: "قريباً" });
+      expect(settings.underConstructionMode).toBe(false);
+    });
+  });
 });

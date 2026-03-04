@@ -38,6 +38,23 @@ describe("Products API (integration)", () => {
     categoryId = cat?._id?.toString() ?? (await Category.create({ name: { en: "Test", ar: "تجربة" }, status: "visible" }))._id.toString();
   });
 
+  it("GET /api/products/filters/sort returns sort options in Shopify style", async () => {
+    const res = await request(app).get("/api/products/filters/sort");
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data.length).toBeGreaterThan(0);
+    const first = res.body.data[0];
+    expect(first).toHaveProperty("value");
+    expect(first).toHaveProperty("labelEn");
+    expect(first).toHaveProperty("labelAr");
+    const values = res.body.data.map((o: { value: string }) => o.value);
+    expect(values).toContain("BEST_SELLING");
+    expect(values).toContain("CREATED_DESC");
+    expect(values).toContain("PRICE_ASC");
+    expect(values).toContain("PRICE_DESC");
+  });
+
   it("GET /api/products returns list with pagination", async () => {
     const res = await request(app).get("/api/products?slug=*&page=1&limit=5");
     expect(res.status).toBe(200);
@@ -85,6 +102,16 @@ describe("Products API (integration)", () => {
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
     const found = res.body.data.find((p: { _id?: string }) => String(p._id) === String(product!._id));
     expect(found).toBeDefined();
+  });
+
+  it("GET /api/products?hasDiscount=true returns only products with discount", async () => {
+    const res = await request(app).get("/api/products?hasDiscount=true&slug=*&limit=50");
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    res.body.data.forEach((p: { discountPrice?: number | null }) => {
+      expect(p.discountPrice != null && Number(p.discountPrice) > 0).toBe(true);
+    });
   });
 
   it("GET /api/products/:id returns discountPercent when product has discount", async () => {

@@ -93,6 +93,29 @@ describe("Store API (integration)", () => {
     });
   });
 
+  describe("GET /api/store/home comingSoon and underConstruction", () => {
+    it("returns store.comingSoonMode and store.underConstructionMode in home data", async () => {
+      await Settings.findOneAndUpdate(
+        {},
+        {
+          $set: {
+            comingSoonMode: true,
+            underConstructionMode: false,
+            comingSoonMessage: { en: "Soon", ar: "قريباً" },
+          },
+        },
+        { upsert: true }
+      );
+      const res = await request(app).get("/api/store/home");
+      expect(res.status).toBe(200);
+      const store = res.body.data?.home?.store;
+      expect(store).toBeDefined();
+      expect(store.comingSoonMode).toBe(true);
+      expect(store.underConstructionMode).toBe(false);
+      expect(store.comingSoonMessage).toEqual({ en: "Soon", ar: "قريباً" });
+    });
+  });
+
   describe("GET /api/store/settings", () => {
     it("returns store settings without auth", async () => {
       const res = await request(app).get("/api/store/settings");
@@ -113,6 +136,28 @@ describe("Store API (integration)", () => {
       expect(typeof s.currency).toBe("string");
       expect(typeof s.currencySymbol).toBe("string");
       expect(typeof s.discountCodeSupported).toBe("boolean");
+    });
+
+    it("returns comingSoonMode, underConstructionMode and optional messages when set", async () => {
+      await Settings.findOneAndUpdate(
+        {},
+        {
+          $set: {
+            comingSoonMode: true,
+            comingSoonMessage: { en: "Coming soon", ar: "قريباً" },
+            underConstructionMode: true,
+            underConstructionMessage: { en: "Under construction", ar: "قيد الإنشاء" },
+          },
+        },
+        { upsert: true }
+      );
+      const res = await request(app).get("/api/store/settings");
+      expect(res.status).toBe(200);
+      const s = res.body.data?.settings;
+      expect(s.comingSoonMode).toBe(true);
+      expect(s.comingSoonMessage).toEqual({ en: "Coming soon", ar: "قريباً" });
+      expect(s.underConstructionMode).toBe(true);
+      expect(s.underConstructionMessage).toEqual({ en: "Under construction", ar: "قيد الإنشاء" });
     });
   });
 
