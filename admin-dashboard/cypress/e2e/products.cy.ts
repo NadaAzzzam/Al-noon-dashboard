@@ -33,7 +33,7 @@ describe("Products E2E", () => {
 
   it("navigates to new product form", () => {
     cy.visit("/products");
-    cy.contains(/new|add|create/i).click();
+    cy.contains("a", /new product|add product|create product/i).click();
     cy.url().should("match", /\/products\/new/);
     cy.contains(/name|title|product/i).should("be.visible");
   });
