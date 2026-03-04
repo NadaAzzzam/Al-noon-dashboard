@@ -1,7 +1,7 @@
 import rateLimit from "express-rate-limit";
-import { env } from "../config/env.js";
 
 const isProduction = process.env.NODE_ENV === "production";
+const isTest = process.env.NODE_ENV === "test";
 
 /** General API: 100 requests per 15 minutes per IP */
 export const apiLimiter = rateLimit({
@@ -9,7 +9,7 @@ export const apiLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => !isProduction
+  skip: () => !isProduction || isTest
 });
 
 /** Auth routes: 10 attempts per 15 minutes per IP (brute-force protection) */
@@ -18,7 +18,7 @@ export const authLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => !isProduction
+  skip: () => !isProduction || isTest
 });
 
 /** AI chat: 20 requests per 15 minutes per IP (prevents abuse, prompt injection spam) */
@@ -27,7 +27,7 @@ export const aiChatLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => process.env.NODE_ENV !== "production"
+  skip: () => process.env.NODE_ENV !== "production" || isTest
 });
 
 /** Checkout/orders: 15 requests per 15 minutes per IP (prevents abuse) */
@@ -36,5 +36,5 @@ export const checkoutLimiter = rateLimit({
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => !isProduction
+  skip: () => !isProduction || isTest
 });
