@@ -73,7 +73,9 @@ describe("DepartmentFormPage", () => {
     await waitFor(() => {
       expect(mockGetDepartment).toHaveBeenCalledWith("dept1");
     });
-    expect(screen.getByDisplayValue("Marketing")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Marketing")).toBeInTheDocument();
+    });
   });
 
   it("shows validation error when submitting empty name", async () => {

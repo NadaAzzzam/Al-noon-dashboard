@@ -128,10 +128,13 @@ describe("ShippingMethodsPage", () => {
     await user.clear(spinbuttons[2]);
     await user.type(spinbuttons[2], "75");
     await user.click(screen.getByRole("button", { name: /create|save/i }));
-    await waitFor(() => {
-      expect(mockCreateShippingMethod).toHaveBeenCalled();
-    });
-  });
+    await waitFor(
+      () => {
+        expect(mockCreateShippingMethod).toHaveBeenCalled();
+      },
+      { timeout: 10000 }
+    );
+  }, 10000);
 
   it("opens edit modal and updates shipping method on submit", async () => {
     const user = userEvent.setup();

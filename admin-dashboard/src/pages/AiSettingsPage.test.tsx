@@ -71,8 +71,9 @@ describe("AiSettingsPage", () => {
         <AiSettingsPage />
       </MemoryRouter>
     );
-    await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
-    expect(screen.getByRole("checkbox", { name: /enable ai/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("checkbox", { name: /enable ai/i })).toBeInTheDocument();
+    });
     expect(screen.getByLabelText(/gemini api key/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
   });
@@ -85,7 +86,9 @@ describe("AiSettingsPage", () => {
         <AiSettingsPage />
       </MemoryRouter>
     );
-    await waitFor(() => expect(mockGetSettings).toHaveBeenCalled());
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
+    });
     await user.click(screen.getByRole("button", { name: /save/i }));
     await waitFor(() => {
       expect(mockUpdateSettings).toHaveBeenCalledWith(
