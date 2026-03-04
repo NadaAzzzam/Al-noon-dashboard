@@ -1,11 +1,16 @@
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { env } from "../../config/env.js";
 import { isDbConnected } from "../../config/db.js";
 import { User } from "../../models/User.js";
+import { PasswordReset } from "../../models/PasswordReset.js";
 import { ApiError } from "../../utils/apiError.js";
 import { logger } from "../../utils/logger.js";
 import { ALL_PERMISSION_KEYS } from "../../config/permissions.js";
 import { Permission, Role, RolePermission } from "../../models/Role.js";
+import { sendMail } from "../../utils/email.js";
+import { buildResetPasswordEmailHtml, getEmailBrandingFromSettings } from "../../utils/emailTemplates.js";
+import { Settings } from "../../models/Settings.js";
 
 const DEV_ADMIN_ID = "dev-admin";
 
@@ -138,4 +143,101 @@ export async function getMe(userId: string): Promise<AuthUser | null> {
     role: u.role,
     permissions,
   };
+}
+
+const RESET_TOKEN_EXPIRY_HOURS = 1;
+
+/** Request a password reset email. Always returns success for unknown emails (security). */
+export async function requestPasswordReset(email: string): Promise<void> {
+  if (!isDbConnected()) {
+    throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail }).lean();
+  if (!user) {
+    return;
+  }
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
+  await PasswordReset.deleteMany({ userId: user._id });
+  await PasswordReset.create({ userId: user._id, token, expiresAt });
+  const baseUrl = (env.storefrontUrl || "http://localhost:4200").replace(/\/?$/, "");
+  const resetLink = `${baseUrl}/reset-password?token=${token}`;
+
+  let branding = getEmailBrandingFromSettings(null, baseUrl);
+  if (isDbConnected()) {
+    const settings = await Settings.findOne().select("storeName logo").lean();
+    branding = getEmailBrandingFromSettings(settings as { storeName?: { en?: string; ar?: string }; logo?: string } | null, baseUrl);
+  }
+  const html = buildResetPasswordEmailHtml({
+    ...branding,
+    resetLink,
+    expiryHours: RESET_TOKEN_EXPIRY_HOURS
+  });
+  const result = await sendMail(
+    normalizedEmail,
+    `Reset your password${branding.storeName ? ` - ${branding.storeName}` : ""}`,
+    html
+  );
+  if (!result.ok) {
+    logger.warn({ err: result.error }, "Password reset email failed");
+  }
+}
+
+/** Reset password using token from email. Validates password === confirmPassword on server. */
+export async function resetPassword(input: {
+  token: string;
+  password: string;
+  confirmPassword: string;
+}): Promise<void> {
+  const { token, password, confirmPassword } = input;
+  if (password !== confirmPassword) {
+    throw new ApiError(400, "Passwords do not match", { code: "errors.auth.password_mismatch" });
+  }
+  if (!isDbConnected()) {
+    throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  }
+  const record = await PasswordReset.findOne({ token }).sort({ createdAt: -1 });
+  if (!record || record.expiresAt < new Date()) {
+    throw new ApiError(400, "Invalid or expired reset link", { code: "errors.auth.reset_token_invalid" });
+  }
+  const user = await User.findById(record.userId);
+  if (!user) {
+    await PasswordReset.deleteOne({ _id: record._id });
+    throw new ApiError(400, "Invalid or expired reset link", { code: "errors.auth.reset_token_invalid" });
+  }
+  user.password = password;
+  await user.save();
+  await PasswordReset.deleteMany({ userId: user._id });
+}
+
+/** Change password for logged-in user. Validates current password and password === confirmPassword. */
+export async function changePassword(
+  userId: string,
+  input: { currentPassword: string; newPassword: string; confirmPassword: string }
+): Promise<void> {
+  const { currentPassword, newPassword, confirmPassword } = input;
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "New password and confirmation do not match", {
+      code: "errors.auth.password_mismatch"
+    });
+  }
+  if (userId === DEV_ADMIN_ID) {
+    throw new ApiError(400, "Cannot change dev admin password via API", {
+      code: "errors.auth.cannot_change_dev_admin"
+    });
+  }
+  if (!isDbConnected()) {
+    throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  }
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found", { code: "errors.auth.user_not_found" });
+  }
+  const valid = await user.comparePassword(currentPassword);
+  if (!valid) {
+    throw new ApiError(401, "Current password is incorrect", { code: "errors.auth.invalid_credentials" });
+  }
+  user.password = newPassword;
+  await user.save();
 }

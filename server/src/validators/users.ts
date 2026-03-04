@@ -43,3 +43,20 @@ export const updateUserSchema = z.object({
     id: z.string().trim().min(1, "User ID is required")
   })
 });
+
+const passwordMin = z.string().min(6, "Password must be at least 6 characters").max(128, "Password must be at most 128 characters");
+
+export const updateCustomerPasswordSchema = z.object({
+  body: z
+    .object({
+      newPassword: passwordMin,
+      confirmPassword: z.string().min(1, "Please confirm your password"),
+    })
+    .refine((data) => data.newPassword === data.confirmPassword, {
+      message: "Passwords do not match",
+      path: ["confirmPassword"],
+    }),
+  params: z.object({
+    id: z.string().trim().min(1, "Customer ID is required"),
+  }),
+});

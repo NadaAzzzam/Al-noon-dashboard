@@ -9,6 +9,7 @@ import { logoPath, collectionImagePath, heroImagePath, heroVideoPath, sectionIma
 import { getDefaultLocale } from "../i18n.js";
 import { sendResponse } from "../utils/response.js";
 import { sendMail } from "../utils/email.js";
+import { buildTestOrderEmailHtml, getEmailBrandingFromSettings } from "../utils/emailTemplates.js";
 
 const heroDefault = {
   images: [] as string[],
@@ -370,20 +371,22 @@ export const sendTestOrderEmail = asyncHandler(async (req, res) => {
   if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     throw new ApiError(400, "No notification email configured. Set notification email in settings or ADMIN_EMAIL in server config.", { code: "errors.settings.no_notification_email" });
   }
-  const subject = "Test: New order notification (Al-noon)";
-  const html = `
-    <h2>Test order notification</h2>
-    <p>This is a test email. When a customer places an order, you will receive a similar email with real order details.</p>
-    <p><strong>Order ID:</strong> TEST-ORDER-002</p>
-    <p><strong>Customer:</strong> Nura & Tooz Feki (nura.tooz@example.com)</p>
-    <p><strong>Payment:</strong> COD</p>
-    <p><strong>Shipping:</strong> 123 Test St, Cairo</p>
-    <p><strong>Total:</strong> 750 EGP</p>
-    <h3>Items</h3>
-    <ul><li>Sample Product A × 1 = 400 EGP</li><li>Sample Product B × 1 = 350 EGP</li></ul>
-    <p><em>If you received this, order notifications are working.</em></p>
-  `;
-  const result = await sendMail(to, subject, html);
+  const storefrontBaseUrl = env.storefrontUrl || "http://localhost:4200";
+  const branding = getEmailBrandingFromSettings(
+    settings as { storeName?: { en?: string; ar?: string }; logo?: string } | null,
+    storefrontBaseUrl
+  );
+  const html = buildTestOrderEmailHtml({
+    ...branding,
+    sampleOrderId: "TEST-ORDER-002",
+    sampleCustomerName: "Nura & Tooz Feki",
+    sampleCustomerEmail: "nura.tooz@example.com",
+    samplePayment: "COD",
+    sampleShipping: "123 Test St, Cairo",
+    sampleTotal: "750 EGP",
+    sampleItems: ["Sample Product A × 1 = 400 EGP", "Sample Product B × 1 = 350 EGP"]
+  });
+  const result = await sendMail(to, `Test: New order notification - ${branding.storeName}`, html);
   if (!result.ok) {
     throw new ApiError(503, result.error || "Email could not be sent.", { code: "errors.settings.email_send_failed" });
   }

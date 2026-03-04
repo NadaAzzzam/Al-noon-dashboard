@@ -10,6 +10,8 @@ export type AuthPayload = {
   userId: string;
   /** Role key stored on the user (e.g. "ADMIN", "USER", "STAFF"). */
   role: string;
+  /** Set by authenticateAny: whether token was admin or customer (for profile response shape). */
+  source?: "admin" | "customer";
 };
 
 declare module "express-serve-static-core" {
@@ -84,6 +86,7 @@ export const optionalAuthenticate = (req: Request, _res: Response, next: NextFun
 /**
  * Accept either admin or customer token (admin cookie, then customer cookie, then Bearer).
  * Use for GET /auth/profile so both admin dashboard and sitefront can call it.
+ * Sets req.auth.source so profile can return role/permissions only for admin.
  */
 export const authenticateAny = (req: Request, _res: Response, next: NextFunction) => {
   try {
@@ -97,6 +100,13 @@ export const authenticateAny = (req: Request, _res: Response, next: NextFunction
     }
     const payload = jwt.verify(token, env.jwtSecret) as AuthPayload;
     req.auth = payload;
+    if (adminCookie) {
+      req.auth.source = "admin";
+    } else if (customerCookie) {
+      req.auth.source = "customer";
+    } else {
+      req.auth.source = payload.role === "ADMIN" ? "admin" : "customer";
+    }
     next();
   } catch {
     next(new ApiError(401, "Invalid token", { code: "errors.auth.unauthorized" }));

@@ -735,6 +735,8 @@ export const api = {
   listCustomers: () => request("/customers"),
   getCustomer: (id: string) => request(`/customers/${id}`),
   getCustomerOrders: (id: string) => request(`/customers/${id}/orders`),
+  updateCustomerPassword: (id: string, payload: { newPassword: string; confirmPassword: string }) =>
+    request(`/customers/${id}/password`, { method: "PUT", body: JSON.stringify(payload) }),
   createUser: (payload: { name: string; email: string; password: string; role: string; departmentId?: string }) =>
     request("/users", { method: "POST", body: JSON.stringify(payload) }),
   updateUser: (id: string, payload: Partial<{ name: string; email: string; password: string; role: string; departmentId?: string | null }>) =>

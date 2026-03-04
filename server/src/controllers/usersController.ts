@@ -4,6 +4,7 @@ import { User } from "../models/User.js";
 import { Department } from "../models/Department.js";
 import { env } from "../config/env.js";
 import { isDbConnected } from "../config/db.js";
+import { getDefaultLocale } from "../i18n.js";
 import { ApiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
@@ -102,6 +103,31 @@ export const getCustomerOrders = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .lean();
   sendResponse(res, req.locale, { data: { orders } });
+});
+
+/** Admin sets a new password for a customer (role USER). */
+export const updateCustomerPassword = asyncHandler(async (req, res) => {
+  if (!isDbConnected()) throw new ApiError(503, "Database not available", { code: "errors.common.db_unavailable" });
+  const customerId = (req.params as { id: string }).id;
+  const body = (req.body || {}) as Record<string, unknown>;
+  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+  const confirmPassword = typeof body.confirmPassword === "string" ? body.confirmPassword : "";
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "Passwords do not match", { code: "errors.auth.password_mismatch" });
+  }
+  const user = await User.findById(customerId);
+  if (!user) {
+    throw new ApiError(404, "Customer not found", { code: "errors.user.customer_not_found" });
+  }
+  if (user.role !== "USER") {
+    throw new ApiError(404, "Customer not found", { code: "errors.user.customer_not_found" });
+  }
+  user.password = newPassword;
+  await user.save();
+  sendResponse(res, req.locale ?? getDefaultLocale(), {
+    message: "success.auth.password_changed",
+    data: { updated: true },
+  });
 });
 
 export const listRoleOptions = asyncHandler(async (req, res) => {

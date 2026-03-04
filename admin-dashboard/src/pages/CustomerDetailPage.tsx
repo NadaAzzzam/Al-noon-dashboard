@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import { api, ApiError, Order, getProductImageUrl } from "../services/api";
 import { TableActionsDropdown } from "../components/TableActionsDropdown";
 import { ImageLightbox } from "../components/ImageLightbox";
@@ -23,6 +24,11 @@ const CustomerDetailPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [imagePopupSrc, setImagePopupSrc] = useState<string | null>(null);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -45,6 +51,37 @@ const CustomerDetailPage = () => {
   }, [id]);
 
   if (!customer) return <div>{error || t("common.loading")}</div>;
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordError("");
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError("");
+    if (newPassword.length < 6) {
+      setPasswordError(t("validation.min_length", { min: 6 }) || "Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(t("customer_detail.change_password_failed") || "Passwords do not match");
+      return;
+    }
+    if (!id) return;
+    setPasswordSaving(true);
+    try {
+      await api.updateCustomerPassword(id, { newPassword, confirmPassword });
+      toast.success(t("customer_detail.change_password_success"));
+      closePasswordModal();
+    } catch (err) {
+      setPasswordError(err instanceof ApiError ? err.message : t("customer_detail.change_password_failed"));
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const avatarUrl = customer.avatar ? getProductImageUrl(customer.avatar) : null;
   const initials = (customer.name || "?")
@@ -98,9 +135,72 @@ const CustomerDetailPage = () => {
                 })}
               </p>
             )}
+            <p style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setPasswordModalOpen(true)}
+                data-testid="customer-change-password-btn"
+              >
+                {t("customer_detail.change_password")}
+              </button>
+            </p>
           </div>
         </div>
       </div>
+      {passwordModalOpen && (
+        <div
+          className="modal-overlay"
+          onClick={closePasswordModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="change-password-title"
+        >
+          <div className="modal card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <h3 id="change-password-title">{t("customer_detail.change_password")}</h3>
+            <form onSubmit={handleChangePasswordSubmit} noValidate>
+              {passwordError && (
+                <div className="error" role="alert" style={{ marginBottom: 12 }}>
+                  {passwordError}
+                </div>
+              )}
+              <div className="form-group">
+                <label htmlFor="customer-new-password">{t("customer_detail.new_password")}</label>
+                <input
+                  id="customer-new-password"
+                  type="password"
+                  data-testid="customer-new-password"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setPasswordError(""); }}
+                  placeholder={t("customer_detail.new_password")}
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="customer-confirm-password">{t("customer_detail.confirm_password")}</label>
+                <input
+                  id="customer-confirm-password"
+                  type="password"
+                  data-testid="customer-confirm-password"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(""); }}
+                  placeholder={t("customer_detail.confirm_password")}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+                <button type="button" className="button secondary" onClick={closePasswordModal} disabled={passwordSaving}>
+                  {t("common.cancel")}
+                </button>
+                <button type="submit" className="button primary" disabled={passwordSaving} data-testid="customer-password-submit">
+                  {passwordSaving ? t("common.saving") : t("common.save")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <div className="card">
         <h3>{t("customer_detail.orders_history")}</h3>
         <table className="table">

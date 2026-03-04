@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import CustomerDetailPage from "./CustomerDetailPage";
 import "../i18n";
 
 const mockGetCustomer = vi.fn();
 const mockGetCustomerOrders = vi.fn();
+const mockUpdateCustomerPassword = vi.fn();
 
 vi.mock("../services/api", async (importOriginal) => {
   const mod = await importOriginal<typeof import("../services/api")>();
@@ -14,6 +16,7 @@ vi.mock("../services/api", async (importOriginal) => {
     api: {
       getCustomer: (...args: unknown[]) => mockGetCustomer(...args),
       getCustomerOrders: (...args: unknown[]) => mockGetCustomerOrders(...args),
+      updateCustomerPassword: (...args: unknown[]) => mockUpdateCustomerPassword(...args),
       listCategories: vi.fn(),
       listProducts: vi.fn(),
       listOrders: vi.fn(),
@@ -107,5 +110,109 @@ describe("CustomerDetailPage", () => {
     });
     const backLink = screen.getByRole("link", { name: /back|customers/i });
     expect(backLink).toHaveAttribute("href", "/customers");
+  });
+
+  it("opens change password modal when Change password is clicked", async () => {
+    const user = userEvent.setup();
+    renderCustomerDetail("c1");
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+    const changePasswordBtn = screen.getByTestId("customer-change-password-btn");
+    expect(changePasswordBtn).toBeInTheDocument();
+    await user.click(changePasswordBtn);
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByLabelText(/new password/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
+    });
+  });
+
+  it("calls updateCustomerPassword and closes modal on success", async () => {
+    const user = userEvent.setup();
+    mockUpdateCustomerPassword.mockResolvedValue({ success: true, data: { updated: true } });
+    renderCustomerDetail("c1");
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("customer-change-password-btn"));
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+    await user.type(screen.getByTestId("customer-new-password"), "newpass123");
+    await user.type(screen.getByTestId("customer-confirm-password"), "newpass123");
+    await user.click(screen.getByTestId("customer-password-submit"));
+    await waitFor(() => {
+      expect(mockUpdateCustomerPassword).toHaveBeenCalledWith("c1", {
+        newPassword: "newpass123",
+        confirmPassword: "newpass123",
+      });
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows error when passwords do not match", async () => {
+    const user = userEvent.setup();
+    renderCustomerDetail("c1");
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("customer-change-password-btn"));
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+    await user.type(screen.getByTestId("customer-new-password"), "newpass123");
+    await user.type(screen.getByTestId("customer-confirm-password"), "different");
+    await user.click(screen.getByTestId("customer-password-submit"));
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+    expect(mockUpdateCustomerPassword).not.toHaveBeenCalled();
+  });
+
+  it("shows error when new password is shorter than 6 characters", async () => {
+    const user = userEvent.setup();
+    renderCustomerDetail("c1");
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("customer-change-password-btn"));
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+    await user.type(screen.getByTestId("customer-new-password"), "12345");
+    await user.type(screen.getByTestId("customer-confirm-password"), "12345");
+    await user.click(screen.getByTestId("customer-password-submit"));
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+    expect(mockUpdateCustomerPassword).not.toHaveBeenCalled();
+  });
+
+  it("shows API error in modal when updateCustomerPassword fails", async () => {
+    const user = userEvent.setup();
+    mockUpdateCustomerPassword.mockRejectedValue(new Error("Customer not found"));
+    renderCustomerDetail("c1");
+    await waitFor(() => {
+      expect(screen.getByText("John Doe")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("customer-change-password-btn"));
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+    await user.type(screen.getByTestId("customer-new-password"), "newpass123");
+    await user.type(screen.getByTestId("customer-confirm-password"), "newpass123");
+    await user.click(screen.getByTestId("customer-password-submit"));
+    await waitFor(() => {
+      const alert = screen.getByRole("alert");
+      expect(alert).toBeInTheDocument();
+      expect(alert.textContent).toMatch(/customer not found|change password failed|failed to update password/i);
+    });
+    expect(mockUpdateCustomerPassword).toHaveBeenCalledWith("c1", {
+      newPassword: "newpass123",
+      confirmPassword: "newpass123",
+    });
   });
 });

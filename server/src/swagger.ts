@@ -45,6 +45,21 @@ function buildPaths() {
     },
   };
 
+  paths["/api/store/profile"] = {
+    get: {
+      operationId: "getStorefrontProfile",
+      tags: ["Store"],
+      summary: "Current customer profile (storefront)",
+      description:
+        "Returns the logged-in customer (id, name, email only). Uses customer token only (al_noon_token cookie or Bearer). Use this from the storefront so both admin and customer cookies don't cause the admin profile to be returned. Returns 401 if no customer token.",
+      security: [{ bearerAuth: [] }],
+      responses: {
+        "200": { description: "Customer profile (id, name, email)", ...refSchema("StorefrontProfileResponse") },
+        "401": errDesc("Unauthorized"),
+      },
+    },
+  };
+
   paths["/api/store/page/{slug}"] = {
     get: {
       operationId: "getPageBySlug",
@@ -176,6 +191,8 @@ function buildPaths() {
       operationId: "getProfile",
       tags: ["Auth"],
       summary: "Current user profile",
+      description:
+        "Returns the current user. When authenticated with admin token (admin cookie or Bearer with ADMIN role), includes role and permissions. When authenticated with customer token, returns only id, name, and email.",
       security: [{ bearerAuth: [] }],
       responses: {
         "200": { description: "User profile", ...refSchema("ProfileResponse") },
@@ -207,6 +224,96 @@ function buildPaths() {
       responses: {
         "204": { description: "Signed out; cookie cleared" },
         "401": errDesc("Unauthorized"),
+      },
+    },
+  };
+
+  paths["/api/auth/forgot-password"] = {
+    post: {
+      operationId: "forgotPassword",
+      tags: ["Auth"],
+      summary: "Request password reset (sitefront)",
+      description: "Sends a password reset email if the account exists. Always returns success for security (no email enumeration).",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["email"],
+              properties: {
+                email: { type: "string", format: "email", example: "customer@example.com" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "If account exists, reset email sent; same response either way", ...refSchema("ForgotPasswordSentResponse") },
+        "400": errDesc("Validation error"),
+        "503": errDesc("Database not available"),
+      },
+    },
+  };
+
+  paths["/api/auth/reset-password"] = {
+    post: {
+      operationId: "resetPassword",
+      tags: ["Auth"],
+      summary: "Reset password with token (sitefront)",
+      description: "Set new password using the token from the forgot-password email. Requires password and confirmPassword to match.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["token", "password", "confirmPassword"],
+              properties: {
+                token: { type: "string", description: "Token from reset email link", example: "abc123..." },
+                password: { type: "string", minLength: 6, maxLength: 128, example: "newSecurePass1" },
+                confirmPassword: { type: "string", description: "Must match password", example: "newSecurePass1" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "Password reset successfully", ...refSchema("ResetPasswordResponse") },
+        "400": errDesc("Invalid/expired token or passwords do not match"),
+        "503": errDesc("Database not available"),
+      },
+    },
+  };
+
+  paths["/api/auth/change-password"] = {
+    post: {
+      operationId: "changePassword",
+      tags: ["Auth"],
+      summary: "Change password (logged-in customer)",
+      description: "Change password when user is logged in. Requires current password and new password + confirm. Uses customer token (al_noon_token or Bearer).",
+      security: [{ bearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["currentPassword", "newPassword", "confirmPassword"],
+              properties: {
+                currentPassword: { type: "string", example: "oldPassword" },
+                newPassword: { type: "string", minLength: 6, maxLength: 128, example: "newSecurePass1" },
+                confirmPassword: { type: "string", description: "Must match newPassword", example: "newSecurePass1" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "Password changed successfully", ...refSchema("ChangePasswordResponse") },
+        "400": errDesc("Passwords do not match or validation error"),
+        "401": errDesc("Unauthorized or current password incorrect"),
+        "503": errDesc("Database not available"),
       },
     },
   };
@@ -1006,6 +1113,41 @@ function buildPaths() {
         "401": errDesc("Unauthorized"),
         "403": errDesc("Forbidden"),
         "404": errDesc("Not found"),
+      },
+    },
+  };
+
+  // --- Customers (storefront users; Admin) ---
+  paths["/api/customers/{id}/password"] = {
+    put: {
+      operationId: "updateCustomerPassword",
+      tags: ["Customers"],
+      summary: "Set customer password (Admin)",
+      description: "Admin sets a new password for a customer (role USER). Requires newPassword and confirmPassword to match.",
+      security: [{ bearerAuth: [] }],
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" }, description: "Customer ID" }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["newPassword", "confirmPassword"],
+              properties: {
+                newPassword: { type: "string", minLength: 6, maxLength: 128, example: "newSecurePass1" },
+                confirmPassword: { type: "string", description: "Must match newPassword", example: "newSecurePass1" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "Password updated", ...refSchema("ChangePasswordResponse") },
+        "400": errDesc("Passwords do not match or validation error"),
+        "401": errDesc("Unauthorized"),
+        "403": errDesc("Forbidden"),
+        "404": errDesc("Customer not found"),
+        "503": errDesc("Database not available"),
       },
     },
   };
@@ -2409,7 +2551,8 @@ export const swaggerSpec = {
       },
       ProfileResponse: {
         type: "object",
-        description: "Current user profile",
+        description:
+          "Current user profile. Admin token: includes role and permissions. Customer token: only id, name, email.",
         properties: {
           success: { type: "boolean", example: true },
           data: {
@@ -2421,7 +2564,32 @@ export const swaggerSpec = {
                   id: { type: "string" },
                   name: { type: "string" },
                   email: { type: "string" },
-                  role: { type: "string", enum: ["ADMIN", "USER"] },
+                  role: { type: "string", enum: ["ADMIN", "USER"], description: "Present only for admin token." },
+                  permissions: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Present only for admin token.",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      StorefrontProfileResponse: {
+        type: "object",
+        description: "Current customer profile (GET /api/store/profile). Id, name, email only.",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "object",
+            properties: {
+              user: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  name: { type: "string" },
+                  email: { type: "string" },
                 },
               },
             },
@@ -2435,6 +2603,48 @@ export const swaggerSpec = {
           success: { type: "boolean", example: true },
           message: { type: "string" },
           data: { type: "object", nullable: true },
+        },
+      },
+      ForgotPasswordSentResponse: {
+        type: "object",
+        description: "Forgot password request accepted; email sent if account exists",
+        properties: {
+          success: { type: "boolean", example: true },
+          message: { type: "string", description: "i18n key / translated message" },
+          data: {
+            type: "object",
+            properties: {
+              sent: { type: "boolean", example: true },
+            },
+          },
+        },
+      },
+      ResetPasswordResponse: {
+        type: "object",
+        description: "Password reset successfully",
+        properties: {
+          success: { type: "boolean", example: true },
+          message: { type: "string", description: "i18n key / translated message" },
+          data: {
+            type: "object",
+            properties: {
+              reset: { type: "boolean", example: true },
+            },
+          },
+        },
+      },
+      ChangePasswordResponse: {
+        type: "object",
+        description: "Password changed successfully",
+        properties: {
+          success: { type: "boolean", example: true },
+          message: { type: "string", description: "i18n key / translated message" },
+          data: {
+            type: "object",
+            properties: {
+              changed: { type: "boolean", example: true },
+            },
+          },
         },
       },
       PaginatedSubscribersResponse: {

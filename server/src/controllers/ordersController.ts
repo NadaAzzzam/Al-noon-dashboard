@@ -15,6 +15,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/response.js";
 import { sendMail } from "../utils/email.js";
 import { escapeHtml } from "../utils/escapeHtml.js";
+import {
+  buildOrderConfirmationEmailHtml,
+  buildAdminOrderNotificationEmailHtml,
+  getEmailBrandingFromSettings
+} from "../utils/emailTemplates.js";
 import { orderSchema } from "../validators/orders.js";
 import type { z } from "zod";
 import type { AuthPayload } from "../middlewares/auth.js";
@@ -466,96 +471,98 @@ export const createOrder = asyncHandler(async (req, res) => {
     || (order as unknown as { guestEmail?: string }).guestEmail
     || null;
   if (customerEmailAddr && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmailAddr)) {
+    const storefrontBaseUrl = env.storefrontUrl || "http://localhost:4200";
     Order.findById(order._id)
       .populate("items.product", "name images price discountPrice")
       .lean()
       .then(async (populated) => {
         if (!populated) return;
-        const pop = populated as Record<string, unknown>;
-        const custName = escapeHtml([pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "Customer");
-        const itemsHtml = ((pop.items as Array<{ product: unknown; quantity: number; price: number }>) || []).map((item) => {
-          const prod = item.product as { name?: { en?: string; ar?: string }; images?: string[] } | null;
-          const prodName = escapeHtml(prod?.name?.en || prod?.name?.ar || "Product");
-          const imgTag = prod?.images?.[0] ? `<img src="${env.clientUrl || ""}/${prod.images[0]}" width="50" height="50" style="object-fit:cover;border-radius:4px;" alt="" />` : "";
-          return `<tr>
-            <td style="padding:8px;border-bottom:1px solid #eee;">${imgTag}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;">${prodName}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${(item.quantity * item.price).toLocaleString()} EGP</td>
-          </tr>`;
-        }).join("");
+        const settings = await Settings.findOne().select("storeName logo advancedSettings").lean();
+        const branding = getEmailBrandingFromSettings(
+          settings as { storeName?: { en?: string; ar?: string }; logo?: string } | null,
+          storefrontBaseUrl
+        );
+        const advanced = (settings as { advancedSettings?: { currencySymbol?: string } } | null)?.advancedSettings;
+        const currencySymbol = (advanced?.currencySymbol && String(advanced.currencySymbol).trim()) || "EGP";
 
-        const subtotalVal = (pop.total as number) - ((pop.deliveryFee as number) || 0) + ((pop.discountAmount as number) || 0);
-        const discountVal = (pop.discountAmount as number) || 0;
-        const shippingDisplay = escapeHtml(formatAddress(pop.shippingAddress));
-        const subject = `Order Confirmation #${order._id}`;
-        const discountRow = discountVal > 0
-          ? `<tr><td style="padding:4px 8px;">Discount</td><td style="text-align:right;padding:4px 8px;color:#28a745;">-${discountVal.toLocaleString()} EGP</td></tr>`
-          : "";
-        const html = `
-          <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-            <h2 style="color:#333;">Thank you for your order, ${custName}!</h2>
-            <p>Your order <strong>#${order._id}</strong> has been placed successfully.</p>
-            <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-              <thead><tr style="background:#f5f5f5;">
-                <th style="padding:8px;text-align:left;"></th>
-                <th style="padding:8px;text-align:left;">Product</th>
-                <th style="padding:8px;text-align:center;">Qty</th>
-                <th style="padding:8px;text-align:right;">Price</th>
-              </tr></thead>
-              <tbody>${itemsHtml}</tbody>
-            </table>
-            <table style="width:100%;margin:8px 0;">
-              <tr><td style="padding:4px 8px;">Subtotal</td><td style="text-align:right;padding:4px 8px;">${subtotalVal.toLocaleString()} EGP</td></tr>
-              ${discountRow}
-              <tr><td style="padding:4px 8px;">Shipping</td><td style="text-align:right;padding:4px 8px;">${((pop.deliveryFee as number) || 0).toLocaleString()} EGP</td></tr>
-              <tr style="font-weight:bold;font-size:1.1em;"><td style="padding:4px 8px;">Total</td><td style="text-align:right;padding:4px 8px;">${(pop.total as number).toLocaleString()} EGP</td></tr>
-            </table>
-            <hr style="border:none;border-top:1px solid #eee;margin:16px 0;" />
-            <p><strong>Shipping Address:</strong> ${shippingDisplay}</p>
-            <p><strong>Payment Method:</strong> ${order.paymentMethod ?? "COD"}</p>
-            ${(pop.specialInstructions as string) ? `<p><strong>Notes:</strong> ${escapeHtml(pop.specialInstructions as string)}</p>` : ""}
-            <p style="color:#888;font-size:0.9em;margin-top:24px;">If you have any questions, just reply to this email.</p>
-          </div>
-        `;
-        await sendMail(customerEmailAddr, subject, html);
+        const pop = populated as Record<string, unknown>;
+        const custName = [pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "Customer";
+        const items = ((pop.items as Array<{ product: { name?: { en?: string; ar?: string }; images?: string[] } | null; quantity: number; price: number }>) || []).map((item) => {
+          const prod = item.product;
+          const productName = prod?.name?.en || prod?.name?.ar || "Product";
+          const imgPath = prod?.images?.[0];
+          const imageUrl = imgPath ? `${branding.storefrontUrl}${imgPath.startsWith("/") ? "" : "/"}${imgPath}` : null;
+          return { productName, quantity: item.quantity, price: item.price, imageUrl };
+        });
+        const deliveryFee = (pop.deliveryFee as number) || 0;
+        const discountAmount = (pop.discountAmount as number) || 0;
+        const subtotal = (pop.total as number) - deliveryFee + discountAmount;
+
+        const html = buildOrderConfirmationEmailHtml({
+          ...branding,
+          customerName: custName,
+          orderId: String(order._id),
+          items,
+          subtotal,
+          discountAmount,
+          deliveryFee,
+          total: pop.total as number,
+          shippingAddress: formatAddress(pop.shippingAddress),
+          paymentMethod: order.paymentMethod ?? "COD",
+          specialInstructions: (pop.specialInstructions as string) || null,
+          currencySymbol
+        });
+        await sendMail(customerEmailAddr, `Order confirmation #${order._id} - ${branding.storeName}`, html);
       }).catch(() => { });
   }
 
   // --- Notify admin by email if enabled (fire-and-forget) ---
-  Settings.findOne().lean().then(async (settingsRow) => {
-    const settings = settingsRow as { orderNotificationsEnabled?: boolean; orderNotificationEmail?: string } | null;
+  Settings.findOne().select("storeName logo orderNotificationsEnabled orderNotificationEmail advancedSettings").lean().then(async (settingsRow) => {
+    const settings = settingsRow as {
+      storeName?: { en?: string; ar?: string };
+      logo?: string;
+      orderNotificationsEnabled?: boolean;
+      orderNotificationEmail?: string;
+      advancedSettings?: { currencySymbol?: string };
+    } | null;
     if (!settings?.orderNotificationsEnabled) return;
     const to = (settings.orderNotificationEmail?.trim() || env.adminEmail || "").toLowerCase();
     if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return;
+
+    const storefrontBaseUrl = env.storefrontUrl || "http://localhost:4200";
+    const branding = getEmailBrandingFromSettings(settings, storefrontBaseUrl);
+    const currencySymbol = (settings?.advancedSettings?.currencySymbol && String(settings.advancedSettings.currencySymbol).trim()) || "EGP";
+
     const populated = await Order.findById(order._id)
       .populate("user", "name email")
       .populate("items.product", "name");
     if (!populated) return;
     const user = populated.user as { name?: string; email?: string } | null;
     const pop = populated as unknown as Record<string, unknown>;
-    const customerName = escapeHtml(
-      user?.name ?? ([pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "—")
-    );
-    const custEmail = escapeHtml(user?.email ?? (pop.email as string) ?? (pop.guestEmail as string) ?? "—");
-    const orderItems = (populated.items || []).map((item) => {
-      const product = item.product as unknown as { name?: string } | undefined;
-      const name = product && typeof product === "object" && "name" in product ? String(product.name) : "—";
-      return escapeHtml(`${name} × ${item.quantity} = ${item.quantity * item.price}`);
+    const customerName = user?.name ?? ([pop.firstName, pop.lastName].filter(Boolean).join(" ") || (pop.guestName as string) || "—");
+    const custEmail = user?.email ?? (pop.email as string) ?? (pop.guestEmail as string) ?? "—";
+    const itemsSummary = (
+      (populated.items || []) as Array<{ product?: { name?: { en?: string; ar?: string } }; quantity: number; price: number }>
+    ).map((item) => {
+      const product = item.product;
+      const name = product?.name && typeof product.name === "object"
+        ? (product.name.en || product.name.ar || "—")
+        : (typeof product?.name === "string" ? product.name : "—");
+      return `${name} × ${item.quantity} = ${(item.quantity * item.price).toLocaleString()} ${currencySymbol}`;
     });
-    const subject = `New order #${order._id}`;
-    const shippingDisplay = escapeHtml(formatAddress(populated.shippingAddress));
-    const html = `
-      <h2>New order received</h2>
-      <p><strong>Order ID:</strong> ${order._id}</p>
-      <p><strong>Customer:</strong> ${customerName} (${custEmail})</p>
-      <p><strong>Payment:</strong> ${order.paymentMethod ?? "COD"}</p>
-      <p><strong>Shipping:</strong> ${shippingDisplay}</p>
-      <p><strong>Total:</strong> ${order.total}</p>
-      <h3>Items</h3>
-      <ul>${orderItems.map((i) => `<li>${i}</li>`).join("")}</ul>
-    `;
-    await sendMail(to, subject, html);
+
+    const html = buildAdminOrderNotificationEmailHtml({
+      ...branding,
+      orderId: String(order._id),
+      customerName,
+      customerEmail: custEmail,
+      paymentMethod: order.paymentMethod ?? "COD",
+      shippingAddress: formatAddress(populated.shippingAddress),
+      total: order.total,
+      itemsSummary,
+      currencySymbol
+    });
+    await sendMail(to, `New order #${order._id} - ${branding.storeName}`, html);
   }).catch(() => { });
 
   sendResponse(res, locale(req), { status: 201, message: "success.order.created", data: { order } });

@@ -462,7 +462,12 @@
     "member_since": "عضو منذ",
     "orders_history": "سجل الطلبات",
     "no_orders": "لا توجد طلبات",
-    "failed_load": "فشل التحميل"
+    "failed_load": "فشل التحميل",
+    "change_password": "تغيير كلمة المرور",
+    "new_password": "كلمة المرور الجديدة",
+    "confirm_password": "تأكيد كلمة المرور",
+    "change_password_success": "تم تحديث كلمة المرور بنجاح.",
+    "change_password_failed": "فشل تحديث كلمة المرور."
   },
   "users": {
     "title": "المستخدمون",

@@ -4,7 +4,10 @@
       "invalid_credentials": "Invalid credentials",
       "unauthorized": "Unauthorized",
       "user_not_found": "User not found",
-      "user_exists": "User already exists"
+      "user_exists": "User already exists",
+      "password_mismatch": "Passwords do not match",
+      "reset_token_invalid": "Invalid or expired reset link",
+      "cannot_change_dev_admin": "Cannot change dev admin password via API"
     },
     "common": {
       "not_found": "Not found",
@@ -107,7 +110,10 @@
     "auth": {
       "login": "Logged in successfully",
       "register": "Account created successfully",
-      "signout": "Signed out successfully"
+      "signout": "Signed out successfully",
+      "forgot_password_sent": "If an account exists with this email, you will receive a password reset link.",
+      "password_reset": "Your password has been reset. You can now sign in.",
+      "password_changed": "Password changed successfully"
     },
     "product": {
       "created": "Product created successfully",

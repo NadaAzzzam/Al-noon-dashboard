@@ -15,6 +15,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().optional(),
   JWT_EXIRES_IN: z.string().optional(),
   CLIENT_URL: z.string().optional(),
+  STOREFRONT_URL: z.string().optional(),
   RENDER_EXTERNAL_URL: z.string().optional(),
   FLY_APP_NAME: z.string().optional(),
   DEV_WITHOUT_DB: z.string().optional(),
@@ -50,6 +51,10 @@ export const env = {
     raw.RENDER_EXTERNAL_URL?.trim() ||
     (raw.FLY_APP_NAME ? `https://${raw.FLY_APP_NAME}.fly.dev` : undefined) ||
     "http://localhost:5173",
+  /** Base URL for the storefront (customer-facing). Used in password reset emails. */
+  storefrontUrl:
+    raw.STOREFRONT_URL?.trim() ||
+    "http://localhost:4200",
   devWithoutDb: raw.DEV_WITHOUT_DB === "1",
   adminEmail: raw.ADMIN_EMAIL?.trim() || "admin@localhost",
   adminPassword: raw.ADMIN_PASSWORD ?? "admin123",

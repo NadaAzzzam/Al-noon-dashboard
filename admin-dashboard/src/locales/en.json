@@ -463,7 +463,12 @@
     "member_since": "Member since",
     "orders_history": "Orders history",
     "no_orders": "No orders",
-    "failed_load": "Failed to load"
+    "failed_load": "Failed to load",
+    "change_password": "Change password",
+    "new_password": "New password",
+    "confirm_password": "Confirm password",
+    "change_password_success": "Password updated successfully.",
+    "change_password_failed": "Failed to update password."
   },
   "users": {
     "title": "Users",

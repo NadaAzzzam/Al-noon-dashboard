@@ -84,3 +84,108 @@ export async function submitStoreContact(
   const data = (await response.json()) as SubmitContactResponse;
   return data;
 }
+
+/**
+ * Request a password reset email (forgot password). Use on sitefront "Forgot password?" page.
+ * POST /api/auth/forgot-password
+ * Body: { email }
+ */
+export async function requestForgotPassword(
+  email: string,
+  options?: { baseUrl?: string; locale?: string }
+): Promise<{ success: true; message?: string; data?: { sent: boolean } }> {
+  const base = options?.baseUrl ?? STOREFRONT_API_BASE;
+  const url = `${base.replace(/\/?$/, "")}/auth/forgot-password`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (options?.locale) headers["Accept-Language"] = options.locale;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const { message, code, details } = await parseErrorResponse(response);
+    throw new StorefrontApiError(response.status, message, code, details);
+  }
+
+  return (await response.json()) as { success: true; message?: string; data?: { sent: boolean } };
+}
+
+/**
+ * Reset password using token from email link. Use on sitefront reset-password page.
+ * POST /api/auth/reset-password
+ * Body: { token, password, confirmPassword }
+ */
+export async function resetPassword(
+  payload: { token: string; password: string; confirmPassword: string },
+  options?: { baseUrl?: string; locale?: string }
+): Promise<{ success: true; message?: string; data?: { reset: boolean } }> {
+  const base = options?.baseUrl ?? STOREFRONT_API_BASE;
+  const url = `${base.replace(/\/?$/, "")}/auth/reset-password`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (options?.locale) headers["Accept-Language"] = options.locale;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      token: payload.token.trim(),
+      password: payload.password,
+      confirmPassword: payload.confirmPassword,
+    }),
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const { message, code, details } = await parseErrorResponse(response);
+    throw new StorefrontApiError(response.status, message, code, details);
+  }
+
+  return (await response.json()) as { success: true; message?: string; data?: { reset: boolean } };
+}
+
+/**
+ * Change password when customer is logged in (current + new + confirm). Use in sitefront account/settings.
+ * POST /api/auth/change-password
+ * Body: { currentPassword, newPassword, confirmPassword }
+ * Requires customer session (cookie al_noon_token or Authorization Bearer).
+ */
+export async function changePassword(
+  payload: { currentPassword: string; newPassword: string; confirmPassword: string },
+  options?: { baseUrl?: string; locale?: string }
+): Promise<{ success: true; message?: string; data?: { changed: boolean } }> {
+  const base = options?.baseUrl ?? STOREFRONT_API_BASE;
+  const url = `${base.replace(/\/?$/, "")}/auth/change-password`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+  if (options?.locale) headers["Accept-Language"] = options.locale;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      currentPassword: payload.currentPassword,
+      newPassword: payload.newPassword,
+      confirmPassword: payload.confirmPassword,
+    }),
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const { message, code, details } = await parseErrorResponse(response);
+    throw new StorefrontApiError(response.status, message, code, details);
+  }
+
+  return (await response.json()) as { success: true; message?: string; data?: { changed: boolean } };
+}
