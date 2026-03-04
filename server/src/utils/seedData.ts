@@ -346,7 +346,7 @@ async function seed() {
   ];
   await Settings.create({
     storeName: { en: "Al-noon", ar: "النون" },
-    logo: "/uploads/logos/default-logo.png",
+    logo: "/uploads/logos/default-logo.jpeg",
     instaPayNumber: "+20 10 000 0000",
     paymentMethods: { cod: true, instaPay: true },
     lowStockThreshold: 5,

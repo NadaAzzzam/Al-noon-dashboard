@@ -696,7 +696,14 @@
     "feedback_display_limit_hint": "0 = show all approved feedback. Otherwise only the first N items are shown.",
     "save_settings": "Save settings",
     "failed_load": "Failed to load settings",
-    "failed_save": "Failed to save"
+    "failed_save": "Failed to save",
+    "validation_store_name_max": "Store name must be at most 200 characters.",
+    "validation_email_invalid": "Please enter a valid email address.",
+    "validation_threshold_range": "Must be between 0 and 100,000.",
+    "validation_quick_link_incomplete": "Quick link must have label (EN), label (AR), and URL.",
+    "validation_currency_max": "Must be at most 10 characters.",
+    "validation_message_max": "Message must be at most 500 characters.",
+    "validation_fix_errors": "Please fix the errors below."
   },
   "discount_codes": {
     "title": "Discount codes",

@@ -65,5 +65,33 @@ describe("settings validators", () => {
         },
       }).success).toBe(true);
     });
+
+    it("accepts empty orderNotificationEmail (clears field)", () => {
+      expect(updateSettingsSchema.safeParse({
+        body: { orderNotificationEmail: "" },
+      }).success).toBe(true);
+    });
+
+    it("accepts valid orderNotificationEmail", () => {
+      expect(updateSettingsSchema.safeParse({
+        body: { orderNotificationEmail: "admin@example.com" },
+      }).success).toBe(true);
+    });
+
+    it("rejects invalid orderNotificationEmail when non-empty", () => {
+      const result = updateSettingsSchema.safeParse({
+        body: { orderNotificationEmail: "not-an-email" },
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts announcementBar and promoBanner", () => {
+      expect(updateSettingsSchema.safeParse({
+        body: {
+          announcementBar: { textEn: "Sale!", textAr: "تخفيضات", enabled: true, backgroundColor: "#1a1a2e" },
+          promoBanner: { enabled: false, image: "", titleEn: "", titleAr: "", subtitleEn: "", subtitleAr: "", ctaLabelEn: "", ctaLabelAr: "", ctaUrl: "" },
+        },
+      }).success).toBe(true);
+    });
   });
 });

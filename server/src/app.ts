@@ -56,8 +56,8 @@ const uploadsPromoDir = path.join(uploadsDir, "promo");
 const uploadsFeedbackDir = path.join(uploadsDir, "feedback");
 const uploadsPaymentProofDir = path.join(uploadsDir, "payment-proof");
 if (!fs.existsSync(uploadsLogosDir)) fs.mkdirSync(uploadsLogosDir, { recursive: true });
-const defaultLogoSource = path.resolve(__dirname, "../default-assets/default-logo.png");
-const defaultLogoDest = path.join(uploadsLogosDir, "default-logo.png");
+const defaultLogoSource = path.resolve(__dirname, "../default-assets/default-logo.jpeg");
+const defaultLogoDest = path.join(uploadsLogosDir, "default-logo.jpeg");
 if (fs.existsSync(defaultLogoSource) && !fs.existsSync(defaultLogoDest)) {
   fs.copyFileSync(defaultLogoSource, defaultLogoDest);
 }

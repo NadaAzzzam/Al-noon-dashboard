@@ -2783,6 +2783,12 @@ textarea.field-invalid {
   font-size: 14px;
 }
 
+.form-error {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
 .product-form-variants-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

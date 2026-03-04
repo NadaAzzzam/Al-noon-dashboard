@@ -1578,37 +1578,120 @@ function buildPaths() {
       operationId: "updateSettings",
       tags: ["Settings"],
       summary: "Update settings (Admin)",
-      description: "Partial update of settings. All fields are optional. Includes store info, hero, collections, media, feedback settings, AI config, payment, etc. Use languageCode suffixes (En/Ar) for multilingual fields. Use singular form for objects (e.g., socialLinks) and arrays with proper item schema. Example: { storeNameEn: 'Al-noon', newsletterEnabled: true, discountCodeSupported: false }",
+      description: "Partial update of settings. All fields are optional. Validation: storeNameEn/Ar max 200; logo, instaPayNumber max 50/2000; lowStockThreshold, stockInfoThreshold 0–100000; quickLinks items require labelEn, labelAr, url (min 1 char), max 20 items; orderNotificationEmail must be valid email or empty string to clear; currency/currencySymbol max 10; message fields max 500; homeCollections per HomeCollectionInput. Returns 400 with code errors.common.validation_error and details (e.g. body.orderNotificationEmail: Invalid email).",
       security: [{ bearerAuth: [] }],
       requestBody: {
         content: {
           "application/json": {
             schema: {
               type: "object",
-              description: "Partial settings update (all fields optional)",
+              description: "Partial settings update (all fields optional). When provided, values are validated per rules above.",
               properties: {
-                storeNameEn: { type: "string", maxLength: 200 },
-                storeNameAr: { type: "string", maxLength: 200 },
+                storeNameEn: { type: "string", maxLength: 200, description: "Store name (English)" },
+                storeNameAr: { type: "string", maxLength: 200, description: "Store name (Arabic)" },
                 logo: { type: "string", maxLength: 2000 },
+                instaPayNumber: { type: "string", maxLength: 50 },
+                paymentMethods: { type: "object", properties: { cod: { type: "boolean" }, instaPay: { type: "boolean" } } },
+                lowStockThreshold: { type: "integer", minimum: 0, maximum: 100000 },
+                stockInfoThreshold: { type: "integer", minimum: 0, maximum: 100000 },
+                googleAnalyticsId: { type: "string", maxLength: 50 },
+                quickLinks: {
+                  type: "array",
+                  maxItems: 20,
+                  items: {
+                    type: "object",
+                    required: ["labelEn", "labelAr", "url"],
+                    properties: {
+                      labelEn: { type: "string", minLength: 1 },
+                      labelAr: { type: "string", minLength: 1 },
+                      url: { type: "string", minLength: 1, maxLength: 2000 }
+                    }
+                  }
+                },
+                socialLinks: { type: "object", properties: { facebook: { type: "string", maxLength: 500 }, instagram: { type: "string", maxLength: 500 } } },
                 newsletterEnabled: { type: "boolean" },
                 discountCodeSupported: { type: "boolean" },
-                quickLinks: { type: "array", items: { type: "object", properties: { labelEn: { type: "string" }, labelAr: { type: "string" }, url: { type: "string" } } }, maxItems: 20 },
-                socialLinks: { type: "object", properties: { facebook: { type: "string" }, instagram: { type: "string" } } },
-                hero: { type: "object", properties: { images: { type: "array", items: { type: "string" }, maxItems: 10 }, videos: { type: "array", items: { type: "string" }, maxItems: 5 }, titleEn: { type: "string" }, titleAr: { type: "string" }, subtitleEn: { type: "string" }, subtitleAr: { type: "string" }, ctaLabelEn: { type: "string" }, ctaLabelAr: { type: "string" }, ctaUrl: { type: "string" } } },
+                hero: {
+                  type: "object",
+                  properties: {
+                    images: { type: "array", items: { type: "string", maxLength: 2000 }, maxItems: 10 },
+                    videos: { type: "array", items: { type: "string", maxLength: 2000 }, maxItems: 5 },
+                    titleEn: { type: "string", maxLength: 200 },
+                    titleAr: { type: "string", maxLength: 200 },
+                    subtitleEn: { type: "string", maxLength: 300 },
+                    subtitleAr: { type: "string", maxLength: 300 },
+                    ctaLabelEn: { type: "string", maxLength: 50 },
+                    ctaLabelAr: { type: "string", maxLength: 50 },
+                    ctaUrl: { type: "string", maxLength: 2000 }
+                  }
+                },
                 heroEnabled: { type: "boolean" },
+                announcementBar: {
+                  type: "object",
+                  properties: {
+                    textEn: { type: "string", maxLength: 500 },
+                    textAr: { type: "string", maxLength: 500 },
+                    enabled: { type: "boolean" },
+                    backgroundColor: { type: "string", maxLength: 500 }
+                  }
+                },
+                promoBanner: {
+                  type: "object",
+                  properties: {
+                    enabled: { type: "boolean" },
+                    image: { type: "string", maxLength: 2000 },
+                    titleEn: { type: "string", maxLength: 200 },
+                    titleAr: { type: "string", maxLength: 200 },
+                    subtitleEn: { type: "string", maxLength: 500 },
+                    subtitleAr: { type: "string", maxLength: 500 },
+                    ctaLabelEn: { type: "string", maxLength: 50 },
+                    ctaLabelAr: { type: "string", maxLength: 50 },
+                    ctaUrl: { type: "string", maxLength: 2000 }
+                  }
+                },
                 newArrivalsLimit: { type: "integer", minimum: 1, maximum: 24 },
-                homeCollections: { type: "array", items: { $ref: "#/components/schemas/HomeCollectionInput" }, maxItems: 20, description: "Collections with deduplication by url. Required per item: titleEn, titleAr, image, url, order." },
+                homeCollections: { type: "array", items: { $ref: "#/components/schemas/HomeCollectionInput" }, maxItems: 20, description: "Required per item: titleEn, titleAr, image, url, order." },
+                featuredProductsEnabled: { type: "boolean" },
+                featuredProductsLimit: { type: "integer", minimum: 1, maximum: 24 },
                 feedbackSectionEnabled: { type: "boolean" },
                 feedbackDisplayLimit: { type: "integer", minimum: 0, maximum: 50 },
-                aiAssistant: { type: "object", properties: { enabled: { type: "boolean" }, geminiApiKey: { type: "string" }, greetingEn: { type: "string" }, greetingAr: { type: "string" }, systemPrompt: { type: "string" }, suggestedQuestions: { type: "array", items: { type: "object" } } } },
+                contentPages: {
+                  type: "array",
+                  maxItems: 50,
+                  items: {
+                    type: "object",
+                    required: ["slug", "titleEn", "titleAr", "contentEn", "contentAr"],
+                    properties: {
+                      slug: { type: "string", minLength: 1, maxLength: 100, enum: ["privacy", "return-policy", "shipping-policy", "about", "contact"] },
+                      titleEn: { type: "string", minLength: 1, maxLength: 200 },
+                      titleAr: { type: "string", minLength: 1, maxLength: 200 },
+                      contentEn: { type: "string", maxLength: 100000 },
+                      contentAr: { type: "string", maxLength: 100000 }
+                    }
+                  }
+                },
+                orderNotificationsEnabled: { type: "boolean" },
+                orderNotificationEmail: { type: "string", format: "email", maxLength: 254, description: "Valid email when provided. Empty string allowed to clear." },
+                aiAssistant: {
+                  type: "object",
+                  properties: {
+                    enabled: { type: "boolean" },
+                    geminiApiKey: { type: "string", maxLength: 200 },
+                    assistantName: { type: "string", maxLength: 100 },
+                    greetingEn: { type: "string", maxLength: 500 },
+                    greetingAr: { type: "string", maxLength: 500 },
+                    systemPrompt: { type: "string", maxLength: 10000 },
+                    suggestedQuestions: { type: "array", maxItems: 10, items: { type: "object", properties: { en: { type: "string", maxLength: 200 }, ar: { type: "string", maxLength: 200 } } } }
+                  }
+                },
                 currency: { type: "string", maxLength: 10 },
                 currencySymbol: { type: "string", maxLength: 10 },
-                comingSoonMode: { type: "boolean", description: "When true, storefront shows coming-soon page" },
-                comingSoonMessageEn: { type: "string", maxLength: 500, description: "Coming-soon message (EN)" },
-                comingSoonMessageAr: { type: "string", maxLength: 500, description: "Coming-soon message (AR)" },
-                underConstructionMode: { type: "boolean", description: "When true, storefront shows under-construction page" },
-                underConstructionMessageEn: { type: "string", maxLength: 500, description: "Under-construction message (EN)" },
-                underConstructionMessageAr: { type: "string", maxLength: 500, description: "Under-construction message (AR)" },
+                comingSoonMode: { type: "boolean" },
+                comingSoonMessageEn: { type: "string", maxLength: 500 },
+                comingSoonMessageAr: { type: "string", maxLength: 500 },
+                underConstructionMode: { type: "boolean" },
+                underConstructionMessageEn: { type: "string", maxLength: 500 },
+                underConstructionMessageAr: { type: "string", maxLength: 500 },
               },
             },
           },
@@ -1616,7 +1699,21 @@ function buildPaths() {
       },
       responses: {
         "200": { description: "Updated settings", ...refSchema("SettingsResponse") },
-        "400": errDesc("Validation error"),
+        "400": {
+          description: "Validation error (invalid field types, lengths, or format). Response includes details with field path and message (e.g. body.orderNotificationEmail: Invalid email).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ApiError" },
+              example: {
+                success: false,
+                message: "Validation error",
+                code: "errors.common.validation_error",
+                data: null,
+                details: "body.orderNotificationEmail: Invalid email"
+              }
+            }
+          }
+        },
         "401": errDesc("Unauthorized"),
         "403": errDesc("Forbidden"),
       },

@@ -19,7 +19,7 @@ vi.mock("../services/api", async (importOriginal) => {
     getUploadsBaseUrl: vi.fn(() => "http://api.example.com"),
     setCurrentUser: vi.fn(),
     clearToken: vi.fn(),
-    DEFAULT_LOGO_PATH: "/uploads/logos/default-logo.png",
+    DEFAULT_LOGO_PATH: "/uploads/logos/default-logo.jpeg",
   };
 });
 

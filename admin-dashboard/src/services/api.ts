@@ -9,7 +9,7 @@ function showErrorToast(status: number, message: string, code?: string) {
 }
 
 /** Default logo path used when no custom logo is set (storefront always shows this). */
-export const DEFAULT_LOGO_PATH = "/uploads/logos/default-logo.png";
+export const DEFAULT_LOGO_PATH = "/uploads/logos/default-logo.jpeg";
 
 /** Base URL for static uploads (logos). Use with logo path: getUploadsBaseUrl() + settings.logo */
 export function getUploadsBaseUrl(): string {

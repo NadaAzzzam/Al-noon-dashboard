@@ -21,7 +21,7 @@ const heroDefault = {
 };
 
 /** Default logo path (always used when no custom logo is set). */
-export const DEFAULT_LOGO_PATH = "/uploads/logos/default-logo.png";
+export const DEFAULT_LOGO_PATH = "/uploads/logos/default-logo.jpeg";
 
 const storeDefaults = {
   storeName: { en: "Al-noon", ar: "النون" },

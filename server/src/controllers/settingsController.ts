@@ -90,7 +90,7 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
       data: {
         settings: {
           storeName: defaults.storeName,
-          logo: defaults.logo || "/uploads/logos/default-logo.png",
+          logo: defaults.logo || "/uploads/logos/default-logo.jpeg",
           announcementBar: defaults.announcementBar,
           socialLinks: defaults.socialLinks,
           newsletterEnabled: defaults.newsletterEnabled,
@@ -108,7 +108,7 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
     .lean();
   const s = settings as Record<string, unknown> | null;
   const storeName = s?.storeName ?? defaults.storeName;
-  const logo = (s?.logo && String(s.logo).trim() !== "") ? String(s.logo) : "/uploads/logos/default-logo.png";
+  const logo = (s?.logo && String(s.logo).trim() !== "") ? String(s.logo) : "/uploads/logos/default-logo.jpeg";
   const announcementBar = (s as { announcementBar?: { text?: { en?: string; ar?: string }; enabled?: boolean; backgroundColor?: string } })?.announcementBar ?? defaults.announcementBar;
   const socialLinks = s?.socialLinks ?? defaults.socialLinks;
   const newsletterEnabled = s?.newsletterEnabled ?? defaults.newsletterEnabled;

@@ -68,7 +68,10 @@ export const updateSettingsSchema = z.object({
       contentAr: z.string().max(100000)
     })).max(50).optional(),
     orderNotificationsEnabled: z.boolean().optional(),
-    orderNotificationEmail: z.string().trim().email().max(254).optional(),
+    orderNotificationEmail: z.preprocess(
+      (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+      z.string().trim().email().max(254).optional()
+    ),
     aiAssistant: z.object({
       enabled: z.boolean().optional(),
       geminiApiKey: z.string().trim().max(200).optional(),
@@ -85,6 +88,23 @@ export const updateSettingsSchema = z.object({
     comingSoonMessageAr: z.string().trim().max(500).optional(),
     underConstructionMode: z.boolean().optional(),
     underConstructionMessageEn: z.string().trim().max(500).optional(),
-    underConstructionMessageAr: z.string().trim().max(500).optional()
+    underConstructionMessageAr: z.string().trim().max(500).optional(),
+    announcementBar: z.object({
+      textEn: z.string().trim().max(500).optional(),
+      textAr: z.string().trim().max(500).optional(),
+      enabled: z.boolean().optional(),
+      backgroundColor: z.string().trim().max(500).optional()
+    }).optional(),
+    promoBanner: z.object({
+      enabled: z.boolean().optional(),
+      image: z.string().trim().max(2000).optional(),
+      titleEn: z.string().trim().max(200).optional(),
+      titleAr: z.string().trim().max(200).optional(),
+      subtitleEn: z.string().trim().max(500).optional(),
+      subtitleAr: z.string().trim().max(500).optional(),
+      ctaLabelEn: z.string().trim().max(50).optional(),
+      ctaLabelAr: z.string().trim().max(50).optional(),
+      ctaUrl: z.string().trim().max(2000).optional()
+    }).optional()
   })
 });

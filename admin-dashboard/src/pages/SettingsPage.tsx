@@ -10,6 +10,44 @@ import {
   hasPermission,
 } from "../services/api";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_STORE_NAME = 200;
+const MAX_CURRENCY = 10;
+const MAX_MESSAGE = 500;
+const THRESHOLD_MIN = 0;
+const THRESHOLD_MAX = 100000;
+
+function validateSettingsForm(
+  form: SettingsForm,
+  t: (key: string) => string
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (form.storeNameEn.length > MAX_STORE_NAME) errors.storeNameEn = t("settings.validation_store_name_max");
+  if (form.storeNameAr.length > MAX_STORE_NAME) errors.storeNameAr = t("settings.validation_store_name_max");
+  if (form.orderNotificationEmail.trim() && !EMAIL_REGEX.test(form.orderNotificationEmail.trim())) {
+    errors.orderNotificationEmail = t("settings.validation_email_invalid");
+  }
+  if (form.lowStockThreshold < THRESHOLD_MIN || form.lowStockThreshold > THRESHOLD_MAX) {
+    errors.lowStockThreshold = t("settings.validation_threshold_range");
+  }
+  if (form.stockInfoThreshold < THRESHOLD_MIN || form.stockInfoThreshold > THRESHOLD_MAX) {
+    errors.stockInfoThreshold = t("settings.validation_threshold_range");
+  }
+  if (form.currency.length > MAX_CURRENCY) errors.currency = t("settings.validation_currency_max");
+  if (form.currencySymbol.length > MAX_CURRENCY) errors.currencySymbol = t("settings.validation_currency_max");
+  if (form.comingSoonMessageEn.length > MAX_MESSAGE) errors.comingSoonMessageEn = t("settings.validation_message_max");
+  if (form.comingSoonMessageAr.length > MAX_MESSAGE) errors.comingSoonMessageAr = t("settings.validation_message_max");
+  if (form.underConstructionMessageEn.length > MAX_MESSAGE) errors.underConstructionMessageEn = t("settings.validation_message_max");
+  if (form.underConstructionMessageAr.length > MAX_MESSAGE) errors.underConstructionMessageAr = t("settings.validation_message_max");
+  form.quickLinks.forEach((q, i) => {
+    const hasUrl = q.url.trim().length > 0;
+    if (hasUrl && (!q.labelEn.trim() || !q.labelAr.trim())) {
+      errors[`quickLink_${i}`] = t("settings.validation_quick_link_incomplete");
+    }
+  });
+  return errors;
+}
+
 type QuickLinkForm = { labelEn: string; labelAr: string; url: string };
 
 type SettingsForm = {
@@ -65,6 +103,7 @@ const SettingsPage = () => {
     underConstructionMessageAr: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [testEmailLoading, setTestEmailLoading] = useState(false);
@@ -157,7 +196,14 @@ const SettingsPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
     setSaved(false);
+    const errors = validateSettingsForm(form, t);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError(t("settings.validation_fix_errors"));
+      return;
+    }
     try {
       await api.updateSettings({
         storeNameEn: form.storeNameEn.trim(),
@@ -234,7 +280,11 @@ const SettingsPage = () => {
                     setForm({ ...form, storeNameEn: e.target.value })
                   }
                   placeholder={t("settings.store_name_en")}
+                  aria-invalid={!!fieldErrors.storeNameEn}
                 />
+                {fieldErrors.storeNameEn && (
+                  <p className="form-error" role="alert">{fieldErrors.storeNameEn}</p>
+                )}
               </div>
               <div className="form-group">
                 <label htmlFor="settings-store-name-ar">
@@ -247,7 +297,11 @@ const SettingsPage = () => {
                     setForm({ ...form, storeNameAr: e.target.value })
                   }
                   placeholder={t("settings.store_name_ar")}
+                  aria-invalid={!!fieldErrors.storeNameAr}
                 />
+                {fieldErrors.storeNameAr && (
+                  <p className="form-error" role="alert">{fieldErrors.storeNameAr}</p>
+                )}
               </div>
               <div className="form-group">
                 <label htmlFor="settings-currency">{t("settings.currency")}</label>
@@ -258,7 +312,11 @@ const SettingsPage = () => {
                     setForm({ ...form, currency: e.target.value })
                   }
                   placeholder="EGP"
+                  aria-invalid={!!fieldErrors.currency}
                 />
+                {fieldErrors.currency && (
+                  <p className="form-error" role="alert">{fieldErrors.currency}</p>
+                )}
                 <p className="settings-hint">{t("settings.currency_hint")}</p>
               </div>
               <div className="form-group">
@@ -270,7 +328,11 @@ const SettingsPage = () => {
                     setForm({ ...form, currencySymbol: e.target.value })
                   }
                   placeholder="LE"
+                  aria-invalid={!!fieldErrors.currencySymbol}
                 />
+                {fieldErrors.currencySymbol && (
+                  <p className="form-error" role="alert">{fieldErrors.currencySymbol}</p>
+                )}
                 <p className="settings-hint">{t("settings.currency_symbol_hint")}</p>
               </div>
               <div className="form-group">
@@ -404,7 +466,11 @@ const SettingsPage = () => {
                       ),
                     })
                   }
+                  aria-invalid={!!fieldErrors.lowStockThreshold}
                 />
+                {fieldErrors.lowStockThreshold && (
+                  <p className="form-error" role="alert">{fieldErrors.lowStockThreshold}</p>
+                )}
               </div>
               <div className="form-group form-group-narrow">
                 <label htmlFor="settings-stock-info-threshold">
@@ -424,7 +490,11 @@ const SettingsPage = () => {
                       ),
                     })
                   }
+                  aria-invalid={!!fieldErrors.stockInfoThreshold}
                 />
+                {fieldErrors.stockInfoThreshold && (
+                  <p className="form-error" role="alert">{fieldErrors.stockInfoThreshold}</p>
+                )}
               </div>
             </div>
           </section>
@@ -492,6 +562,9 @@ const SettingsPage = () => {
                   >
                     {t("common.delete")}
                   </button>
+                  {fieldErrors[`quickLink_${i}`] && (
+                    <p className="form-error" style={{ gridColumn: "1 / -1" }} role="alert">{fieldErrors[`quickLink_${i}`]}</p>
+                  )}
                 </div>
               ))}
               <button
@@ -581,7 +654,11 @@ const SettingsPage = () => {
                   placeholder={t(
                     "settings.order_notification_email_placeholder",
                   )}
+                  aria-invalid={!!fieldErrors.orderNotificationEmail}
                 />
+                {fieldErrors.orderNotificationEmail && (
+                  <p className="form-error" role="alert">{fieldErrors.orderNotificationEmail}</p>
+                )}
                 <p className="settings-hint">
                   {t("settings.order_notification_email_hint")}
                 </p>
@@ -664,7 +741,11 @@ const SettingsPage = () => {
                         setForm({ ...form, comingSoonMessageEn: e.target.value })
                       }
                       placeholder={t("settings.coming_soon_message_placeholder")}
+                      aria-invalid={!!fieldErrors.comingSoonMessageEn}
                     />
+                    {fieldErrors.comingSoonMessageEn && (
+                      <p className="form-error" role="alert">{fieldErrors.comingSoonMessageEn}</p>
+                    )}
                   </div>
                   <div className="form-group">
                     <label htmlFor="settings-coming-soon-message-ar">
@@ -679,7 +760,11 @@ const SettingsPage = () => {
                         setForm({ ...form, comingSoonMessageAr: e.target.value })
                       }
                       placeholder={t("settings.coming_soon_message_placeholder")}
+                      aria-invalid={!!fieldErrors.comingSoonMessageAr}
                     />
+                    {fieldErrors.comingSoonMessageAr && (
+                      <p className="form-error" role="alert">{fieldErrors.comingSoonMessageAr}</p>
+                    )}
                   </div>
                 </>
               )}
@@ -717,7 +802,11 @@ const SettingsPage = () => {
                         setForm({ ...form, underConstructionMessageEn: e.target.value })
                       }
                       placeholder={t("settings.under_construction_message_placeholder")}
+                      aria-invalid={!!fieldErrors.underConstructionMessageEn}
                     />
+                    {fieldErrors.underConstructionMessageEn && (
+                      <p className="form-error" role="alert">{fieldErrors.underConstructionMessageEn}</p>
+                    )}
                   </div>
                   <div className="form-group">
                     <label htmlFor="settings-under-construction-message-ar">
@@ -732,7 +821,11 @@ const SettingsPage = () => {
                         setForm({ ...form, underConstructionMessageAr: e.target.value })
                       }
                       placeholder={t("settings.under_construction_message_placeholder")}
+                      aria-invalid={!!fieldErrors.underConstructionMessageAr}
                     />
+                    {fieldErrors.underConstructionMessageAr && (
+                      <p className="form-error" role="alert">{fieldErrors.underConstructionMessageAr}</p>
+                    )}
                   </div>
                 </>
               )}

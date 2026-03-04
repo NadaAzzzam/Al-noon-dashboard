@@ -695,7 +695,14 @@
     "feedback_display_limit_hint": "0 = عرض كل الآراء المعتمدة. وإلا يعرض فقط أول N عنصر.",
     "save_settings": "حفظ الإعدادات",
     "failed_load": "فشل تحميل الإعدادات",
-    "failed_save": "فشل الحفظ"
+    "failed_save": "فشل الحفظ",
+    "validation_store_name_max": "اسم المتجر يجب ألا يتجاوز 200 حرف.",
+    "validation_email_invalid": "يرجى إدخال بريد إلكتروني صحيح.",
+    "validation_threshold_range": "يجب أن تكون القيمة بين 0 و 100,000.",
+    "validation_quick_link_incomplete": "الرابط السريع يجب أن يحتوي على التسمية (إنجليزي)، التسمية (عربي)، والرابط.",
+    "validation_currency_max": "يجب ألا يتجاوز 10 أحرف.",
+    "validation_message_max": "الرسالة يجب ألا تتجاوز 500 حرف.",
+    "validation_fix_errors": "يرجى تصحيح الأخطاء أدناه."
   },
   "discount_codes": {
     "title": "رموز الخصم",
