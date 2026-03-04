@@ -156,7 +156,7 @@ export const getStoreHome = asyncHandler(async (req, res) => {
     return sendResponse(res, req.locale ?? getDefaultLocale(), {
       data: {
         home: {
-          store: { storeName: storeDefaults.storeName, logo: storeDefaults.logo, quickLinks: storeDefaults.quickLinks, socialLinks: storeDefaults.socialLinks, newsletterEnabled: storeDefaults.newsletterEnabled, discountCodeSupported: true },
+          store: { storeName: storeDefaults.storeName, logo: storeDefaults.logo, quickLinks: storeDefaults.quickLinks, socialLinks: storeDefaults.socialLinks, newsletterEnabled: storeDefaults.newsletterEnabled, discountCodeSupported: true, comingSoonMode: false, underConstructionMode: false },
           hero: heroDefault,
           heroEnabled: storeDefaults.heroEnabled,
           newArrivals: [],
@@ -173,6 +173,10 @@ export const getStoreHome = asyncHandler(async (req, res) => {
   const settings = await Settings.findOne().lean();
   const s = settings ?? null;
   const homeCollectionsRaw = (s?.homeCollections ?? storeDefaults.homeCollections).sort((a, b) => a.order - b.order);
+  const comingSoonMode = Boolean((s as { comingSoonMode?: boolean })?.comingSoonMode);
+  const comingSoonMessage = (s as { comingSoonMessage?: { en?: string; ar?: string } })?.comingSoonMessage;
+  const underConstructionMode = Boolean((s as { underConstructionMode?: boolean })?.underConstructionMode);
+  const underConstructionMessage = (s as { underConstructionMessage?: { en?: string; ar?: string } })?.underConstructionMessage;
   // Remove duplicates by url (keep first occurrence)
   const seenUrls = new Set<string>();
   const homeCollections = homeCollectionsRaw.filter((c: { url?: string }) => {
@@ -241,7 +245,11 @@ export const getStoreHome = asyncHandler(async (req, res) => {
           quickLinks,
           socialLinks: s?.socialLinks ?? storeDefaults.socialLinks,
           newsletterEnabled: s?.newsletterEnabled ?? storeDefaults.newsletterEnabled,
-          discountCodeSupported
+          discountCodeSupported,
+          comingSoonMode,
+          ...(comingSoonMessage && { comingSoonMessage }),
+          underConstructionMode,
+          ...(underConstructionMessage && { underConstructionMessage })
         },
         hero,
         heroEnabled: s?.heroEnabled ?? storeDefaults.heroEnabled,
@@ -278,13 +286,15 @@ export const getStoreSettings = asyncHandler(async (req, res) => {
           contentPages: [] as { slug: string; title: { en: string; ar: string } }[],
           currency: currencyDefaults.currency,
           currencySymbol: currencyDefaults.currencySymbol,
-          discountCodeSupported: true
+          discountCodeSupported: true,
+          comingSoonMode: false,
+          underConstructionMode: false
         }
       }
     });
   }
   const settings = await Settings.findOne()
-    .select("storeName logo announcementBar socialLinks newsletterEnabled contentPages advancedSettings")
+    .select("storeName logo announcementBar socialLinks newsletterEnabled contentPages advancedSettings comingSoonMode comingSoonMessage underConstructionMode underConstructionMessage")
     .lean();
   const s = settings ?? null;
   const storeName = s?.storeName ?? storeDefaults.storeName;
@@ -300,9 +310,27 @@ export const getStoreSettings = asyncHandler(async (req, res) => {
   const currency = (advanced?.currency && String(advanced.currency).trim()) || currencyDefaults.currency;
   const currencySymbol = (advanced?.currencySymbol && String(advanced.currencySymbol).trim()) || currencyDefaults.currencySymbol;
   const discountCodeSupported = advanced?.discountCodeSupported ?? true;
+  const comingSoonMode = Boolean((s as { comingSoonMode?: boolean })?.comingSoonMode);
+  const comingSoonMessage = (s as { comingSoonMessage?: { en?: string; ar?: string } })?.comingSoonMessage;
+  const underConstructionMode = Boolean((s as { underConstructionMode?: boolean })?.underConstructionMode);
+  const underConstructionMessage = (s as { underConstructionMessage?: { en?: string; ar?: string } })?.underConstructionMessage;
   sendResponse(res, req.locale ?? getDefaultLocale(), {
     data: {
-      settings: { storeName, logo, announcementBar, socialLinks, newsletterEnabled, contentPages, currency, currencySymbol, discountCodeSupported }
+      settings: {
+        storeName,
+        logo,
+        announcementBar,
+        socialLinks,
+        newsletterEnabled,
+        contentPages,
+        currency,
+        currencySymbol,
+        discountCodeSupported,
+        comingSoonMode,
+        ...(comingSoonMessage && { comingSoonMessage }),
+        underConstructionMode,
+        ...(underConstructionMessage && { underConstructionMessage })
+      }
     }
   });
 });

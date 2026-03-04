@@ -434,6 +434,14 @@ export type Settings = {
   currency?: string;
   /** Currency symbol/prefix (e.g. LE) from settings API; used for price display. */
   currencySymbol?: string;
+  /** When true, storefront should show coming-soon page and redirect visitors. */
+  comingSoonMode?: boolean;
+  /** Optional message for the storefront coming-soon page (en/ar). */
+  comingSoonMessage?: LocalizedString;
+  /** When true, storefront should show under-construction page and redirect visitors. */
+  underConstructionMode?: boolean;
+  /** Optional message for the storefront under-construction page (en/ar). */
+  underConstructionMessage?: LocalizedString;
   advancedSettings?: {
     currency?: string;
     currencySymbol?: string;
@@ -501,6 +509,12 @@ export type SettingsPayload = Partial<{
   orderNotificationEmail?: string;
   currency?: string;
   currencySymbol?: string;
+  comingSoonMode?: boolean;
+  comingSoonMessageEn?: string;
+  comingSoonMessageAr?: string;
+  underConstructionMode?: boolean;
+  underConstructionMessageEn?: string;
+  underConstructionMessageAr?: string;
   aiAssistant?: {
     enabled?: boolean;
     geminiApiKey?: string;
@@ -522,6 +536,14 @@ export type StoreHomeData = {
     newsletterEnabled: boolean;
     /** When true, storefront shows discount code input at checkout. */
     discountCodeSupported?: boolean;
+    /** When true, storefront should show coming-soon page and redirect visitors. */
+    comingSoonMode?: boolean;
+    /** Optional message for the coming-soon page (en/ar). */
+    comingSoonMessage?: LocalizedString;
+    /** When true, storefront should show under-construction page and redirect visitors. */
+    underConstructionMode?: boolean;
+    /** Optional message for the under-construction page (en/ar). */
+    underConstructionMessage?: LocalizedString;
   };
   hero: HeroConfig;
   heroEnabled: boolean;

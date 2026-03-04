@@ -29,6 +29,12 @@ type SettingsForm = {
   newsletterEnabled: boolean;
   orderNotificationsEnabled: boolean;
   orderNotificationEmail: string;
+  comingSoonMode: boolean;
+  comingSoonMessageEn: string;
+  comingSoonMessageAr: string;
+  underConstructionMode: boolean;
+  underConstructionMessageEn: string;
+  underConstructionMessageAr: string;
 };
 
 const SettingsPage = () => {
@@ -51,6 +57,12 @@ const SettingsPage = () => {
     newsletterEnabled: true,
     orderNotificationsEnabled: false,
     orderNotificationEmail: "",
+    comingSoonMode: false,
+    comingSoonMessageEn: "",
+    comingSoonMessageAr: "",
+    underConstructionMode: false,
+    underConstructionMessageEn: "",
+    underConstructionMessageAr: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -101,6 +113,12 @@ const SettingsPage = () => {
           newsletterEnabled: d.newsletterEnabled ?? true,
           orderNotificationsEnabled: d.orderNotificationsEnabled ?? false,
           orderNotificationEmail: d.orderNotificationEmail ?? "",
+          comingSoonMode: d.comingSoonMode ?? false,
+          comingSoonMessageEn: typeof d.comingSoonMessage?.en === "string" ? d.comingSoonMessage.en : "",
+          comingSoonMessageAr: typeof d.comingSoonMessage?.ar === "string" ? d.comingSoonMessage.ar : "",
+          underConstructionMode: d.underConstructionMode ?? false,
+          underConstructionMessageEn: typeof d.underConstructionMessage?.en === "string" ? d.underConstructionMessage.en : "",
+          underConstructionMessageAr: typeof d.underConstructionMessage?.ar === "string" ? d.underConstructionMessage.ar : "",
         });
       })
       .catch(() => setError(t("settings.failed_load")));
@@ -160,6 +178,12 @@ const SettingsPage = () => {
         newsletterEnabled: form.newsletterEnabled,
         orderNotificationsEnabled: form.orderNotificationsEnabled,
         orderNotificationEmail: form.orderNotificationEmail.trim() || undefined,
+        comingSoonMode: form.comingSoonMode,
+        comingSoonMessageEn: form.comingSoonMessageEn.trim() || undefined,
+        comingSoonMessageAr: form.comingSoonMessageAr.trim() || undefined,
+        underConstructionMode: form.underConstructionMode,
+        underConstructionMessageEn: form.underConstructionMessageEn.trim() || undefined,
+        underConstructionMessageAr: form.underConstructionMessageAr.trim() || undefined,
       });
       setSaved(true);
     } catch (err) {
@@ -606,6 +630,112 @@ const SettingsPage = () => {
                   </p>
                 )}
               </div>
+            </div>
+          </section>
+          <section className="settings-section">
+            <h3 className="settings-section-title">
+              {t("settings.section_coming_soon")}
+            </h3>
+            <p className="settings-hint" style={{ marginBottom: 12 }}>
+              {t("settings.coming_soon_hint")}
+            </p>
+            <div className="settings-fields">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={form.comingSoonMode}
+                  onChange={(e) =>
+                    setForm({ ...form, comingSoonMode: e.target.checked })
+                  }
+                />
+                <span>{t("settings.coming_soon_enabled")}</span>
+              </label>
+              {form.comingSoonMode && (
+                <>
+                  <div className="form-group" style={{ marginTop: 12 }}>
+                    <label htmlFor="settings-coming-soon-message-en">
+                      {t("settings.coming_soon_message_en")}
+                    </label>
+                    <input
+                      id="settings-coming-soon-message-en"
+                      type="text"
+                      value={form.comingSoonMessageEn}
+                      onChange={(e) =>
+                        setForm({ ...form, comingSoonMessageEn: e.target.value })
+                      }
+                      placeholder={t("settings.coming_soon_message_placeholder")}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="settings-coming-soon-message-ar">
+                      {t("settings.coming_soon_message_ar")}
+                    </label>
+                    <input
+                      id="settings-coming-soon-message-ar"
+                      type="text"
+                      dir="rtl"
+                      value={form.comingSoonMessageAr}
+                      onChange={(e) =>
+                        setForm({ ...form, comingSoonMessageAr: e.target.value })
+                      }
+                      placeholder={t("settings.coming_soon_message_placeholder")}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+          <section className="settings-section">
+            <h3 className="settings-section-title">
+              {t("settings.section_under_construction")}
+            </h3>
+            <p className="settings-hint" style={{ marginBottom: 12 }}>
+              {t("settings.under_construction_hint")}
+            </p>
+            <div className="settings-fields">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={form.underConstructionMode}
+                  onChange={(e) =>
+                    setForm({ ...form, underConstructionMode: e.target.checked })
+                  }
+                />
+                <span>{t("settings.under_construction_enabled")}</span>
+              </label>
+              {form.underConstructionMode && (
+                <>
+                  <div className="form-group" style={{ marginTop: 12 }}>
+                    <label htmlFor="settings-under-construction-message-en">
+                      {t("settings.under_construction_message_en")}
+                    </label>
+                    <input
+                      id="settings-under-construction-message-en"
+                      type="text"
+                      value={form.underConstructionMessageEn}
+                      onChange={(e) =>
+                        setForm({ ...form, underConstructionMessageEn: e.target.value })
+                      }
+                      placeholder={t("settings.under_construction_message_placeholder")}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="settings-under-construction-message-ar">
+                      {t("settings.under_construction_message_ar")}
+                    </label>
+                    <input
+                      id="settings-under-construction-message-ar"
+                      type="text"
+                      dir="rtl"
+                      value={form.underConstructionMessageAr}
+                      onChange={(e) =>
+                        setForm({ ...form, underConstructionMessageAr: e.target.value })
+                      }
+                      placeholder={t("settings.under_construction_message_placeholder")}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </section>
           <section className="settings-section">

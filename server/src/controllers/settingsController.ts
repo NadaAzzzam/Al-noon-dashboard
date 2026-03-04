@@ -42,6 +42,8 @@ const defaults = {
   contentPages: [] as { slug: string; title: { en: string; ar: string }; content: { en: string; ar: string } }[],
   orderNotificationsEnabled: false,
   orderNotificationEmail: "",
+  comingSoonMode: false,
+  underConstructionMode: false,
   aiAssistant: {
     enabled: false,
     geminiApiKey: "",
@@ -94,13 +96,15 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
           newsletterEnabled: defaults.newsletterEnabled,
           contentPages: (defaults.contentPages as { slug: string; title: { en: string; ar: string } }[]).map((p) => ({ slug: p.slug, title: p.title })),
           currency: currencyDefaults.currency,
-          currencySymbol: currencyDefaults.currencySymbol
+          currencySymbol: currencyDefaults.currencySymbol,
+          comingSoonMode: false,
+          underConstructionMode: false
         }
       }
     });
   }
   const settings = await Settings.findOne()
-    .select("storeName logo announcementBar socialLinks newsletterEnabled contentPages advancedSettings")
+    .select("storeName logo announcementBar socialLinks newsletterEnabled contentPages advancedSettings comingSoonMode comingSoonMessage underConstructionMode underConstructionMessage")
     .lean();
   const s = settings as Record<string, unknown> | null;
   const storeName = s?.storeName ?? defaults.storeName;
@@ -115,6 +119,10 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
   const advanced = s?.advancedSettings as { currency?: string; currencySymbol?: string } | undefined;
   const currency = (advanced?.currency && String(advanced.currency).trim()) || currencyDefaults.currency;
   const currencySymbol = (advanced?.currencySymbol && String(advanced.currencySymbol).trim()) || currencyDefaults.currencySymbol;
+  const comingSoonMode = Boolean((s as { comingSoonMode?: boolean })?.comingSoonMode);
+  const comingSoonMessage = (s as { comingSoonMessage?: { en?: string; ar?: string } })?.comingSoonMessage;
+  const underConstructionMode = Boolean((s as { underConstructionMode?: boolean })?.underConstructionMode);
+  const underConstructionMessage = (s as { underConstructionMessage?: { en?: string; ar?: string } })?.underConstructionMessage;
   sendResponse(res, req.locale ?? getDefaultLocale(), {
     data: {
       settings: {
@@ -125,7 +133,11 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
         newsletterEnabled,
         contentPages,
         currency,
-        currencySymbol
+        currencySymbol,
+        comingSoonMode,
+        ...(comingSoonMessage && { comingSoonMessage }),
+        underConstructionMode,
+        ...(underConstructionMessage && { underConstructionMessage })
       }
     }
   });
@@ -325,6 +337,20 @@ export const updateSettings = asyncHandler(async (req, res) => {
       ...adv,
       ...(updates.currency !== undefined && { currency: String(updates.currency).trim() || "EGP" }),
       ...(updates.currencySymbol !== undefined && { currencySymbol: String(updates.currencySymbol).trim() || "LE" })
+    };
+  }
+  if (updates.comingSoonMode !== undefined) toSet.comingSoonMode = Boolean(updates.comingSoonMode);
+  if (updates.comingSoonMessageEn !== undefined || updates.comingSoonMessageAr !== undefined) {
+    toSet.comingSoonMessage = {
+      en: String(updates.comingSoonMessageEn ?? "").trim(),
+      ar: String(updates.comingSoonMessageAr ?? "").trim()
+    };
+  }
+  if (updates.underConstructionMode !== undefined) toSet.underConstructionMode = Boolean(updates.underConstructionMode);
+  if (updates.underConstructionMessageEn !== undefined || updates.underConstructionMessageAr !== undefined) {
+    toSet.underConstructionMessage = {
+      en: String(updates.underConstructionMessageEn ?? "").trim(),
+      ar: String(updates.underConstructionMessageAr ?? "").trim()
     };
   }
   const settings = await Settings.findOneAndUpdate(

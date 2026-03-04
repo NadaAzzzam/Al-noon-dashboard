@@ -30,11 +30,17 @@ declare module "vitest" {
   export function afterAll(fn: () => void | Promise<void>): void;
   export function beforeEach(fn: () => void | Promise<void>): void;
   export function afterEach(fn: () => void | Promise<void>): void;
+
+  type ViFnMock<T extends (...args: unknown[]) => unknown> = {
+    mockReturnValue: (v: unknown) => T & ViFnMock<T>;
+    mockResolvedValue: (v: unknown) => T & ViFnMock<T>;
+    mockReset: () => void;
+    mockImplementation: (impl: T) => T & ViFnMock<T>;
+    toHaveBeenCalledWith(...args: unknown[]): void;
+  };
+
   export const vi: {
     mock: (path: string, factory: () => unknown) => void;
-    fn: <T extends (...args: unknown[]) => unknown>(impl?: T) => T & {
-      mockReturnValue: (v: unknown) => T & { toHaveBeenCalledWith(...args: unknown[]): void };
-      toHaveBeenCalledWith(...args: unknown[]): void;
-    };
+    fn: <T extends (...args: unknown[]) => unknown>(impl?: T) => T & ViFnMock<T>;
   };
 }

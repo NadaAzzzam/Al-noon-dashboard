@@ -104,6 +104,14 @@ export interface SettingsDocument {
     catalogPageMeta?: { title: LocalizedString; description: LocalizedString };
     productPageMeta?: { titleSuffix: LocalizedString };
   };
+  /** When true, storefront should show a coming-soon page and redirect visitors to it. */
+  comingSoonMode: boolean;
+  /** Optional message shown on the storefront coming-soon page (en/ar). */
+  comingSoonMessage?: LocalizedString;
+  /** When true, storefront should show an under-construction page and redirect visitors to it. */
+  underConstructionMode: boolean;
+  /** Optional message shown on the storefront under-construction page (en/ar). */
+  underConstructionMessage?: LocalizedString;
   updatedAt: Date;
 }
 
@@ -215,7 +223,11 @@ const settingsSchema = new Schema<SettingsDocument>(
       productPageMeta: {
         titleSuffix: { type: localizedSchema, default: () => ({ en: " - Al-noon Store", ar: " - متجر النون" }) }
       }
-    }
+    },
+  comingSoonMode: { type: Boolean, default: false },
+  comingSoonMessage: { type: localizedSchema },
+  underConstructionMode: { type: Boolean, default: false },
+  underConstructionMessage: { type: localizedSchema }
   },
   { timestamps: true }
 );

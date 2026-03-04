@@ -83,7 +83,7 @@ Returns one object `data.home` with every section needed for the home page.
 
 | Field                    | Description                                                                                                                           |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `store`                  | `{ storeName, logo, quickLinks, socialLinks, newsletterEnabled }` – header/footer/newsletter                                          |
+| `store`                  | `{ storeName, logo, quickLinks, socialLinks, newsletterEnabled, discountCodeSupported, comingSoonMode?, comingSoonMessage?, underConstructionMode?, underConstructionMessage? }` – when **comingSoonMode** or **underConstructionMode** is true, redirect visitors to the corresponding page |
 | `hero`                   | `{ images[] (up to 3), videos[], title, subtitle, ctaLabel, ctaUrl }`                                                                 |
 | `heroEnabled`            | boolean – whether to show hero                                                                                                        |
 | `newArrivals`            | **Array of products** – each has `viewImage`, `hoverImage?`, `video?`, plus `_id`, `name`, `price`, `discountPrice`, `category`, etc. |
@@ -104,6 +104,20 @@ Use `viewImage` by default, `hoverImage` on hover, and `video` when showing prod
 
 ---
 
+### Coming soon mode (admin-controlled)
+
+- **`store.comingSoonMode`** (boolean): When **true**, the storefront should show a “Coming soon” page and **redirect all visitors** to it (e.g. `/coming-soon`). When **false**, show the normal site.
+- **`store.comingSoonMessage`** (optional `{ en, ar }`): Message to display on the coming-soon page. Omitted when empty.
+
+**Under construction mode (admin-controlled):**
+
+- **`store.underConstructionMode`** (boolean): When **true**, the storefront should show an “Under construction” page and **redirect all visitors** to it (e.g. `/under-construction`). When **false**, show the normal site (or coming-soon if that is enabled).
+- **`store.underConstructionMessage`** (optional `{ en, ar }`): Message to display on the under-construction page. Omitted when empty.
+
+**Implementation:** On app load (or when fetching settings/home), if `data.home.store.comingSoonMode === true`, redirect to your coming-soon route; if `data.home.store.underConstructionMode === true`, redirect to your under-construction route. Optionally use the corresponding message for the copy. When both are false, serve the normal frontsite pages.
+
+---
+
 ## 5. Prompt to paste into the e-commerce project
 
 ```
@@ -113,7 +127,7 @@ Our storefront talks to the Al-Noon dashboard API. Backend was updated for produ
 - **Error:** { success: false, message, code, data: null, details? }
 - **Rate limit:** 429 in production; back off and retry. Optional: send X-Request-Id for support.
 
-Home page: GET /store/home (or /api/store/home) → data.home with store, hero, newArrivals, homeCollections, feedbacks, announcementBar, promoBanner.
+Home page: GET /store/home (or /api/store/home) → data.home with store, hero, newArrivals, homeCollections, feedbacks, announcementBar, promoBanner. If store.comingSoonMode is true, redirect to your coming-soon page; if store.underConstructionMode is true, redirect to your under-construction page. Show store.comingSoonMessage or store.underConstructionMessage (en/ar) if set.
 
 Product shape everywhere: viewImage (required), hoverImage? (optional), video? (optional), plus _id, name, price, discountPrice, category, etc.
 ```
@@ -124,7 +138,9 @@ Product shape everywhere: viewImage (required), hoverImage? (optional), video? (
 
 | Feature       | Source                      | Usage                                         |
 | ------------- | --------------------------- | --------------------------------------------- |
-| **Full home** | GET /store/home → data.home | One request for all sections.                 |
+| **Full home** | GET /store/home → data.home | One request for all sections. If store.comingSoonMode or store.underConstructionMode is true, redirect to the corresponding page. |
+| **Coming soon** | data.home.store.comingSoonMode | When true, show coming-soon page and redirect; use store.comingSoonMessage (en/ar) for text. |
+| **Under construction** | data.home.store.underConstructionMode | When true, show under-construction page and redirect; use store.underConstructionMessage (en/ar) for text. |
 | Hero          | data.home.hero.images       | Up to 3 URLs; hero slider.                    |
 | New Arrivals  | data.home.newArrivals       | Products with viewImage, hoverImage?, video?. |
 | Collections   | data.home.homeCollections   | Per item: video if set, else image.           |

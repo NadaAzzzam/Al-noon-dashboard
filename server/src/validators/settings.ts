@@ -79,6 +79,12 @@ export const updateSettingsSchema = z.object({
       suggestedQuestions: z.array(z.object({ en: z.string().trim().max(200), ar: z.string().trim().max(200) })).max(10).optional()
     }).optional(),
     currency: z.string().trim().max(10).optional(),
-    currencySymbol: z.string().trim().max(10).optional()
+    currencySymbol: z.string().trim().max(10).optional(),
+    comingSoonMode: z.boolean().optional(),
+    comingSoonMessageEn: z.string().trim().max(500).optional(),
+    comingSoonMessageAr: z.string().trim().max(500).optional(),
+    underConstructionMode: z.boolean().optional(),
+    underConstructionMessageEn: z.string().trim().max(500).optional(),
+    underConstructionMessageAr: z.string().trim().max(500).optional()
   })
 });
