@@ -8,7 +8,7 @@ import {
   setFeedbackApproved,
   uploadFeedbackImage
 } from "../controllers/feedbackController.js";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   createFeedbackSchema,
@@ -21,7 +21,7 @@ import { uploadFeedbackImage as multerUploadFeedbackImage } from "../middlewares
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticateAdmin);
 
 router.get("/", requirePermission(["feedback.view"]), validate(listFeedbackQuerySchema), listFeedback);
 router.post("/upload-image", requirePermission(["feedback.manage"]), multerUploadFeedbackImage, uploadFeedbackImage);

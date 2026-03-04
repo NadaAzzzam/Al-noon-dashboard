@@ -19,10 +19,32 @@ declare module "express-serve-static-core" {
 }
 
 const AUTH_COOKIE_NAME = "al_noon_token";
+const AUTH_ADMIN_COOKIE_NAME = "al_noon_admin_token";
 
 export const authenticate = (req: Request, _res: Response, next: NextFunction) => {
   try {
     const cookieToken = req.cookies?.[AUTH_COOKIE_NAME];
+    const header = req.headers.authorization;
+    const bearerToken = header?.startsWith("Bearer ") ? header.split(" ")[1] : undefined;
+    const token = cookieToken ?? bearerToken;
+    if (!token) {
+      return next(new ApiError(401, "Missing authorization", { code: "errors.auth.unauthorized" }));
+    }
+    const payload = jwt.verify(token, env.jwtSecret) as AuthPayload;
+    req.auth = payload;
+    next();
+  } catch {
+    next(new ApiError(401, "Invalid token", { code: "errors.auth.unauthorized" }));
+  }
+};
+
+/**
+ * Admin-only authentication: accepts only the admin cookie or Bearer token.
+ * Use for dashboard/users/settings etc. so that sitefront customer login does not grant admin access.
+ */
+export const authenticateAdmin = (req: Request, _res: Response, next: NextFunction) => {
+  try {
+    const cookieToken = req.cookies?.[AUTH_ADMIN_COOKIE_NAME];
     const header = req.headers.authorization;
     const bearerToken = header?.startsWith("Bearer ") ? header.split(" ")[1] : undefined;
     const token = cookieToken ?? bearerToken;
@@ -56,6 +78,28 @@ export const optionalAuthenticate = (req: Request, _res: Response, next: NextFun
     next();
   } catch {
     next();
+  }
+};
+
+/**
+ * Accept either admin or customer token (admin cookie, then customer cookie, then Bearer).
+ * Use for GET /auth/profile so both admin dashboard and sitefront can call it.
+ */
+export const authenticateAny = (req: Request, _res: Response, next: NextFunction) => {
+  try {
+    const adminCookie = req.cookies?.[AUTH_ADMIN_COOKIE_NAME];
+    const customerCookie = req.cookies?.[AUTH_COOKIE_NAME];
+    const header = req.headers.authorization;
+    const bearerToken = header?.startsWith("Bearer ") ? header.split(" ")[1] : undefined;
+    const token = adminCookie ?? customerCookie ?? bearerToken;
+    if (!token) {
+      return next(new ApiError(401, "Missing authorization", { code: "errors.auth.unauthorized" }));
+    }
+    const payload = jwt.verify(token, env.jwtSecret) as AuthPayload;
+    req.auth = payload;
+    next();
+  } catch {
+    next(new ApiError(401, "Invalid token", { code: "errors.auth.unauthorized" }));
   }
 };
 

@@ -16,6 +16,8 @@ export const loginSchema = z.object({
     /** Required: Email (or admin@localhost for dev). */
     email: z.union([z.string().trim().toLowerCase().email("Valid email is required"), z.literal("admin@localhost")]),
     /** Required: Password (min 6 chars). */
-    password: z.string().min(6, "Password must be at least 6 characters")
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    /** When true, sets admin-only cookie (dashboard); when false/omitted, sets customer cookie (sitefront). */
+    admin: z.boolean().optional()
   })
 });

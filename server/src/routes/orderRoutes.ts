@@ -8,7 +8,7 @@ import {
   updateOrderStatus
 } from "../controllers/ordersController.js";
 import { attachPaymentProof, confirmPayment } from "../controllers/paymentsController.js";
-import { authenticate, optionalAuthenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, optionalAuthenticate, requirePermission } from "../middlewares/auth.js";
 import { idempotencyMiddleware } from "../middlewares/idempotency.js";
 import { validate } from "../middlewares/validate.js";
 import {
@@ -30,7 +30,7 @@ router.post("/", checkoutLimiter, idempotencyMiddleware, optionalAuthenticate, v
 router.get("/guest/:id", getGuestOrder);
 
 // All other order routes require authentication
-router.use(authenticate);
+router.use(authenticateAdmin);
 
 router.get("/", requirePermission(["orders.view"]), validate(orderQuerySchema), listOrders);
 router.get("/:id", requirePermission(["orders.view"]), validate(orderParamsSchema), getOrder);

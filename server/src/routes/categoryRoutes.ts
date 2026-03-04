@@ -6,7 +6,7 @@ import {
   setCategoryStatus,
   updateCategory
 } from "../controllers/categoriesController.js";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   categoryParamsSchema,
@@ -19,7 +19,7 @@ const router = Router();
 
 router.get("/", validate(categoryQuerySchema), listCategories);
 
-router.use(authenticate);
+router.use(authenticateAdmin);
 router.post("/", requirePermission(["categories.manage"]), validate(categorySchema), createCategory);
 router.put("/:id", requirePermission(["categories.manage"]), validate(categorySchema.merge(categoryParamsSchema)), updateCategory);
 router.patch("/:id/status", requirePermission(["categories.manage"]), validate(categoryStatusSchema), setCategoryStatus);

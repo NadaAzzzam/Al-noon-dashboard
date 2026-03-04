@@ -6,6 +6,7 @@ import { sendResponse } from "../utils/response.js";
 import * as authService from "../application/auth/authService.js";
 
 const AUTH_COOKIE_NAME = "al_noon_token";
+const AUTH_ADMIN_COOKIE_NAME = "al_noon_admin_token";
 
 /** Parse JWT expiresIn (e.g. "1d", "24h") to seconds for cookie maxAge */
 function expiresInToSeconds(expiresIn: string): number {
@@ -19,9 +20,10 @@ function expiresInToSeconds(expiresIn: string): number {
   return n; // seconds
 }
 
-function setAuthCookie(res: Response, token: string): void {
+function setAuthCookie(res: Response, token: string, admin: boolean): void {
   const isProduction = process.env.NODE_ENV === "production";
-  res.cookie(AUTH_COOKIE_NAME, token, {
+  const name = admin ? AUTH_ADMIN_COOKIE_NAME : AUTH_COOKIE_NAME;
+  res.cookie(name, token, {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "strict" : "lax",
@@ -33,7 +35,7 @@ function setAuthCookie(res: Response, token: string): void {
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
   const result = await authService.register({ name, email, password });
-  setAuthCookie(res, result.token);
+  setAuthCookie(res, result.token, false);
   sendResponse(res, req.locale, {
     status: 201,
     message: "success.auth.register",
@@ -44,10 +46,11 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
   const password = typeof req.body?.password === "string" ? req.body.password : "";
+  const admin = req.body?.admin === true;
 
   try {
     const result = await authService.login({ email, password });
-    setAuthCookie(res, result.token);
+    setAuthCookie(res, result.token, admin);
     sendResponse(res, req.locale, {
       message: "success.auth.login",
       data: { token: result.token, user: result.user }
@@ -56,7 +59,7 @@ export const login = asyncHandler(async (req, res) => {
     if (e instanceof ApiError) throw e;
     const devResult = await authService.login({ email: env.adminEmail, password: env.adminPassword }).catch(() => null);
     if (devResult) {
-      setAuthCookie(res, devResult.token);
+      setAuthCookie(res, devResult.token, admin);
       sendResponse(res, req.locale, {
         message: "success.auth.login",
         data: { token: devResult.token, user: devResult.user }
@@ -79,6 +82,8 @@ export const me = asyncHandler(async (req, res) => {
 });
 
 export const signOut = asyncHandler(async (req, res) => {
-  res.clearCookie(AUTH_COOKIE_NAME, { path: "/" });
+  const admin = req.body?.admin === true;
+  const name = admin ? AUTH_ADMIN_COOKIE_NAME : AUTH_COOKIE_NAME;
+  res.clearCookie(name, { path: "/" });
   sendResponse(res, req.locale, { status: 204 });
 });

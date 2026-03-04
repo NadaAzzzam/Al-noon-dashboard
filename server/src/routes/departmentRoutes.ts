@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   createDepartment,
@@ -16,7 +16,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticateAdmin);
 
 router.get("/", requirePermission(["departments.view"]), listDepartments);
 router.get("/:id", requirePermission(["departments.view"]), validate(idParamsSchema), getDepartment);

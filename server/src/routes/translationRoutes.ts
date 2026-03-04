@@ -8,7 +8,7 @@ import {
   bulkImportTranslations,
   exportTranslations,
 } from "../controllers/translationController";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 
 const router = express.Router();
 
@@ -16,12 +16,12 @@ const router = express.Router();
 router.get("/export", getTranslations); // Get translations in JSON format
 
 // Admin routes
-router.get("/", authenticate, requirePermission(["translations.manage"]), getTranslations);
-router.get("/key/:key", authenticate, requirePermission(["translations.manage"]), getTranslationByKey);
-router.post("/", authenticate, requirePermission(["translations.manage"]), createTranslation);
-router.put("/:id", authenticate, requirePermission(["translations.manage"]), updateTranslation);
-router.delete("/:id", authenticate, requirePermission(["translations.manage"]), deleteTranslation);
-router.post("/bulk-import", authenticate, requirePermission(["translations.manage"]), bulkImportTranslations);
-router.get("/export-json", authenticate, requirePermission(["translations.manage"]), exportTranslations);
+router.get("/", authenticateAdmin, requirePermission(["translations.manage"]), getTranslations);
+router.get("/key/:key", authenticateAdmin, requirePermission(["translations.manage"]), getTranslationByKey);
+router.post("/", authenticateAdmin, requirePermission(["translations.manage"]), createTranslation);
+router.put("/:id", authenticateAdmin, requirePermission(["translations.manage"]), updateTranslation);
+router.delete("/:id", authenticateAdmin, requirePermission(["translations.manage"]), deleteTranslation);
+router.post("/bulk-import", authenticateAdmin, requirePermission(["translations.manage"]), bulkImportTranslations);
+router.get("/export-json", authenticateAdmin, requirePermission(["translations.manage"]), exportTranslations);
 
 export default router;

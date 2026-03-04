@@ -32,4 +32,11 @@ describe("Auth API", () => {
       .send({ email: "not-an-email", password: "password123" });
     expect(res.status).toBe(400);
   });
+
+  it("POST /api/auth/sign-in accepts admin flag without changing validation", async () => {
+    const res = await request(app)
+      .post("/api/auth/sign-in")
+      .send({ email: "nonexistent@example.com", password: "wrongpassword", admin: true });
+    expect([400, 401, 404]).toContain(res.status);
+  });
 });

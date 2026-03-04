@@ -8,6 +8,7 @@ describe("Login E2E", () => {
   beforeEach(() => {
     cy.clearCookies();
     cy.clearLocalStorage();
+    cy.window().then((win) => win.sessionStorage.clear());
     cy.visit("/login", { timeout: 20000 });
   });
 
@@ -28,5 +29,13 @@ describe("Login E2E", () => {
     cy.get(sel.submit).click();
     cy.url({ timeout: 15000 }).should("not.include", "/login");
     cy.url().should("match", /\/(dashboard)?$/);
+  });
+
+  it("redirects to login when an API returns 403 Forbidden", () => {
+    cy.get(sel.submit).click();
+    cy.url({ timeout: 15000 }).should("not.include", "/login");
+    cy.intercept("GET", "**/api/**", { statusCode: 403, body: { success: false, message: "Forbidden" } }).as("api403");
+    cy.visit("/users", { timeout: 10000 });
+    cy.url({ timeout: 5000 }).should("include", "/login");
   });
 });

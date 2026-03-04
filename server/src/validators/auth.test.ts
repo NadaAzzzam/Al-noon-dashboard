@@ -47,6 +47,20 @@ describe("auth validators", () => {
       expect(result.success).toBe(true);
     });
 
+    it("accepts login with admin: true (dashboard)", () => {
+      const result = loginSchema.safeParse({
+        body: { email: "admin@example.com", password: "password123", admin: true },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts login without admin (storefront)", () => {
+      const result = loginSchema.safeParse({
+        body: { email: "user@example.com", password: "password123" },
+      });
+      expect(result.success).toBe(true);
+    });
+
     it("rejects invalid email", () => {
       const result = loginSchema.safeParse({
         body: { email: "not-an-email", password: "password123" },

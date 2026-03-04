@@ -648,7 +648,7 @@ function getApiLocale(): string {
   return localStorage.getItem("al_noon_lang") === "ar" ? "ar" : "en";
 }
 
-const AUTH_TOKEN_KEY = "al_noon_token";
+const AUTH_TOKEN_KEY = "al_noon_admin_token";
 export const getToken = () => sessionStorage.getItem(AUTH_TOKEN_KEY);
 export const setToken = (token: string) => sessionStorage.setItem(AUTH_TOKEN_KEY, token);
 export const clearToken = () => sessionStorage.removeItem(AUTH_TOKEN_KEY);
@@ -701,7 +701,7 @@ const request = async (path: string, options: RequestInit = {}): Promise<unknown
   if (!response.ok) {
     const { message, body, code } = await parseErrorResponse(response);
     showErrorToast(response.status, message, code);
-    if (response.status === 401 && !path.startsWith("/auth/")) {
+    if ((response.status === 401 || response.status === 403) && !path.startsWith("/auth/")) {
       clearToken();
       setCurrentUser(null);
       window.location.href = "/login";
@@ -721,13 +721,13 @@ const request = async (path: string, options: RequestInit = {}): Promise<unknown
 };
 
 export const api = {
-  /** POST /auth/sign-in – conventional name for login */
-  signIn: (email: string, password: string) =>
-    request("/auth/sign-in", { method: "POST", body: JSON.stringify({ email, password }) }),
+  /** POST /auth/sign-in – conventional name for login (admin dashboard sends admin: true) */
+  signIn: (email: string, password: string, admin = true) =>
+    request("/auth/sign-in", { method: "POST", body: JSON.stringify({ email, password, admin }) }),
   /** GET /auth/profile – current user (conventional name for "me") */
   getProfile: () => request("/auth/profile"),
-  /** POST /auth/sign-out – clear session (cookie + FE token) */
-  signOut: () => request("/auth/sign-out", { method: "POST" }),
+  /** POST /auth/sign-out – clear admin session (cookie + FE token) */
+  signOut: () => request("/auth/sign-out", { method: "POST", body: JSON.stringify({ admin: true }) }),
 
   listUsers: () => request("/users"),
   listUserRoleOptions: () => request("/users/role-options"),

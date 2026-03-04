@@ -12,7 +12,7 @@ import {
   uploadProductVideos
 } from "../controllers/productsController.js";
 import { updateStock } from "../controllers/inventoryController.js";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import { uploadProductImages as multerProductImages, uploadProductVideos as multerProductVideos } from "../middlewares/upload.js";
 import {
@@ -31,7 +31,7 @@ router.get("/", validate(productQuerySchema), listProducts);
 router.get("/:id/related", validate(productParamsSchema), getRelatedProducts);
 router.get("/:id", validate(productParamsSchema), getProduct);
 
-router.use(authenticate);
+router.use(authenticateAdmin);
 router.post("/images", requirePermission(["products.manage"]), multerProductImages, uploadProductImages);
 router.post("/videos", requirePermission(["products.manage"]), multerProductVideos, uploadProductVideos);
 router.post("/", requirePermission(["products.manage"]), validate(productSchema), createProduct);

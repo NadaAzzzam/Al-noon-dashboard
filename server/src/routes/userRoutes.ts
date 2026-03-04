@@ -7,13 +7,13 @@ import {
   updateUser,
   updateUserRole
 } from "../controllers/usersController.js";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import { createUserSchema, updateRoleSchema, updateUserSchema, userParamsSchema } from "../validators/users.js";
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticateAdmin);
 
 router.get("/", requirePermission(["users.view"]), listUsers);
 router.get("/role-options", requirePermission(["users.manage"]), listRoleOptions);

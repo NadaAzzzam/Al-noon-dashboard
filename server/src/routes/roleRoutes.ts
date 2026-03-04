@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requirePermission, requireRole } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission, requireRole } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   createRole,
@@ -13,7 +13,7 @@ import { idParamsSchema, roleCreateSchema, roleUpdateSchema } from "../validator
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticateAdmin);
 
 // List roles: allow roles.view OR departments.manage (for department form dropdown)
 router.get("/", requirePermission(["roles.view", "departments.manage"]), listRoles);

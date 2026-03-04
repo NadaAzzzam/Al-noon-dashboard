@@ -6,7 +6,7 @@ import {
   updateDiscountCode,
   deleteDiscountCode,
 } from "../controllers/discountCodeController.js";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   discountCodeCreateSchema,
@@ -16,7 +16,7 @@ import {
 
 const router = Router();
 
-router.use(authenticate as RequestHandler);
+router.use(authenticateAdmin as RequestHandler);
 router.get("/", listDiscountCodes);
 router.get("/:id", validate(discountCodeParamsSchema) as RequestHandler, getDiscountCode);
 router.post("/", requirePermission(["settings.manage"]), validate(discountCodeCreateSchema) as RequestHandler, createDiscountCode);

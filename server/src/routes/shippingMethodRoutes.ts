@@ -7,7 +7,7 @@ import {
   deleteShippingMethod,
   toggleShippingMethod,
 } from "../controllers/shippingMethodController";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 
 const router = express.Router();
 
@@ -15,10 +15,10 @@ const router = express.Router();
 router.get("/", getShippingMethods);
 
 // Admin routes
-router.get("/:id", authenticate, requirePermission(["shipping_methods.view"]), getShippingMethodById);
-router.post("/", authenticate, requirePermission(["shipping_methods.manage"]), createShippingMethod);
-router.put("/:id", authenticate, requirePermission(["shipping_methods.manage"]), updateShippingMethod);
-router.delete("/:id", authenticate, requirePermission(["shipping_methods.manage"]), deleteShippingMethod);
-router.patch("/:id/toggle", authenticate, requirePermission(["shipping_methods.manage"]), toggleShippingMethod);
+router.get("/:id", authenticateAdmin, requirePermission(["shipping_methods.view"]), getShippingMethodById);
+router.post("/", authenticateAdmin, requirePermission(["shipping_methods.manage"]), createShippingMethod);
+router.put("/:id", authenticateAdmin, requirePermission(["shipping_methods.manage"]), updateShippingMethod);
+router.delete("/:id", authenticateAdmin, requirePermission(["shipping_methods.manage"]), deleteShippingMethod);
+router.patch("/:id/toggle", authenticateAdmin, requirePermission(["shipping_methods.manage"]), toggleShippingMethod);
 
 export default router;

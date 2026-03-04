@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getSettings, getPublicSettings, updateSettings, sendTestOrderEmail, uploadLogo, uploadCollectionImage, uploadHeroImage, uploadSectionImage, uploadHeroVideo, uploadSectionVideo, uploadPromoImage, uploadHomePageMedia } from "../controllers/settingsController.js";
-import { authenticate, optionalAuthenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, optionalAuthenticate, requirePermission } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import { updateSettingsSchema } from "../validators/settings.js";
 import { uploadLogo as multerUploadLogo, uploadCollectionImage as multerUploadCollectionImage, uploadHeroImage as multerUploadHeroImage, uploadSectionImage as multerUploadSectionImage, uploadHeroVideo as multerUploadHeroVideo, uploadSectionVideo as multerUploadSectionVideo, uploadPromoImage as multerUploadPromoImage, createHomePageMediaUpload } from "../middlewares/upload.js";
@@ -13,7 +13,7 @@ router.get("/", optionalAuthenticate, (req, res, next) => {
   return getPublicSettings(req, res, next);
 });
 
-router.use(authenticate, requirePermission(["settings.manage"]));
+router.use(authenticateAdmin, requirePermission(["settings.manage"]));
 router.put("/", validate(updateSettingsSchema), updateSettings);
 router.post("/test-order-email", sendTestOrderEmail);
 router.post("/logo", multerUploadLogo, uploadLogo);

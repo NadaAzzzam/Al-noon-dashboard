@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { getStats, getTopSelling } from "../controllers/dashboardController.js";
-import { authenticate, requirePermission } from "../middlewares/auth.js";
+import { authenticateAdmin, requirePermission } from "../middlewares/auth.js";
 
 const router = Router();
 
-router.use(authenticate, requirePermission(["dashboard.view"]));
+router.use(authenticateAdmin, requirePermission(["dashboard.view"]));
 router.get("/top-selling", getTopSelling);
 router.get("/stats", getStats);
 

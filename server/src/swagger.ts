@@ -117,6 +117,7 @@ function buildPaths() {
       operationId: "signIn",
       tags: ["Auth"],
       summary: "Sign in",
+      description: "Sets cookie and returns token and user. Use `admin: true` for dashboard (sets `al_noon_admin_token`); omit or `admin: false` for storefront (sets `al_noon_token`).",
       requestBody: {
         required: true,
         content: {
@@ -127,6 +128,7 @@ function buildPaths() {
               properties: {
                 email: { type: "string", format: "email" },
                 password: { type: "string", minLength: 6, description: "Required, min 6 characters" },
+                admin: { type: "boolean", description: "When true, sets admin cookie (dashboard); when false/omitted, sets customer cookie (storefront)" },
               },
             },
           },
@@ -134,6 +136,7 @@ function buildPaths() {
       },
       responses: {
         "200": { description: "Success; sets cookie and returns token and user", ...refSchema("AuthResponse") },
+        "400": errDesc("Validation error"),
         "401": errDesc("Invalid credentials"),
       },
     },
@@ -186,9 +189,23 @@ function buildPaths() {
       operationId: "signOut",
       tags: ["Auth"],
       summary: "Sign out",
+      description: "Clears the session cookie. Send `admin: true` in body to clear admin cookie; omit or `admin: false` to clear customer cookie.",
       security: [{ bearerAuth: [] }],
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                admin: { type: "boolean", description: "When true, clears admin cookie (dashboard); when false/omitted, clears customer cookie (storefront)" },
+              },
+            },
+          },
+        },
+      },
       responses: {
-        "200": { description: "Signed out", ...refSchema("SignOutResponse") },
+        "204": { description: "Signed out; cookie cleared" },
         "401": errDesc("Unauthorized"),
       },
     },
@@ -1982,7 +1999,7 @@ export const swaggerSpec = {
         type: "http",
         scheme: "bearer",
         bearerFormat: "JWT",
-        description: "JWT from sign-in (cookie `al_noon_token` or Authorization: Bearer <token>)",
+        description: "JWT from sign-in. Admin routes use cookie `al_noon_admin_token` or Authorization: Bearer <token>. Storefront/customer routes use cookie `al_noon_token` or Bearer.",
       },
     },
     schemas: {
