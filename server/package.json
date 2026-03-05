@@ -25,6 +25,8 @@
     "seed:test": "tsx src/utils/seedTestData.ts",
     "migrate:product-slugs": "tsx scripts/migrate-product-slugs.ts",
     "download-seed-images": "tsx scripts/downloadSeedImages.ts",
+    "db:stats": "tsx scripts/db-stats.ts",
+    "db:sync-to-atlas": "tsx scripts/db-sync-to-atlas.ts",
     "lint": "eslint . --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest",
